@@ -1,0 +1,22 @@
+#以下是给各位的例子
+devices:
+  SW1:
+    host: 192.168.91.111
+    username: "11"
+    password: 2005qazwsx
+    device_type: hp_comware
+  SW2:
+    host: 192.168.91.112
+    username: "12"
+    password: 2005edcrfv
+    device_type: hp_comware
+  SW3:
+    host: 192.168.91.113
+    username: "13"
+    password: 2005tgbyhn
+    device_type: hp_comware
+  SW4:
+    host: 192.168.91.114
+    username: "14"
+    password: 2005ujmikq
+    device_type: hp_comware
