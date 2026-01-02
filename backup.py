@@ -5,7 +5,7 @@ from netmiko import ConnectHandler
 import yaml
 from log_setup import setup_logger
 
-logger = setup_logger(__name__, "backup.log")
+logger = setup_logger("netdevops_backup", "backup.log")
 
 
 # 第一步创建一个可以读取yaml文件的自定义函数

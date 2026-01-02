@@ -5,7 +5,7 @@ from netmiko import ConnectHandler
 import yaml
 from log_setup import setup_logger
 
-logger = setup_logger(__name__, "health_check.log")
+logger = setup_logger("netdevops_health_check", "health_check.log")
 
 
 # 第一步：定义可以读取yml文件的函数
