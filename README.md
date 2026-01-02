@@ -78,9 +78,14 @@ devices:
   ├── devices.yaml # 设备信息配置文件（需用户自行编写）
   ├── README.md # 项目说明文档（本文件）
   ├── LICENSE # 开源许可证（MIT）
+  ├── log_setup.py #创建日志配置模块
   ├── backupN1/ # 备份文件归档目录（自动生成）
   │ ├── 192.168.91.111__配置__20240520-143025.txt
   │ └── 192.168.91.112__配置__20240520-143030.txt
+  ├── logs/ #日志文件归档目录（自动生成）
+  │ ├── backup.log
+  │ └── health_check.log
+  |
   └── health_check_report.txt # 健康检查报告（自动生成）```
 
 

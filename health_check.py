@@ -1,11 +1,11 @@
 import os
 import argparse
 import re
-from socket import timeout
-from turtle import down
-from unittest import result
 from netmiko import ConnectHandler
 import yaml
+from log_setup import setup_logger
+
+logger = setup_logger(__name__, "health_check.log")
 
 
 # 第一步：定义可以读取yml文件的函数
@@ -22,17 +22,17 @@ def read_devices_yml(filename):
                     "password": device_info["password"],
                     "port": 22,
                 }
-                print(f"-已经读取{device_name}  ({device_info['host']})\n")
+                logger.info(f"-已经读取{device_name}  ({device_info['host']})\n")
                 device_list.append(devices)
             return device_list
     except FileNotFoundError:
-        print("错误：未找到对应文件！")
+        logger.critical("错误：未找到对应文件！")
         return device_list
     except KeyError as e:
-        print(f"错误：相应文件内键值存在问题  {e}")
+        logger.critical(f"错误：相应文件内键值存在问题  {e}")
         return device_list
     except yaml.YAMLError as e:
-        print(f"错误：未成功解析相应的文件！ {e}")
+        logger.critical(f"错误：未成功解析相应的文件！ {e}")
         return device_list
 
 
@@ -51,9 +51,9 @@ def check_interface_status(connections):
             elif "DOWN" in line:
                 down_interface += 1
         total_interface = up_interface + down_interface
-        return total_interface, up_interface, down_interface
+        return total_interface, up_interface, down_interface, error_massage
     except Exception as e:
-        print(f"错误：【子功能】检查接口状态出错 {e}")
+        logger.error(f"错误：【子功能】检查接口状态出错 {e}")
         error_massage = "检查端口状态失败"
         return 0, 0, 0, error_massage
 
@@ -67,13 +67,13 @@ def check_cpu_usage(connections):
             if "seconds" in line:
                 match = re.search(r"(\d+)%", line)
                 if match:
-                    return f"{match.group(1)}%"
+                    return f"{match.group(1)}%", error_massage
                 else:
-                    print("并未查询到CPU使用率！")
+                    logger.error("并未查询到CPU使用率！")
                     return "N/A", error_massage
         return "N/A", error_massage
     except Exception as e:
-        print(f"错误：【子功能】检查CPU使用率出错！ {e}")
+        logger.error(f"错误：【子功能】检查CPU使用率出错！ {e}")
         error_massage = "检查CPU使用率失败！"
         return "N/A", error_massage
 
@@ -89,20 +89,20 @@ def check_memory_usage(connections):
             if "Memory" in line and "usage" in line:
                 match = re.search(r"(\d+)%", line)
                 if match:
-                    return f"{match.group(1)}%"
+                    return f"{match.group(1)}%", error_massage
                 else:
-                    print("并未查询到内存使用率！")
+                    logger.error("并未查询到内存使用率！")
                     return "N/A", error_massage
         return "N/A", error_massage
     except Exception as e:
-        print(f"错误：【子功能】检查内存使用率出错！ {e}")
+        logger.error(f"错误：【子功能】检查内存使用率出错！ {e}")
         error_massage = "检查内存使用率失败"
         return "N/A", error_massage
 
 
 # 第五步对单个设备进行检查
 def check_single_device(device_info):
-    print(f"正在连接设备{device_info['host']}......")
+    logger.info(f"正在连接设备{device_info['host']}......")
     connections = None
     results = {
         "host": device_info["host"],
@@ -116,8 +116,8 @@ def check_single_device(device_info):
     }
     try:
         connections = ConnectHandler(**device_info)
-        print("连接成功！")
-        print(f"正在检查设备{device_info['host']}的各项状态.......")
+        logger.info("连接成功！")
+        logger.info(f"正在检查设备{device_info['host']}的各项状态.......")
         try:
             total_interface, up_interface, down_interface, if_error = check_interface_status(connections)
             if if_error:
@@ -149,29 +149,29 @@ def check_single_device(device_info):
                 "memory_usage": memory_usage,
             }
         )
-        print("检查成功！")
-        print(f"-设备：{results['host']}")
-        print(f"-活跃端口（UP）数量：{results['up_interface']}")
-        print(f"-活跃端口（UP）数量/设备总接口数：{results['up_interface']}/{results['total_interface']}")
-        print(f"-CPU使用率：{results['CPU_usage']}")
-        print(f"-内存使用率：{results['memory_usage']}")
+        logger.info("检查成功！")
+        logger.info(f"-设备：{results['host']}")
+        logger.info(f"-活跃端口（UP）数量：{results['up_interface']}")
+        logger.info(f"-活跃端口（UP）数量/设备总接口数：{results['up_interface']}/{results['total_interface']}")
+        logger.info(f"-CPU使用率：{results['CPU_usage']}")
+        logger.info(f"-内存使用率：{results['memory_usage']}")
         if results["down_interface"] > 0:
-            print(f"-端口存在异常：{results['down_interface']}个DOWN端口！")
+            logger.warning(f"-端口存在异常：{results['down_interface']}个DOWN端口！")
         if results["error_message"]:
-            print(f"-错误信息：{results['error_message']}")
-        print("检查完毕！")
+            logger.warning(f"-错误信息：{results['error_message']}")
+        logger.info("检查完毕！")
         return results
     except Exception as e:
         error_msg = str(e)
-        print("连接失败！")
+        logger.error("连接失败！")
         if "Authentication" in error_msg:
-            print(f"   原因：认证失败！请检查用户名/密码！")
+            logger.error(f"   原因：认证失败！请检查用户名/密码！")
         elif "Timeout" in error_msg:
-            print(f"   原因：连接超时，设备可能不可达或防火墙阻断！")
+            logger.error(f"   原因：连接超时，设备可能不可达或防火墙阻断！")
         elif "DNS failure" in error_msg:
-            print(f"   原因：无法解析主机名！请检查IP地址")
+            logger.error(f"   原因：无法解析主机名！请检查IP地址")
         else:
-            print(f"   原因：{e[:50]}......")
+            logger.error(f"   原因：{e[:50]}......")
         results.update({"status": "失败", "error_message": error_msg[:100]})
         return results
     finally:
@@ -196,7 +196,7 @@ def write_health_report(results, filename):
                 cpu = res.get("CPU_usage", "N/A")
                 memory = res.get("memory_usage", "N/A")
                 error_msg = res.get("error_message", "未知")
-                f.write("\n-设备：{host}\n")
+                f.write(f"\n-设备：{host}\n")
                 f.write(f"-活跃端口（UP）数量：{up}\n")
                 f.write(f"-活跃端口（UP）数量/设备总接口数：{up}/{total}\n")
                 f.write(f"-CPU使用率：{cpu}\n")
@@ -206,16 +206,16 @@ def write_health_report(results, filename):
                 if error_msg:
                     f.write(f"-错误信息：{error_msg}\n")
     except Exception as e:
-        print(f"写检查报告时出现严重错误：{e}")
+        logger.error(f"写检查报告时出现严重错误：{e}")
 
 
 # 第七步：写主函数
 def main():
-    print("----网络设备检查脚本（支持多个设备同时检查）----\n")
-    print("=" * 60)
+    logger.info("----网络设备检查脚本（支持多个设备同时检查）----\n")
+    logger.info("=" * 60)
     devices = read_devices_yml("devices.yaml")  # 文件名需自己填！
     if not devices:
-        print("未读取任何设备！请查看出错原因！")
+        logger.error("未读取任何设备！请查看出错原因！")
         return
     parse = argparse.ArgumentParser(description="网络设备自动检查脚本")
     parse.add_argument("--all", action="store_true", help="模式：检查所有已经读的取设备")
@@ -223,37 +223,37 @@ def main():
     args = parse.parse_args()
     target_devices = []
     if args.all:
-        print(f"模式：检查已经读取的所有设备！ 共{len(devices)}台设备")
+        logger.info(f"模式：检查已经读取的所有设备！ 共{len(devices)}台设备")
         target_devices = devices
     elif args.ip:
-        print(f"模式：指定一个设备或者多个设备开始进行检查")
+        logger.info(f"模式：指定一个设备或者多个设备开始进行检查")
         for ip in args.ip:
             match = [d for d in devices if d["host"] == ip]
             if match:
-                print(f"已经将{ip}加入到检查列表当中！")
+                logger.info(f"已经将{ip}加入到检查列表当中！")
                 target_devices.extend(match)
             else:
-                print(f"并未查询到此IP，已跳过此IP！")
+                logger.warning(f"并未查询到此IP，已跳过此IP！")
     else:
-        print("请输入有效命令，--help查看帮助")
+        logger.error("请输入有效命令，--help查看帮助")
         parse.print_help()
     device_results = []
     success = 0
     total_down_interface = 0
     for device in target_devices:
-        print(f"正在准备检查设备:{device['host']}.......")
+        logger.info(f"正在准备检查设备:{device['host']}.......")
         device_result = check_single_device(device)
         if device_result["status"] == "成功":
             success += 1
             total_down_interface += device_result["down_interface"]
         device_results.append(device_result)
-    print("检查设备健康完毕！")
-    print("=" * 60)
-    print(f"\n成功检查设备/已经读取的设备：{success}/{len(devices)}")
-    print(f"总共的DOWN接口数：{total_down_interface}")
-    print("\n记得查看备份之后的文件哦！")
+    logger.info("检查设备健康完毕！")
+    logger.info("=" * 60)
+    logger.info(f"\n成功检查设备/已经读取的设备：{success}/{len(devices)}")
+    logger.info(f"总共的DOWN接口数：{total_down_interface}")
+    logger.info("\n记得查看备份之后的文件哦！")
     write_health_report(device_results, "health_check_report.txt")
-    print(f"检查报告书写完毕！名称：health_check_report.txt")
+    logger.info(f"检查报告书写完毕！名称：health_check_report.txt")
 
 
 if __name__ == "__main__":
