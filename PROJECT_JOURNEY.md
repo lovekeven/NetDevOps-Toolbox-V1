@@ -12,7 +12,7 @@
 - **学到的知识**：
   - 1.`sys.path`的搜索顺序决定模块优先级,并且他是运行的时候，才会查询目录，默认是查询运行脚本时当前目录
   - 2.`pytest -v`会查询子文件夹，有递归。`pytest -v -no-recyrseondirs`禁用递归仅当前目录
-- **提交哈希**：`i8j9k0l`（代码回溯：git checkout i8j9k0l）
+- **提交哈希**：`3bb695d `（代码回溯：git checkout `3bb695d` ,git checkout --detach `3bb695d`，git checkout main（取消回溯））
 
 ## 2026年1月2日：重构日志系统，实现统一配置模块
 - **优化目标**：增加日志器
