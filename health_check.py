@@ -9,12 +9,16 @@ logger = setup_logger("netdevops_health_check", "health_check.log")
 
 
 # 第一步：定义可以读取yml文件的函数
-def read_devices_yml(filename):
+def read_devices_yml(filename="devices.yaml", yaml_connect=None):
     device_list = []
     try:
-        with open(filename, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            for device_name, device_info in data["devices"].items():
+        if yaml_connect:
+            data = yaml.safe_load(yaml_connect)  # 解析空白字符串 → data = None
+        else:
+            with open(filename, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+        if data != None:
+            for device_name, device_info in data["devices"].items():  # data = None 就会出错
                 devices = {
                     "device_type": device_info["device_type"],
                     "host": device_info["host"],
@@ -25,6 +29,9 @@ def read_devices_yml(filename):
                 logger.info(f"-已经读取{device_name}  ({device_info['host']})\n")
                 device_list.append(devices)
             return device_list
+        else:
+            return device_list
+
     except FileNotFoundError:
         logger.critical("错误：未找到对应文件！")
         return device_list
@@ -213,7 +220,7 @@ def write_health_report(results, filename):
 def main():
     logger.info("----网络设备检查脚本（支持多个设备同时检查）----\n")
     logger.info("=" * 60)
-    devices = read_devices_yml("devices.yaml")  # 文件名需自己填！
+    devices = read_devices_yml()  # 文件名需自己填！
     if not devices:
         logger.error("未读取任何设备！请查看出错原因！")
         return
