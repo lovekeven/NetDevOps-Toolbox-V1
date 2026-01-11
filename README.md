@@ -80,6 +80,8 @@ pip install netmiko>=4.0.0 pyyaml>=6.0
   - ├── LICENSE # 开源许可证（MIT）
   - ├── log_setup.py #创建日志配置模块
   - ├── test_device_reader.py #测试函数脚本
+  - ├── api_checker.py #API模块，可以查询云端服务器和设备
+  - ├── retry_decorator.py #装饰器模块
   - ├── PROJECT_JOURNEY.md #王建壮的网络工具箱项目演技和优化的日志
   - ├── backupN1/ # 备份文件归档目录（自动生成）
   - ├ ├── 192.168.91.111__配置__20240520-143025.txt

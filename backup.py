@@ -4,6 +4,7 @@ import argparse
 from netmiko import ConnectHandler
 import yaml
 from log_setup import setup_logger
+from retry_decorator import ssh_retry
 
 logger = setup_logger("netdevops_backup", "backup.log")
 
@@ -37,6 +38,7 @@ def read_devices_yml(filename):
 
 
 # 第二步：对单个设备进行备份
+@ssh_retry
 def backup_single_device(device_info):
     logger.info(f"正在尝试连接{device_info['host']}......")
     connections = None
@@ -65,7 +67,8 @@ def backup_single_device(device_info):
             logger.error(f"   原因：无法解析主机名！请检查IP地址")
         else:
             logger.error(f"   原因：{error_msg[:50]}......")
-        return False
+        raise  # 这里不可以反回FLase，因为如果返回的话，在装饰器里面是判定该语句执行成功，这样就不会触发重试机制
+    # 谁调用它，他就把错误抛给谁，现在他把错误抛给了装饰器，而且装饰器也有raise，装饰器把异常抛给了，调用装饰器的主函数
     finally:
         if connections:
             try:
@@ -105,8 +108,11 @@ def main():
     success = 0
     for device in target_devices:
         logger.info(f"正在准备备份设备{device['host']}......")
-        if backup_single_device(device):
-            success += 1
+        try:
+            if backup_single_device(device):
+                success += 1
+        except Exception as e:  # 他最后收到别人抛出来的异常！优雅的解决异常！
+            logger.warning(f"设备{device['host']} 重试耗尽后仍连接失败，跳过该设备")
     logger.info("=" * 60)
     logger.info(f"\n成功备份设备/已经读取的设备：{success}/{len(devices)}")
     logger.info("\n记得查看备份之后的文件哦！")

@@ -1,6 +1,18 @@
 # NetDevOps 工具箱项目演进日志
 
 > 记录每一次。
+## 2026年1月1日：装饰器（重试机制）和新增API模块
+- **优化目标**：为函数`backup.py`和`api_checker.py`增加容错率
+- **技术**：
+  - 1.从`typling`模块中引入了类型注解：`Dict, Any, Optional，Callable`等等
+  - 2.API模块中定义了类（可调用）
+- **具体改动**：
+  - 1.在API模块里定义查寻云端服务器的函数，和查询设备的函数
+  - 2.在`backup.py`模块里引入装饰器，增加容错率
+- **学到的知识**：
+  - 1.`sys.path`的搜索顺序决定模块优先级,并且他是运行的时候，才会查询目录，默认是查询运行脚本时当前目录
+  - 2.`pytest -v`会查询子文件夹，有递归。`pytest -v -no-recyrseondirs`禁用递归仅当前目录
+- **提交哈希**：`3bb695d `（代码回溯：git checkout `3bb695d` ,git checkout --detach `3bb695d`，git checkout main（取消回溯））
 
 ## 2026年1月3日：引入单元测试
 - **优化目标**：为核心函数 `read_devices_yml` 增加质量保障,方便测试呗
