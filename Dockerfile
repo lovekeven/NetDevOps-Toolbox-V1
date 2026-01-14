@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ -r req
 #5.--no-cache-dir、-i、-r → pip 工具的专属参数，作用是给 pip install 命令传递配置，控制 pip 的安装行为，和 Docker 无关
 COPY . /app/
 #把蛋糕胚，也就是这个项目根目录下面所有的文件（.），放到操作台上给厨师操作（/app/）,让他结合刚买来的调料
-CMD [ "python","main.py" ]
-#1.容器启动后，自动在 /app 目录下执行 python main.py 命令（运行你的项目主程序）
-#2.在虚拟机本地项目根目录执行 python main.py 启动项目的效果完全一致，只不过这是容器内自动执行的
+CMD [ "python","web_dashboard.py" ]
+#1.容器启动后，自动在 /app 目录下执行 python web_dashboard.py 命令（运行你的项目主程序）
+#2.在虚拟机本地项目根目录执行 python web_dashboard.py启动项目的效果完全一致，只不过这是容器内自动执行的
 #3.CMD：Dockerfile 专属指令，核心作用是「指定容器启动时，默认要执行的命令」
