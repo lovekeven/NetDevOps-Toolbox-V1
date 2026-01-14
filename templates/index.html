@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>我的NetDevOps工具箱</title>
+    <!-- 引入 Bootstrap 样式，保证页面美观 -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* 轻微优化页面视觉，避免纯白单调，不破坏 Bootstrap 原有风格 */
+        body {
+            background-color: #f8f9fa;
+        }
+        .card-header {
+            background-color: #e9f5ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <!-- 页面标题区域 -->
+        <h1 class="text-primary">🛠️ NetDevOps工具箱仪表盘</h1>
+        <p class="text-muted">这是我的第一个自动化运维Web界面！（无需修改Python脚本）</p>
+
+        <!-- 【任务3新增：API服务状态卡片】放在设备列表卡片上方，样式与原有页面统一 -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">🔌 API服务状态</h5>
+                        <p id="api-status">检查中...</p>
+                        <button id="refresh-api-btn" onclick="checkApiStatus()" class="btn btn-sm btn-info">刷新状态</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设备列表卡片 -->
+        <div class="card mt-4 shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">🖧 设备状态总览</h5>
+            </div>
+            <div class="card-body bg-white">
+                <!-- 响应式表格，支持小屏幕自适应 -->
+                <table class="table table-hover table-striped align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>设备名</th>
+                            <th>IP地址</th>
+                            <th>设备类型</th>
+                            <th>设备状态</th>
+                            <!-- 【新增1：备份状态列】专门展示备份结果，不破坏原有设备状态 -->
+                            <th>备份状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 循环遍历 Python 脚本传递的 devices 列表，无需修改 -->
+                        {% for device in devices %}
+                        <tr>
+                            <!-- 对应 Python 脚本中的 device_name 字段（SW1/SW2 等） -->
+                            <td>{{ device.device_name }}</td>
+                            <!-- 对应 Python 脚本中的 host 字段（设备 IP 地址） -->
+                            <td>{{ device.host }}</td>
+                            <!-- 对应 Python 脚本中的 device_type 字段（hp_comware），加轻微美化 -->
+                            <td>
+                                <span class="badge bg-info text-dark">{{ device.device_type }}</span>
+                            </td>
+                            <!-- 【保留】设备状态列，带 device-status 类名 -->
+                            <td class="device-status">
+                                {% if device.status == '在线' %}
+                                <span class="badge bg-success">在线</span>
+                                {% else %}
+                                <span class="badge bg-danger">离线</span>
+                                {% endif %}
+                            </td>
+                            <!-- 【新增2：备份状态单元格】带 backup-status 类名，供JS更新备份结果 -->
+                            <td class="backup-status">
+                                <span class="badge bg-secondary">未备份</span>
+                            </td>
+                            <!-- 【修改：操作列新增备份按钮】与健康检查按钮并排，样式协调 -->
+                            <td>
+                                <!-- 健康检查按钮（保留原有功能） -->
+                                <button class="btn btn-sm btn-outline-primary health-check-btn" data-hostname="{{ device.device_name }}">
+                                    健康检查
+                                </button>
+                                <!-- 备份按钮（新增，样式协调，带专属类名和数据属性） -->
+                                <button class="btn btn-sm btn-outline-secondary backup-btn ms-1" data-hostname="{{ device.device_name }}">
+                                    备份设备
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 页脚区域，显示设备总数 -->
+        <footer class="mt-4 text-center text-muted">
+            <small>版本 0.5.0 | 基于Flask构建 | 设备总数: {{ devices|length }} 台</small>
+        </footer>
+    </div>
+
+   <!-- 【保留】健康检查功能JS脚本（无需修改，与后端返回`ok`状态匹配） -->
+<script>
+// 为所有“健康检查”按钮添加点击事件
+document.querySelectorAll('.health-check-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        // 1. 获取按钮绑定的设备名和当前行的状态单元格
+        const hostname = this.getAttribute('data-hostname');
+        const statusCell = this.closest('tr').querySelector('.device-status');
+        
+        // 2. 点击后立即更新按钮和状态，给出加载反馈（防止重复点击）
+        const originalText = this.textContent;
+        this.textContent = '检查中...';
+        this.disabled = true;
+        statusCell.innerHTML = '<span class="badge bg-warning">检查中</span>';
+        
+        // 3. 调用后端健康检查API
+        fetch(`/api/health/${hostname}`)
+            // 处理非200状态码
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`请求失败，状态码：${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 与后端约定：健康检查成功返回 status: "ok"（无需修改，匹配后端）
+                if (data.status && data.status.toLowerCase() === '成功') {
+                    // 改良点1：先显示「检查成功」反馈（短暂提示用户），再恢复「在线」长期状态
+                    // 步骤1：立即渲染「本次检查成功」
+                    statusCell.innerHTML = '<span class="badge bg-info">检查成功</span>';
+                    // 步骤2：3秒后自动恢复「在线」状态（兼顾用户反馈和长期状态展示，可调整延时）
+                    setTimeout(() => {
+                        statusCell.innerHTML = '<span class="badge bg-success">在线</span>';
+                    }, 3000);
+                } else {
+                    // 改良点2：非成功状态直接渲染「异常」，无延时（明确设备故障）
+                    statusCell.innerHTML = '<span class="badge bg-danger">异常</span>';
+                }
+                console.log('健康检查详细结果:', data);
+            })
+            // 捕获异常
+            .catch(error => {
+                statusCell.innerHTML = '<span class="badge bg-secondary">失败</span>';
+                console.error('健康检查请求失败:', error);
+            })
+            // 恢复按钮状态
+            .finally(() => {
+                this.textContent = originalText;
+                this.disabled = false;
+            });
+    });
+});
+</script>
+
+    <!-- 【修改核心】备份功能JS脚本（对齐后端返回的中文状态+详细字段） -->
+    <script>
+    // 为所有“备份设备”按钮添加点击事件
+    document.querySelectorAll('.backup-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            // 1. 获取按钮绑定的设备名和当前行的备份状态单元格
+            const hostname = this.getAttribute('data-hostname');
+            const backupCell = this.closest('tr').querySelector('.backup-status');
+            
+            // 2. 点击后立即更新按钮和备份状态，给出加载反馈
+            const originalText = this.textContent;
+            this.textContent = '备份中...';
+            this.disabled = true;
+            backupCell.innerHTML = '<span class="badge bg-warning">备份中</span>';
+            
+            // 3. 调用后端备份API（对应后端 /api/backup/<hostname>）
+            fetch(`/api/backup/${hostname}`)
+                // 【修改1：先解析JSON，再判断响应是否正常，拿到后端详细信息】
+                .then(response => {
+                    // 无论响应是否ok，先解析后端返回的JSON数据（匹配后端返回的详细字段）
+                    return response.json().then(data => {
+                        if (!response.ok) {
+                            // 把后端返回的详细错误信息带入异常
+                            throw new Error(data.message || `备份请求失败，状态码：${response.status}`);
+                        }
+                        return data;
+                    });
+                })
+                // 处理解析后的备份结果，更新页面状态
+                .then(data => {
+                    // 【修改2：判断后端返回的中文状态“成功”（替换原英文success判断）】
+                    if (data.status && data.status === '成功') {
+                        // 【修改3：展示后端返回的备份路径，更直观】
+                        const successHtml = `
+                            <span class="badge bg-success">备份成功</span>
+                            <small class="text-muted d-block mt-1">
+                                备份路径：${data.backup_path || '未知路径'}
+                            </small>
+                        `;
+                        backupCell.innerHTML = successHtml;
+                    } else {
+                        // 展示后端返回的失败消息
+                        backupCell.innerHTML = `<span class="badge bg-danger">备份失败：${data.message || '未知错误'}</span>`;
+                    }
+                    // 控制台打印详细备份结果（开发者调试用，查看后端返回的所有字段）
+                    console.log('备份详细结果:', data);
+                })
+                // 捕获备份请求异常（服务器宕机、API不存在、后端返回的错误等）
+                .catch(error => {
+                    // 展示详细异常信息（来自后端或请求错误）
+                    backupCell.innerHTML = `<span class="badge bg-secondary">❌ ${error.message}</span>`;
+                    console.error('备份请求异常:', error);
+                })
+                // 无论成功/失败，最终恢复备份按钮原始状态
+                .finally(() => {
+                    this.textContent = originalText;
+                    this.disabled = false;
+                });
+        });
+    });
+    </script>
+
+    <!-- 【微调】API状态检查JS脚本（兼容后端返回的中文异常状态） -->
+    <script>
+    // 检查API状态的函数
+    function checkApiStatus() {
+        const statusElement = document.getElementById('api-status');
+        const refreshBtn = document.getElementById('refresh-api-btn'); // 获取刷新按钮
+        
+        // 1. 禁用按钮，防止重复点击，更新按钮文字
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = '刷新中...';
+        statusElement.innerHTML = '<span class="text-warning">检查中...</span>';
+        
+        fetch('/api/service_status')
+            .then(response => {
+                // 先解析JSON，再判断响应是否成功
+                return response.json().then(data => {
+                    if (!response.ok) {
+                        throw new Error(`API请求失败，状态码：${response.status}`);
+                    }
+                    return data;
+                });
+            })
+            .then(data => {
+                // 2. 增加数据格式校验，防止后端返回异常数据（提升健壮性）
+                if (!data || !data.status) {
+                    statusElement.innerHTML = '<span class="badge bg-secondary">❓ 未知状态（数据格式异常）</span>';
+                    return;
+                }
+                
+                // 匹配后端返回的正常状态'healthy'
+                if (data.status === 'healthy') {
+                    statusElement.innerHTML = '<span class="badge bg-success">✅ 服务正常</span>';
+                } else {
+                    // 【微调：兼容后端返回的中文异常状态，展示详细消息】
+                    const errorMsg = data.message || '未知异常';
+                    statusElement.innerHTML = `<span class="badge bg-warning">⚠️ 服务异常: ${errorMsg}</span>`;
+                }
+            })
+            .catch(error => {
+                statusElement.innerHTML = '<span class="badge bg-danger">❌ 请求失败（无法连接API）</span>';
+                // 3. 打印错误信息，方便开发者调试（用户不可见，不影响体验）
+                console.error('API状态检查失败详情：', error);
+            })
+            .finally(() => {
+                // 4. 无论成功失败，最终启用按钮，恢复按钮文字（和其他功能逻辑一致）
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '刷新状态';
+            });
+    }
+
+    // 页面加载时自动检查一次API状态（无需手动点击，提升便捷性）
+    document.addEventListener('DOMContentLoaded', checkApiStatus);
+    </script>
+</body>
+</html>

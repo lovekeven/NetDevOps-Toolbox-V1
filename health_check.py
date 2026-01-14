@@ -47,9 +47,8 @@ def read_devices_yml(filename="devices.yaml", yaml_connect=None):
 def check_interface_status(connections):
     error_massage = ""
     try:
-        output_interfaces = connections.send_command(
-            "display interface brief", delay_factor=2, timeout=5, read_timeout=15
-        )
+        output_interfaces = connections.send_command("display interface brief", delay_factor=2)
+        # 1.send_command() 不支持 timeout 和 read_timeout 参数，传递后触发报错，跟那个device_name一样
         up_interface = 0
         down_interface = 0
         for line in output_interfaces.split("\n"):
@@ -69,7 +68,7 @@ def check_interface_status(connections):
 def check_cpu_usage(connections):
     error_massage = ""
     try:
-        output_cpu_usage = connections.send_command("display cpu-usage", delay_factor=2, timeout=5, read_timeout=15)
+        output_cpu_usage = connections.send_command("display cpu-usage", delay_factor=2)
         for line in output_cpu_usage.split("\n"):
             if "seconds" in line:
                 match = re.search(r"(\d+)%", line)
@@ -89,9 +88,7 @@ def check_cpu_usage(connections):
 def check_memory_usage(connections):
     error_massage = ""
     try:
-        output_memory_usage = connections.send_command(
-            "display memory-threshold", delay_factor=2, timeout=5, read_timeout=15
-        )
+        output_memory_usage = connections.send_command("display memory-threshold", delay_factor=2)
         for line in output_memory_usage.split("\n"):
             if "Memory" in line and "usage" in line:
                 match = re.search(r"(\d+)%", line)
