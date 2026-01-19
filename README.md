@@ -1,13 +1,13 @@
 # NetDevOps-Toolbox-V1
-## ✨ 最新进展：项目已升级为全栈Web应用！
-- **日期**：2026年1月14日
-- **里程碑**：成功集成Flask框架，构建了前后端分离的Web仪表盘。
+## ✨ 最新进展：项目已升级为智能数据化系统（V6.0）！
+- **日期**：2026年1月19日
+- **里程碑**：成功构建"数据驱动、AI赋能"的准生产级NetDevOps平台。
 - **核心功能**：
-    - 🖥️ **可视化设备管理**：通过网页表格清晰展示所有设备。
-    - 🔍 **一键健康检查**：点击按钮实时触发后端SSH检查并动态更新状态。
-    - 💾 **在线配置备份**：通过Web界面直接触发设备配置备份。
-    - 📊 **服务状态监控**：仪表盘内嵌API服务健康状态检查。
-- **技术栈**：Python, Flask, Netmiko, Bootstrap, RESTful API
+    - 🗃️ **数据持久化**：集成SQLite数据库，实现所有操作完整记录与追溯。
+    - 🤖 **AI智能分析**：接入大模型API，可根据历史数据自动生成智能运维报告。
+    - ⚡ **专业并发框架**：引入Nornir框架，重构并发逻辑，支持批量设备高效管理。
+    - 📈 **系统可观测性**：正在构建结构化日志与基础监控体系。
+- **技术栈**：Python, Flask, SQLite, Nornir, Netmiko, AI API, RESTful API
 - **体验地址**：克隆项目后运行 `python web_dashboard.py`，即可在浏览器访问 `http://localhost:8080`
 ## 一，项目描述
 这是一款基于 Python 开发的网络设备自动化运维工具，能批量完成网络设备的配置备份和健康状态检查（接口、CPU、内存），通过统一调度中心简化操作，解决传统手动运维效率低、易出错的问题。现在已升级
@@ -134,16 +134,24 @@ Web仪表盘是目前最便捷的使用方式，两种部署方式启动后，�
   - ├── retry_decorator.py # 装饰器模块
   - ├── requestrequirements.txt # 该项目需要安装的模块
   - ├── Dockerfile 
-  - ├── web_dashboard.py/ # WEB仪表盘脚本
+  - ├── web_dashboard.py # WEB仪表盘脚本
+  - ├── database.py #数据库连接脚本
+  - ├── report_generator.py #调用AI大模型
+  - ├── nornir_config.yaml # Nornir主配置文件
+  - ├── nornir_inventory.yaml # Nornir框架下的设备清单
+  - ├── nornir_tasks.py # Nornir并发执行任务
   - ├── PROJECT_JOURNEY.md # 王建壮的网络工具箱项目演技和优化的日志
+  - ├── HISTORY.md # 记录工具版本迭代
   - ├── templates # Web前端模板目录（存放HTML页面）
   - │   ├── index.html # Web仪表盘首页/核心操作页面
+  - ├── netdevops.db # 数据库（自动生成）
   - ├── backupN1/ # 备份文件归档目录（自动生成）
   - │   ├── 192.168.91.111__配置__20240520-143025.txt
   - │   └── 192.168.91.112__配置__20240520-143030.txt
   - ├── logs/ # 日志文件归档目录（自动生成）
   - │   ├── backup.log
   - │   └── health_check.log
+  - │   └──......
   - └── health_check_report.txt # 健康检查报告（自动生成））
 
 
@@ -153,6 +161,8 @@ Web仪表盘是目前最便捷的使用方式，两种部署方式启动后，�
 以后的王建壮你要改改哈！这才是版本 一 2026.1.1
 
 今天超级开心！让web仪表盘活起来了，中间的原理搞懂后真的好开心 一 2026.1.14
+
+数据库成功建立连接，AI调用成功，Nornir并发执行成功太吊了  —— 2026.1.19
 
 
 
