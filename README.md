@@ -140,8 +140,10 @@ Web仪表盘是目前最便捷的使用方式，两种部署方式启动后，�
   - ├── nornir_config.yaml # Nornir主配置文件
   - ├── nornir_inventory.yaml # Nornir框架下的设备清单
   - ├── nornir_tasks.py # Nornir并发执行任务
-  - ├── PROJECT_JOURNEY.md # 王建壮的网络工具箱项目演技和优化的日志
   - ├── HISTORY.md # 记录工具版本迭代
+  - ├── docs/
+  - │   ├── CHANGELOG.md #项目演进历史
+  - │   └── PROJECT_JOURNEY.md # 王建壮的网络工具箱项目演技和优化的日志
   - ├── templates # Web前端模板目录（存放HTML页面）
   - │   ├── index.html # Web仪表盘首页/核心操作页面
   - ├── netdevops.db # 数据库（自动生成）
