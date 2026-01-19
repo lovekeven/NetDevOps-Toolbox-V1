@@ -1,10 +1,17 @@
-from re import X
-from flask import jsonify, Flask, render_template
+from datetime import datetime
+from database import db_manager
+from flask import jsonify, Flask, render_template, request
 
 # 1.jsonify就是为了返回JSON格式的数据
 from health_check import check_single_device
 from backup import backup_single_device
 import yaml
+from report_generator import deepseek_assistant
+from nornir_tasks import run_concurrent_health_check
+from log_setup import setup_logger
+import logging
+
+logger = setup_logger("web_dashboard", "web_dashboard.log")
 
 app = Flask(__name__)
 
@@ -30,7 +37,7 @@ def get_devices(filename="devices.yaml"):
                 device_list.append(device)
         return device_list
     except Exception as e:
-        print(f"错误：未成功读取设备文件 - {e}")
+        logger.error(f"错误：未成功读取设备文件 - {e}")
         return device_list
 
 
@@ -96,13 +103,24 @@ def device_backup(device_name):
         if "device_name" in target_device_copy:
             del target_device_copy["device_name"]
         # 1.下面是你备份的函数吧，你调用的时候，他会先建立连接这个时候**device_info解包的时候，连接库不认识device_name这个参数
+        start_time = datetime.now()
         backup_single_device(target_device_copy)
+        end_time = datetime.now()
         import time
 
         backup_dir = "backupN1"
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         backup_filename = f"{target_device['host']}__配置__{timestamp}.txt"
         backup_path = f"{backup_dir}/{backup_filename}"
+        # 向数据库表中插入数据
+        db_manager.log_backup(
+            hostname=device_name,
+            backup_path=backup_path,
+            status="success",
+            start_time=start_time,
+            end_time=end_time,
+            backup_size=1024,
+        )
         return jsonify(
             {
                 "device_name": device_name,
@@ -110,10 +128,19 @@ def device_backup(device_name):
                 "status": "成功",
                 "message": "设备配置备份成功",
                 "backup_path": backup_path,
+                "record_id": "已记录到数据库",
             }
         )
     except Exception as e:
         error_msg = str(e)
+        # 传给数据库
+        db_manager.log_backup(
+            hostname=device_name,
+            backup_path="N/A",
+            status="failed",
+            error_message=error_msg[:100],
+            start_time=datetime.now(),
+        )
         return_message = {
             "device_name": device_name,
             "host": target_device["host"],
@@ -146,6 +173,85 @@ def api_service_status():
     except Exception as e:
         error = str(e)
         return jsonify({"status": "API基本服务连接失败", "message": "API服务运行异常", "error": error[:100]}), 500
+
+
+# 第四个API接口查看设备备份历史
+@app.route("/api/backup/history/")
+@app.route("/api/backup/history/<device_name>")
+def backup_history(device_name=None):
+    try:
+        limit = request.args.get("limit", default=20, type=int)
+        recoard = db_manager.get_recent_backups(hostname=device_name, limit=limit)
+        return jsonify({"status": "success", "history_record": len(recoard), "history": recoard})
+    except Exception as e:
+        error_msg = str(e)
+        return (
+            jsonify(
+                {
+                    "status": "failed",
+                    "error_msg": error_msg[:100],
+                    "history_record": 0,
+                }
+            ),
+            500,
+        )
+
+
+# 第五个API接口调用Deepseek大模型
+@app.route("/api/backup_record/ai/")
+def ai_report_about_backup():
+    if deepseek_assistant is None:
+        logger.error("AI报告接口调用失败：deepseek_assistant 未初始化（API Key错误）")
+        return (
+            jsonify({"code": 500, "message": "Deepseek调用失败,请查看API key", "data": None, "deepseek_status": "N/A"}),
+            500,
+        )
+    try:
+        days = request.args.get("days", default=7, type=int)
+        report = deepseek_assistant.get_deepseek_content(days=days)
+        logger.info("AI报告接口调用成功，报告生成完成")
+        # 3. 成功返回（统一格式）
+        return (
+            jsonify(
+                {
+                    "code": 200,
+                    "message": "报告生成成功",
+                    "data": report,
+                    "deepseek_status": "normal",
+                    "report_time": datetime.now().isoformat(),
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        error_msg = str(e)[:100]
+        logger.error(f"AI报告接口调用失败：{error_msg}")
+        # 4. 失败返回（统一格式）
+        return (
+            jsonify(
+                {"code": 500, "message": "Deepseek调用失败", "data": None, "error_detail": "服务端处理异常，请稍后重试"}
+            ),
+            500,
+        )
+
+
+# 第六个API接口使用Nornir并发检查设备
+@app.route("/api/health/nornir-check")
+def nornir_check_health():
+    try:
+        device_list = request.args.get("devices", "")
+        # 1.request.args.get('device') 只能获取「单个device参数对应的单个值」（比如?device=SW1，只能拿到"SW1"），无法直接获取
+        # 多个设备名；
+        # 2.request.args.get("devices", "") 确实只获取「单个值」
+        # 3.比如访问?devices = SW1,SW2,SW3,那么device_list里面就是一个普通的字符串
+        hosts = device_list.split(",") if device_list else None
+        # 1.split函数返回的是列表
+        result = run_concurrent_health_check(hosts=hosts)
+        return jsonify(result)
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"并发检查失败{error_msg[:100]}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
