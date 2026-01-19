@@ -1,0 +1,160 @@
+---
+
+
+# 扁平化格式：直接将SW1-SW6作为顶层键，SimpleInventory插件直接识别为设备
+# 把原来defaults中的连接配置，直接嵌入到每个设备中（确保连接正常）
+SW1:
+  username: '11'
+  hostname: '192.168.56.11'
+  password: '2005qazwsx'
+  connection_options:
+    netmiko:
+      extras: 
+        device_type: 'hp_comware'
+        port: 22
+  data:
+    role: 'core'
+    location: 'HCL'
+    site: 'Shijiazhuang'
+    vendor: 'HCLCloud'
+SW2:
+  username: '12'
+  hostname: '192.168.56.12'
+  password: '2005edcrfv'
+  connection_options:
+    netmiko:
+      extras: 
+        device_type: 'hp_comware'
+        port: 22
+  data:
+    role: 'core'
+    location: 'HCLCloud'
+    site: 'Shijiazhuang'
+    vendor: 'HCLCloud'
+SW3:
+  username: '13'
+  hostname: '192.168.56.13'
+  password: 'tgbyhn'
+  connection_options:
+    netmiko:
+      extras: 
+        device_type: 'hp_comware'
+        port: 22
+  data:
+    role: 'core'
+    location: 'HCLCloud'
+    site: 'Shijiazhuang'
+    vendor: 'HCLCloud'
+SW4:
+  username: '14'
+  hostname: '192.168.56.14'
+  password: '2005ujmiko'
+  connection_options:
+    netmiko:
+      extras: 
+        device_type: 'hp_comware'
+        port: 22
+  data:
+    role: 'core'
+    location: 'HCLCloud'
+    site: 'Shijiazhuang'
+    vendor: 'HCLCloud'
+SW5:
+  username: '15'
+  hostname: '192.168.56.15'
+  password: '2005okmijn'
+  connection_options:
+    netmiko:
+      extras: 
+        device_type: 'hp_comware'
+        port: 22
+  data:
+    role: 'core'
+    location: 'HCLCloud'
+    site: 'Shijiazhuang'
+    vendor: 'HCLCloud'
+SW6:
+  username: '16'
+  hostname: '192.168.56.16'
+  password: '2005uhbygv'
+  connection_options:
+    netmiko:
+      extras: 
+        device_type: 'hp_comware'
+        port: 22
+  data:
+    role: 'core'
+    location: 'HCLCloud'
+    site: 'Shijiazhuang'
+    vendor: 'HCLCloud'
+# ---
+# defaults:
+#   data:
+#     site: 'Shijiazhuang'
+#   connection_options:
+#     netmiko:
+#       extras: 
+#         device_type: 'hp_comware'
+#         port: 22
+# groups:
+#   hcl_switches:
+#     data: 
+#       vendor: "HCLCloud"
+#     connection_options:
+#       netmiko:
+#         extras: {}
+# hosts:
+#   SW1:
+#     username: '11'
+#     hostname: '192.168.56.11'
+#     password: '2005qazwsx'
+#     groups:
+#       - hcl_switches
+#     data:
+#       role: 'core'
+#       location: 'HCL'
+#   SW2:
+#     username: '12'
+#     hostname: '192.168.56.12'
+#     password: '2005edcrfv'
+#     groups:
+#       - hcl_switches
+#     data:
+#       role: 'core'
+#       location: 'HCLCloud'
+#   SW3:
+#     username: '13'
+#     hostname: '192.168.56.13'
+#     password: 'tgbyhn'
+#     groups:
+#       - hcl_switches
+#     data:
+#       role: 'core'
+#       location: 'HCLCloud'
+#   SW4:
+#     username: '14'
+#     hostname: '192.168.56.14'
+#     password: '2005ujmiko'
+#     groups:
+#       - hcl_switches
+#     data:
+#       role: 'core'
+#       location: 'HCLCloud'
+#   SW5:
+#     username: '15'
+#     hostname: '192.168.56.15'
+#     password: '2005okmijn'
+#     groups:
+#       - hcl_switches
+#     data:
+#       role: 'core'
+#       location: 'HCLCloud'
+#   SW6:
+#     username: '16'
+#     hostname: '192.168.56.16'
+#     password: '2005uhbygv'
+#     groups:
+#       - hcl_switches
+#     data:
+#       role: 'core'
+#       location: 'HCLCloud'

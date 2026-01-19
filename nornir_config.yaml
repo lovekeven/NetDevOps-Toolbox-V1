@@ -1,0 +1,11 @@
+---
+inventory:
+  plugin: SimpleInventory
+  options:
+    host_file: 'nornir_inventory.yaml' 
+runner:
+  plugin: threaded 
+  options:
+    num_workers: 10000
+logging:
+  enabled: False
