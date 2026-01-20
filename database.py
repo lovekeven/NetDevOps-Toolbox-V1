@@ -1,4 +1,5 @@
 from datetime import datetime
+from optparse import Values
 from log_setup import setup_logger
 import sqlite3
 import logging
@@ -70,6 +71,24 @@ class DatabaseManager:
                 FOREIGN KEY (hostname) REFERENCES devices (hostname)
             );
             """,
+            # 新增：系统指标表
+            """
+            CREATE TABLE IF NOT EXISTS system_metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,               -- 时间戳（ISO格式字符串）
+                cpu_percent REAL NOT NULL,             -- CPU使用率
+                memory_percent REAL NOT NULL,          -- 内存使用率
+                memory_used_gb REAL NOT NULL,          -- 已用内存(GB)
+                memory_total_gb REAL NOT NULL,         -- 总内存(GB)
+                disk_percent REAL NOT NULL,            -- 磁盘使用率
+                disk_used_gb REAL NOT NULL,            -- 已用磁盘(GB)
+                disk_total_gb REAL NOT NULL,           -- 总磁盘(GB)
+                network_bytes_sent INTEGER NOT NULL,   -- 发送字节数
+                network_bytes_recv INTEGER NOT NULL,   -- 接收字节数
+                network_packets_sent INTEGER NOT NULL, -- 发送数据包数
+                network_packets_recv INTEGER NOT NULL  -- 接收数据包数
+            );
+            """,
         ]
         cursor = self.conn.cursor()
         try:
@@ -83,7 +102,29 @@ class DatabaseManager:
             self.conn.rollback()
             raise
 
-    # 向表格中填入数据
+    # 向系统指示表中填入数据
+    def log_system_metrics(self, metrics_dict):
+        try:
+            columns = ",".join(
+                metrics_dict.keys()
+            )  # join 函数的核心要求是，传入一个可迭代对象，且里面的元素必须是字符串
+            placeholders = ",".join(["?"] * len(metrics_dict.keys()))
+            sql = f"""
+            INSERT INTO system_metrics ({columns}) 
+            VALUES ({placeholders})
+            """
+            values = list(metrics_dict.values())
+            cursor = self.conn.cursor()
+            cursor.execute(sql, values)
+            self.conn.commit()
+            logger.info("系统指标成功插入数据库！")
+        except sqlite3.Error as e:
+            error_msg = str(e)
+            logger.error(f"向表格写入数据失败 {error_msg[:100]}")
+            self.conn.rollback()
+            raise
+
+    # 向备份记录表格中填入数据
     def log_backup(
         self, hostname, backup_path, status="success", error_message=None, start_time=None, end_time=None, backup_size=0
     ):
@@ -137,7 +178,7 @@ class DatabaseManager:
             return records
         except sqlite3.Error as e:
             logger.error(f"查询备份记录失败: {e}")
-            return []
+            raise
 
     def close(self):
         if self.conn:

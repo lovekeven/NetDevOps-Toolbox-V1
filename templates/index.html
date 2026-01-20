@@ -125,6 +125,59 @@
             <!-- ===================================== 新增结束：AI报告小卡片 ===================================== -->
         </div>
 
+        <!-- ===================================== 新增：系统健康检查卡片 ===================================== -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">🏥 系统健康状态</h5>
+                        <button id="checkSystemHealthBtn" class="btn btn-sm btn-primary">一键检查系统健康状态</button>
+                    </div>
+                    <div class="card-body">
+                        <!-- 第一层：整体健康结论 -->
+                        <div class="card bg-light p-3 mb-3" id="systemHealthSummary">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">整体状态：<span class="text-muted">未检查</span></span>
+                                <span class="small text-muted">点击上方按钮开始检查</span>
+                            </div>
+                        </div>
+
+                        <!-- 第二层和第三层：系统指标和服务状态（分两列展示） -->
+                        <div class="row">
+                            <!-- 第二层：系统级别指标 -->
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-header py-2">
+                                        <h6 class="mb-0">📊 系统级别指标</h6>
+                                    </div>
+                                    <div class="card-body" id="systemMetricsContent">
+                                        <div class="text-center text-muted py-4">
+                                            <small>暂无指标数据，请先执行检查</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 第三层：服务健康状态 -->
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-header py-2">
+                                        <h6 class="mb-0">🔧 服务健康状态</h6>
+                                    </div>
+                                    <div class="card-body" id="serviceStatusContent">
+                                        <div class="text-center text-muted py-4">
+                                            <small>暂无服务状态，请先执行检查</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- ===================================== 新增结束：系统健康检查卡片 ===================================== -->
+
         <!-- 设备列表卡片 -->
         <div class="card mt-4 shadow-sm">
             <div class="card-header">
@@ -694,6 +747,159 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
             .finally(() => {
                 generateBtn.textContent = originalBtnText;
                 generateBtn.disabled = false;
+            });
+    });
+    </script>
+
+    <!-- ===================================== 新增：系统健康检查功能JS脚本 ===================================== -->
+    <script>
+    document.getElementById('checkSystemHealthBtn').addEventListener('click', function() {
+        const btn = this;
+        const summaryDiv = document.getElementById('systemHealthSummary');
+        const metricsContent = document.getElementById('systemMetricsContent');
+        const serviceContent = document.getElementById('serviceStatusContent');
+
+        const originalBtnText = btn.textContent;
+        btn.textContent = '检查中...';
+        btn.disabled = true;
+
+        summaryDiv.innerHTML = '<div class="d-flex justify-content-between align-items-center"><span class="fw-bold">整体状态：<span class="text-warning">检查中...</span></span><span class="small text-muted">正在获取系统健康数据...</span></div>';
+        metricsContent.innerHTML = '<div class="text-center text-warning py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在收集系统指标...</div>';
+        serviceContent.innerHTML = '<div class="text-center text-warning py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在检查服务状态...</div>';
+
+        fetch('/api/system/healthy')
+            .then(response => {
+                return response.json().then(data => {
+                    if (!response.ok) {
+                        throw new Error(data.message || `请求失败，状态码：${response.status}`);
+                    }
+                    return data;
+                });
+            })
+            .then(data => {
+                const healthyStatus = data.healthy;
+                const timestamp = data.timestamp ? new Date(data.timestamp).toLocaleString('zh-CN') : '未知时间';
+                const systemMetrics = data.system_metrics;
+                const serviceStatus = data.service_status;
+
+                let overallBadgeClass = 'bg-secondary';
+                let overallText = '未知';
+
+                if (healthyStatus === 'healthy') {
+                    overallBadgeClass = 'bg-success';
+                    overallText = '健康';
+                } else if (healthyStatus === 'degraded') {
+                    overallBadgeClass = 'bg-warning text-dark';
+                    overallText = '降级';
+                } else if (healthyStatus === 'unhealthy') {
+                    overallBadgeClass = 'bg-danger';
+                    overallText = '不健康';
+                }
+
+                summaryDiv.innerHTML = `<div class="d-flex justify-content-between align-items-center"><span class="fw-bold">整体状态：<span class="badge ${overallBadgeClass}">${overallText}</span></span><span class="small text-muted">检查时间：${timestamp}</span></div>`;
+
+                if (systemMetrics && typeof systemMetrics === 'object') {
+                    metricsContent.innerHTML = `
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center py-2">
+                                        <small class="text-muted d-block">CPU使用率</small>
+                                        <strong class="h5 mb-0">${systemMetrics.cpu_percent || 'N/A'}%</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center py-2">
+                                        <small class="text-muted d-block">内存使用率</small>
+                                        <strong class="h5 mb-0">${systemMetrics.memory_percent || 'N/A'}%</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center py-2">
+                                        <small class="text-muted d-block">磁盘使用率</small>
+                                        <strong class="h5 mb-0">${systemMetrics.disk_percent || 'N/A'}%</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center py-2">
+                                        <small class="text-muted d-block">内存已用</small>
+                                        <strong class="h5 mb-0">${systemMetrics.memory_used_gb || 'N/A'} GB</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center py-2">
+                                        <small class="text-muted d-block">磁盘已用</small>
+                                        <strong class="h5 mb-0">${systemMetrics.disk_used_gb || 'N/A'} GB</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center py-2">
+                                        <small class="text-muted d-block">内存总量</small>
+                                        <strong class="h5 mb-0">${systemMetrics.memory_total_gb || 'N/A'} GB</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (typeof systemMetrics === 'string') {
+                    metricsContent.innerHTML = `<div class="alert alert-danger small mb-0">${systemMetrics}</div>`;
+                } else {
+                    metricsContent.innerHTML = '<div class="text-center text-muted py-4"><small>无法获取系统指标数据</small></div>';
+                }
+
+                if (serviceStatus && typeof serviceStatus === 'object') {
+                    let serviceHtml = '<div class="list-group list-group-flush">';
+                    for (const [serviceName, status] of Object.entries(serviceStatus)) {
+                        let badgeClass = 'bg-secondary';
+                        let statusText = status;
+
+                        if (status === 'healthy' || (typeof status === 'string' && status.includes('healthy'))) {
+                            badgeClass = 'bg-success';
+                            statusText = '正常';
+                        } else if (typeof status === 'string' && status.includes('unhealthy')) {
+                            badgeClass = 'bg-danger';
+                            statusText = '异常';
+                        }
+
+                        const serviceNames = {
+                            'web_dashboard': 'Web仪表盘',
+                            'database': '数据库',
+                            'nornir_engine': 'Nornir引擎'
+                        };
+                        const displayName = serviceNames[serviceName] || serviceName;
+
+                        serviceHtml += `
+                            <div class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                <span>${displayName}</span>
+                                <span class="badge ${badgeClass}">${statusText}</span>
+                            </div>
+                        `;
+                    }
+                    serviceHtml += '</div>';
+                    serviceContent.innerHTML = serviceHtml;
+                } else {
+                    serviceContent.innerHTML = '<div class="text-center text-muted py-4"><small>无法获取服务状态数据</small></div>';
+                }
+            })
+            .catch(error => {
+                summaryDiv.innerHTML = '<div class="d-flex justify-content-between align-items-center"><span class="fw-bold">整体状态：<span class="badge bg-danger">检查失败</span></span><span class="small text-muted">请稍后重试</span></div>';
+                metricsContent.innerHTML = `<div class="alert alert-danger small mb-0">获取系统指标失败：${error.message}</div>`;
+                serviceContent.innerHTML = `<div class="alert alert-danger small mb-0">获取服务状态失败：${error.message}</div>`;
+                console.error('系统健康检查异常：', error);
+            })
+            .finally(() => {
+                btn.textContent = originalBtnText;
+                btn.disabled = false;
             });
     });
     </script>

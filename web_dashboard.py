@@ -1,4 +1,5 @@
 from datetime import datetime
+import sys
 from database import db_manager
 from flask import jsonify, Flask, render_template, request
 
@@ -10,6 +11,7 @@ from report_generator import deepseek_assistant
 from nornir_tasks import run_concurrent_health_check
 from log_setup import setup_logger
 import logging
+from monitoring import SystemMonitor, get_prometheus_metrics
 
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
@@ -252,6 +254,68 @@ def nornir_check_health():
         error_msg = str(e)
         logger.error(f"并发检查失败{error_msg[:100]}")
         return jsonify({"error": str(e)}), 500
+
+
+# 第七个API接口：Prometheus指标端点
+@app.route("/metrics")
+def metrics_endpoint():
+    try:
+        prometheus_output = get_prometheus_metrics()
+        logger.info("获取Prometheus格式的指标成功！")
+        return prometheus_output, 200, {"Content-Type": "text/plain"}
+        # 返回的这种数据类型是那个程序认识，前端也可以解析
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"获取Prometheus格式的指标失败！{error_msg[:100]}")
+        return (
+            jsonify(
+                {
+                    "status": "failed",
+                    "message": "N/A",
+                    "error": error_msg[:100],
+                }
+            ),
+            500,
+        )
+
+
+# 第八个API接口：检查关键服务健康状态
+@app.route("/api/system/healthy")
+def check_system_health():
+    try:
+        system_metrics = None
+        system_metrics_error = None  # 就是一个空值 if not sys.....会是True
+        try:
+            system_metrics = SystemMonitor.collect_system_metrics()
+        except Exception as e:
+            error = str(e)
+            system_metrics_error = error[:100]
+        service_status = SystemMonitor.check_service_status()
+        all_health = all(status == "healthy" or "healthy" in str(status) for status in service_status.values())
+        return jsonify(
+            {
+                "healthy": "healthy" if all_health else "degraded",
+                "timestamp": datetime.now().isoformat(),
+                "status": "检查成功",
+                "service_status": service_status,
+                "system_metrics": system_metrics if system_metrics_error is None else system_metrics_error,
+            }
+        )
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"检查服务健康状态出现严重错误{error_msg[:100]}")
+        return (
+            jsonify(
+                {
+                    "healthy": "unhealthy",
+                    "timestamp": datetime.now().isoformat(),
+                    "status": "检查失败",
+                    "service_status": "N/A",
+                    "system_metrics": "N/A",
+                }
+            ),
+            500,
+        )
 
 
 if __name__ == "__main__":

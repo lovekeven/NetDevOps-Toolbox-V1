@@ -1,0 +1,4 @@
+20260120-203617-monitioring-INFO-收集系统级别指标成功！CPU使用率46.0，内存使用率60.4,磁盘使用率84.7
+20260120-203617-monitioring-INFO-数据库连接正常！
+20260120-203617-monitioring-INFO-Web仪表盘网络地址访问正常！，状态码:200
+20260120-203628-monitioring-INFO-Nornir框架运行正常！
