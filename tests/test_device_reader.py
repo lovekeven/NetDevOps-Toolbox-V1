@@ -1,10 +1,11 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(ROOT_DIR)
 # 是为了我导入别人，现在看得到即使我想导入的函数跟我同级但是万一我在桌面运行这个脚本的话
 # sys.path的列表里的索引0就不是这个脚本的上级目录了！
-from health_check import read_devices_yml
+from core.health_check.health_checker import read_devices_yml
 
 
 def test_read_devices_yml():

@@ -1,4 +1,8 @@
-from log_setup import setup_logger
+import os
+import sys
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from utils.log_setup import setup_logger
 import time
 from typing import Tuple, Type, Callable, Any  # Callable表示可调用对象，可以被（）调用执行的对象
 from functools import wraps  # functools这个模块中的 wraps 装饰器，他是下面装饰器的辅助装饰器，目的是保留原函数的信息

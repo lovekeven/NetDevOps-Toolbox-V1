@@ -1,10 +1,17 @@
 import json  # 解析数据库的备份文件变为JSON格式给deepseek
+import sys
 import requests  # 发送请求
 import logging
 import time
-from database import db_manager
 import os
-from log_setup import setup_logger
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(ROOT_DIR)
+# Python 从根目录开始找时，会「递归搜所有带__init__.py的文件夹」——__init__.py的唯一核心作用就是：告诉 Python“这个文件夹是合法
+# 的包，可以被导入”
+from db.database import db_manager
+
+from utils.log_setup import setup_logger
 
 logger = setup_logger("report_generator", "report_generator.log")
 

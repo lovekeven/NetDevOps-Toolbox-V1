@@ -1,18 +1,20 @@
 import sys
 import os
 import logging
-
+import io
 
 def setup_logger(name=__name__, log_file="netdevops_toolbox.log"):
     logger = logging.getLogger(name)
     logger.propagate = False
     logger.setLevel(logging.DEBUG)
 
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
-    LOG = "logs"
-    os.makedirs(LOG, exist_ok=True)
-    file_handler = logging.FileHandler(os.path.join(LOG, log_file), encoding="utf-8")
+    
+    LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+    os.makedirs(LOG_DIR, exist_ok=True)
+    file_handler = logging.FileHandler(os.path.join(LOG_DIR, log_file), encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
 
     console_Formatter = logging.Formatter("%(levelname)s-%(message)s")

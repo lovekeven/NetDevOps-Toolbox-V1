@@ -1,11 +1,16 @@
 import argparse
 from typing import Optional, Dict, Any
 import requests
-from log_setup import setup_logger
+import sys
+import os
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(ROOT_DIR)
+from utils.log_setup import setup_logger
 
 logger = setup_logger("api_checker", "api_checker.log")
 
-from retry_decorator import api_retry
+from utils.retry_decorator import api_retry
 
 
 # 第二步：先建立一个初始化客户的工厂

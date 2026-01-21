@@ -2,9 +2,12 @@ import os
 import argparse
 import sys
 
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(ROOT_DIR)
+
 try:
-    import backup
-    import health_check
+    from core.backup import backup_handler
+    from core.health_check import health_checker
 
     MODULES_available = True
 except Exception as e:

@@ -1,24 +1,32 @@
 from datetime import datetime
 import sys
-from database import db_manager
+import os
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(ROOT_DIR)
+
+from db.database import db_manager
 from flask import jsonify, Flask, render_template, request
 
 # 1.jsonify就是为了返回JSON格式的数据
-from health_check import check_single_device
-from backup import backup_single_device
+from core.health_check.health_checker import check_single_device
+from core.backup.backup_handler import backup_single_device
 import yaml
-from report_generator import deepseek_assistant
-from nornir_tasks import run_concurrent_health_check
-from log_setup import setup_logger
+from core.AI.report_generator import deepseek_assistant
+from core.nornir.nornir_tasks import run_concurrent_health_check
+from utils.log_setup import setup_logger
 import logging
-from monitoring import SystemMonitor, get_prometheus_metrics
+from core.monitoring.monitoring import SystemMonitor, get_prometheus_metrics
+
 
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
 app = Flask(__name__)
 
+CONFIG_PATH = os.path.join(ROOT_DIR, "config", "devices.yaml")
 
-def get_devices(filename="devices.yaml"):
+
+def get_devices(filename=CONFIG_PATH):
     device_list = []
     try:
         with open(filename, "r", encoding="utf-8") as f:

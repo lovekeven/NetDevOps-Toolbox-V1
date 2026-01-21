@@ -3,9 +3,14 @@ import os
 import argparse
 from netmiko import ConnectHandler
 import yaml
-from log_setup import setup_logger
-from retry_decorator import ssh_retry
+import sys
 
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(ROOT_DIR)
+from utils.log_setup import setup_logger
+from utils.retry_decorator import ssh_retry
+
+CONFIG_PATH = os.path.join(ROOT_DIR, "config", "devices.yaml")
 logger = setup_logger("netdevops_backup", "backup.log")
 
 
@@ -81,7 +86,7 @@ def backup_single_device(device_info):
 def main():
     logger.info("网络设备自动备份脚本（支持多个设备同时备份）\n")
     logger.info("=" * 60)
-    devices = read_devices_yml("devices.yaml")  # 文件名需自己填！
+    devices = read_devices_yml(CONFIG_PATH)  # 文件名需自己填！
     if not devices:
         logger.error("未读取任何设备！请查看出错原因！")
         return

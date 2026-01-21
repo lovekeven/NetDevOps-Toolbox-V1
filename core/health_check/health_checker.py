@@ -3,13 +3,18 @@ import argparse
 import re
 from netmiko import ConnectHandler
 import yaml
-from log_setup import setup_logger
+import sys
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(ROOT_DIR)
+CONFIG_PATH = os.path.join(ROOT_DIR, "config", "devices.yaml")
+from utils.log_setup import setup_logger
 
 logger = setup_logger("netdevops_health_check", "health_check.log")
 
 
 # 第一步：定义可以读取yml文件的函数
-def read_devices_yml(filename="devices.yaml", yaml_connect=None):
+def read_devices_yml(filename=CONFIG_PATH, yaml_connect=None):
     device_list = []
     try:
         if yaml_connect:

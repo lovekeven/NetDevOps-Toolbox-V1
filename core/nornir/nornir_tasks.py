@@ -1,13 +1,17 @@
-import logging
 import re
-
-from log_setup import setup_logger
-
-logger = setup_logger("nornir_tasks", "nornir_tasks.log")
+import os
+import sys
+import logging
 from nornir import InitNornir
-from nornir_netmiko import netmiko_send_command
+from utils.log_setup import setup_logger
 from nornir.core.task import Task, Result
+from nornir_netmiko import netmiko_send_command
 
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(ROOT_DIR)
+CONFIG_PATH1 = os.path.join(ROOT_DIR, "config", "nornir_config.yaml")
+logger = setup_logger("nornir_tasks", "nornir_tasks.log")
 # 第一步：创建控制台实例
 
 
@@ -66,8 +70,9 @@ def check_devices_health(task: Task) -> Result:
                 up_ports += 1
             elif "DOWN" in line_clean:
                 down_ports += 1
-                if "GE1/0/1" in line_clean:
+                if line_clean.startswith("GE1/0/1 "):
                     critical_ports_down = True
+                    logger.info(f"端口 GE1/0/1 状态为DOWN")
                     logger.warning(f"关键端口 GE1/0/1 已DOWN")
         total_ports = up_ports + down_ports
         # 2.分析CPU使用率
@@ -114,6 +119,7 @@ def check_devices_health(task: Task) -> Result:
         # 收集结果
         details = {
             "version_result": version_result.result if version_result.result else "",
+            "interface_result": interface_result.result if interface_result.result else "",
             "interfaces_total": total_ports,
             "interfaces_down": down_ports,
             "CPU_usage_result": "告警！" if CPU_usage_high else "正常，未超过88%",
@@ -149,7 +155,7 @@ def check_devices_health(task: Task) -> Result:
 # 第三步：检查设备健康的总调度员（主函数）
 def run_concurrent_health_check(hosts=None):
     try:
-        nr = InitNornir(config_file="nornir_config.yaml")  # 加载设备清单，HOST实例也有了
+        nr = InitNornir(config_file=CONFIG_PATH1)  # 加载设备清单，HOST实例也有了
         logger.info("Nornir实例初始化成功！")
     except Exception as e:
         logger.error(f"Nornir实例初始化失败{e}")

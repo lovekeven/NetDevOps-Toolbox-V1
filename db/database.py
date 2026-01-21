@@ -1,16 +1,22 @@
 from datetime import datetime
 from optparse import Values
-from log_setup import setup_logger
+import os
+import sys
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(ROOT_DIR)
+from utils.log_setup import setup_logger
 import sqlite3
 import logging
 import json
 
+DB_PATH = os.path.join(ROOT_DIR, "netdevops.db")
 logger = setup_logger("database.py", "database.log")
 
 
 class DatabaseManager:
-    def __init__(self, db_path="netdevops.db"):
-        self.path = db_path
+    def __init__(self, db_path=None):
+        self.path = db_path if db_path else DB_PATH
         self.conn = None
         self.connect()
         self.create_tables()

@@ -1,10 +1,14 @@
 import psutil
+import os
+import sys
 from datetime import datetime
-from log_setup import setup_logger
-from database import db_manager
+from utils.log_setup import setup_logger
+from db.database import db_manager
 import requests
-from nornir_tasks import run_concurrent_health_check
+from core.nornir.nornir_tasks import run_concurrent_health_check
 
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(ROOT_DIR)
 logger = setup_logger("montioring", "montioring.log")
 
 

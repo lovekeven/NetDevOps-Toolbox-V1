@@ -1,8 +1,0 @@
-20260120-203555-database.py-DEBUG-成功建立数据库连接！
-20260120-203555-database.py-DEBUG-向数据库插入表格成功！
-20260120-203555-database.py-DEBUG-数据库初始化成功（成功建立连接，插入表格），路径：netdevops.db
-20260120-203556-database.py-DEBUG-成功建立数据库连接！
-20260120-203556-database.py-DEBUG-向数据库插入表格成功！
-20260120-203556-database.py-DEBUG-数据库初始化成功（成功建立连接，插入表格），路径：netdevops.db
-20260120-203613-database.py-DEBUG-成功查询到1条备份记录
-20260120-203617-database.py-DEBUG-成功查询到1条备份记录
