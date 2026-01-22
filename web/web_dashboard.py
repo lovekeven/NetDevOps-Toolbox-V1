@@ -18,6 +18,9 @@ from utils.log_setup import setup_logger
 import logging
 from core.monitoring.monitoring import SystemMonitor, get_prometheus_metrics
 
+# 引入云服务平台
+from core.cloud.concept_simulator import cloud_simulator
+
 
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
@@ -254,6 +257,7 @@ def nornir_check_health():
         # 多个设备名；
         # 2.request.args.get("devices", "") 确实只获取「单个值」
         # 3.比如访问?devices = SW1,SW2,SW3,那么device_list里面就是一个普通的字符串
+        # 4.get 方法的两个参数—— 第一个参数是 “要找的参数名”，第二个参数是 “默认值”
         hosts = device_list.split(",") if device_list else None
         # 1.split函数返回的是列表
         result = run_concurrent_health_check(hosts=hosts)
@@ -325,6 +329,92 @@ def check_system_health():
             500,
         )
 
+
+# 第九个API接口获取云端模拟资源
+@app.route("/api/cloud/resources")
+def get_cloud_resources():
+    try:
+        resource_type = request.args.get("type", "all")
+
+        if resource_type.lower() == "vpc":
+            cloud_resources = cloud_simulator.get_resource_by_type(resource_type=resource_type)
+            if not cloud_resources:
+                return jsonify({"status": "failed", "message": "未寻找到vpc模拟资源", "cloud_resources": []}), 404
+            # 返回类型是列表（元素是字典）
+            return jsonify(
+                {
+                    "status": "success",
+                    "message": "云网络资源（模拟数据）",
+                    "data": cloud_resources,
+                    "count": len(cloud_resources),
+                    "note": "此为概念演示，展示平台可扩展至管理云网络资源",
+                }
+            )
+        elif resource_type.lower() == "securitygroup":
+            cloud_resources = cloud_simulator.get_resource_by_type(resource_type=resource_type)
+            if not cloud_resources:
+                return (
+                    jsonify({"status": "failed", "message": "未寻找到安全组模拟资源", "cloud_resources": []}),
+                    404,
+                )
+            # 返回类型是列表（元素是字典）
+            return jsonify(
+                {
+                    "status": "success",
+                    "message": "云网络资源（模拟数据）",
+                    "data": cloud_resources,
+                    "count": len(cloud_resources),
+                    "note": "此为概念演示，展示平台可扩展至管理云网络资源",
+                }
+            )
+        elif resource_type == "all":
+            cloud_resources = cloud_simulator.get_all_resources()
+            # 返回类型是列表（元素是字典
+            if not cloud_resources:
+                return jsonify({"status": "failed", "message": "未寻找到vpc模拟资源", "cloud_resources": []}), 404
+            return jsonify(
+                {
+                    "status": "success",
+                    "message": "云网络资源（模拟数据）",
+                    "data": cloud_resources,
+                    "count": len(cloud_resources),
+                    "note": "此为概念演示，展示平台可扩展至管理云网络资源",
+                }
+            )
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"获取模拟器资源出现错误{error_msg[:200]}")
+        return jsonify({"status": "failed", "message": error_msg[:200], "cloud_resources": "N/A"}), 500
+    # 第九个API接口写的时候可以更简便，一个if eles 就可以搞定，因为不是all就是其他类型
+
+
+# 第十个API接口模拟创建VPC
+# 写的methods=['POST']，就是告诉服务器：“这个接口只听 POST 这句悄悄话，其他话（比如 GET）一概不理”。
+@app.route("/api/cloud/simulate/create_vpc", methods=["POST"])
+# 普通用户在地址栏输入这个 URL，按下回车：浏览器发 GET 请求 → 后端限定了只接受 POST → 返回 405 错误（Method Not Allowed）；
+def create_vpc():
+    try:
+        data = request.json
+        # Flask这个底层帮我干好了,他帮我干好了现在data已经是一个字典了
+        if not data or "name" not in data:
+            # 他这里为啥不判断其他参数情况，因为下面给他设默认值了
+            return (
+                jsonify({"status": "failed", "message": "缺少name参数"}),
+                400,
+            )  # HTTP 400（Bad Request）的官方定义：客户端（前端
+        # / 浏览器）发送的请求有「语法错误」或「参数不合法」，服务器无法理解 / 处理这个请求，返回 400。
+        result = cloud_simulator.simulate_creating_vpc(
+            name=data["name"], cidr=data.get("cidr", "10.0.0.0/16"), region=data.get("region", "cn-east-1")
+        )
+        return jsonify(result)
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"模拟创建VPC失败 {error_msg[:100]}")
+        return jsonify({"status": "failed", "message": f"模拟创建VPC失败{error_msg[:100]}"}), 500
+#第十一个API接口云网络概念演示页面
+@app.route('/cloud')
+def cloud_demo():
+    return render_template('cloud_demo.html')#这里没有填充物，是一个静态页面，也可以实现交互
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)

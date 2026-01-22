@@ -1,154 +1,664 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <title>我的NetDevOps工具箱</title>
-    <!-- 引入 Bootstrap 样式，保证页面美观 -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetDevOps工具箱 - 智能网络运维平台</title>
+    <!-- 引入 Bootstrap 样式 -->
     <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 引入 Font Awesome 图标 -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* 轻微优化页面视觉，避免纯白单调，不破坏 Bootstrap 原有风格 */
+        /* 现代化深色主题 */
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary-color: #64748b;
+            --background-color: #0f172a;
+            --card-background: #1e293b;
+            --card-hover: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background-color: #f8f9fa;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
         }
+
+        /* 平滑滚动 */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* 容器样式 */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 标题区域 */
+        .header-section {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem 0;
+            background: linear-gradient(135deg, var(--primary-color), var(--info-color));
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .header-section h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-section p {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin: 0;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+            transition: var(--transition);
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary-color);
+        }
+
         .card-header {
-            background-color: #e9f5ff;
+            background-color: rgba(79, 70, 229, 0.1);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.25rem 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
         }
-        /* 模态框内表格滚动样式（避免历史记录过多撑破页面） */
+
+        .card-body {
+            padding: 1.5rem;
+            background-color: var(--card-background);
+        }
+
+        /* 按钮样式 */
+        .btn {
+            border-radius: 8px;
+            font-weight: 600;
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+            text-transform: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+
+        .btn-info {
+            background-color: var(--info-color);
+            border-color: var(--info-color);
+        }
+
+        .btn-info:hover {
+            background-color: #2563eb;
+            border-color: #2563eb;
+        }
+
+        .btn-outline-primary {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            background-color: transparent;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-outline-secondary {
+            border-color: var(--secondary-color);
+            color: var(--secondary-color);
+            background-color: transparent;
+        }
+
+        .btn-outline-secondary:hover {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-outline-dark {
+            border-color: var(--secondary-color);
+            color: var(--secondary-color);
+            background-color: transparent;
+        }
+
+        .btn-outline-dark:hover {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        /* 表格样式 */
+        .table {
+            color: var(--text-primary);
+            background-color: var(--card-background);
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .table thead {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--text-primary);
+        }
+
+        .table th,
+        .table td {
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 1.25rem;
+        }
+
+        .table tbody tr {
+            transition: var(--transition);
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(79, 70, 229, 0.2);
+            transform: translateX(4px);
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(79, 70, 229, 0.2);
+        }
+
+        /* 确保表格中所有文字在深色主题上清晰可见 */
+        .table {
+            color: var(--text-primary) !important;
+        }
+
+        .table td {
+            color: var(--text-primary) !important;
+        }
+
+        .table .badge {
+            color: var(--text-primary) !important;
+        }
+
+        /* 覆盖默认的text-dark样式 */
+        .table .text-dark {
+            color: var(--text-primary) !important;
+        }
+
+        /* 确保行悬停时所有文字保持白色 */
+        .table tbody tr:hover {
+            color: var(--text-primary) !important;
+        }
+
+        .table tbody tr:hover td {
+            color: var(--text-primary) !important;
+        }
+
+        /* 徽章样式 */
+        .badge {
+            border-radius: 9999px;
+            font-weight: 600;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .bg-success {
+            background-color: var(--success-color);
+        }
+
+        .bg-danger {
+            background-color: var(--danger-color);
+        }
+
+        .bg-warning {
+            background-color: var(--warning-color);
+            color: var(--background-color);
+        }
+
+        .bg-info {
+            background-color: var(--info-color);
+        }
+
+        .bg-secondary {
+            background-color: var(--secondary-color);
+        }
+
+        /* 表单样式 */
+        .form-control {
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            background-color: var(--background-color);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            color: var(--text-primary);
+        }
+
+        .form-control::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* 复选框样式 */
+        .form-check-input {
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+
+        .form-check-input:checked {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .form-check-input:focus {
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        /* 模态框样式 */
+        .modal-content {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-xl);
+        }
+
+        .modal-header {
+            background-color: rgba(79, 70, 229, 0.1);
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .modal-title {
+            color: var(--text-primary);
+        }
+
+        .modal-footer {
+            background-color: var(--card-background);
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* 滚动容器 */
         .modal-table-container {
             max-height: 400px;
             overflow-y: auto;
+            background-color: var(--card-background);
+            border-radius: 8px;
         }
-        /* 新增：AI报告展示区域滚动样式 */
+
         .ai-report-container {
             max-height: 300px;
             overflow-y: auto;
-            white-space: pre-wrap; /* 保留报告中的换行和空格，保证格式整洁 */
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            transition: var(--transition);
         }
-        /* ========== 新增：AI报告格式化样式（贴合Bootstrap风格） ========== */
+
+        .ai-report-container:hover {
+            border-color: var(--primary-color);
+        }
+
+        /* AI报告样式 */
         .ai-report-container strong {
-            color: #0d6efd; /* Bootstrap主蓝色，突出加粗内容 */
+            color: var(--primary-color);
             font-weight: 600;
         }
+
         .ai-report-container h3 {
             font-size: 1rem;
-            color: #0a58ca;
+            color: var(--info-color);
             margin: 1.2rem 0 0.8rem 0;
             padding-bottom: 0.3rem;
-            border-bottom: 1px solid #e9ecef;
+            border-bottom: 1px solid var(--border-color);
         }
-        .ai-report-container ul {
-            margin: 0.5rem 0 0.5rem 1.5rem;
-            padding-left: 0;
-            list-style: disc;
-        }
-        .ai-report-container ol {
-            margin: 0.5rem 0 0.5rem 1.5rem;
-            padding-left: 0;
-            list-style: decimal;
-        }
-        .ai-report-container li {
-            margin: 0.3rem 0;
-            color: #212529;
-        }
-        .ai-report-container .report-note {
-            font-size: 0.85rem;
-            color: #6c757d;
-            font-style: italic;
-            margin: 0.5rem 0;
-        }
-        .ai-report-container .report-empty {
-            color: #6c757d;
-            text-align: center;
-            display: block;
-        }
-        /* 优化：原始命令输出样式，保证和模拟器格式一致，提升可读性 */
+
+        /* 原始命令输出样式 */
         .raw-command-output {
-            font-family: "Consolas", "Monaco", "Courier New", monospace; /* 等宽字体，和命令行一致 */
-            white-space: pre; /* 严格保留换行和空格，不自动换行 */
-            word-wrap: normal; /* 禁止单词换行，保持原始格式 */
-            overflow-x: auto; /* 横向滚动，适配长命令输出 */
-            font-size: 12px; /* 微调字体大小，展示更多内容 */
-            line-height: 1.4; /* 优化行高，提升可读性 */
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        /* 页脚样式 */
+        footer {
+            background-color: rgba(30, 41, 59, 0.5);
+            border-top: 1px solid var(--border-color);
+            padding: 2rem 0;
+            margin-top: 3rem;
+            text-align: center;
+            border-radius: 12px 12px 0 0;
+        }
+
+        /* 系统健康卡片 */
+        .health-card {
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            transition: var(--transition);
+        }
+
+        .health-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        /* 动画效果 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* 加载动画 */
+        .spinner-border {
+            border-color: var(--primary-color);
+            border-right-color: transparent;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .header-section h1 {
+                font-size: 2rem;
+            }
+
+            .card {
+                margin-bottom: 1.5rem;
+            }
+
+            .table th,
+            .table td {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.875rem;
+            }
+        }
+
+        /* 统计卡片 */
+        .stat-card {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary-color);
+        }
+
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* 服务状态列表 */
+        .service-list .list-group-item {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: var(--transition);
+        }
+
+        .service-list .list-group-item:hover {
+            background-color: var(--card-hover);
+            border-color: var(--primary-color);
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--background-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--secondary-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-color);
+        }
+
+        /* 选择设备计数 */
+        #nornirSelectedCount {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        /* 卡片网格布局 */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        /* 设备状态指示器 */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .status-dot.online {
+            background-color: var(--success-color);
+        }
+
+        .status-dot.offline {
+            background-color: var(--danger-color);
+        }
+
+        .status-dot.pending {
+            background-color: var(--warning-color);
         }
     </style>
 </head>
 <body>
-    <div class="container mt-4">
-        <!-- 页面标题区域 -->
-        <h1 class="text-primary">🛠️ NetDevOps工具箱仪表盘</h1>
-        <p class="text-muted">这是我的第一个自动化运维Web界面！（展示最原始设备命令输出）</p>
+    <div class="container">
+        <!-- 导航 -->
+        <nav class="navbar navbar-expand-lg navbar-dark mb-4" style="background-color: var(--card-background); border: 1px solid var(--border-color); border-radius: 12px;">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/" style="color: var(--text-primary); font-weight: 600;">NetDevOps工具箱</a>
+                <div class="navbar-nav">
+                    <a class="nav-link active" href="/" style="color: var(--text-primary);">设备管理</a>
+                    <a class="nav-link" href="/cloud" style="color: var(--text-primary);">☁️ 云网络概念</a>
+                </div>
+            </div>
+        </nav>
 
-        <!-- 【任务3新增：API服务状态卡片】放在设备列表卡片上方，样式与原有页面统一 -->
+        <!-- 页面标题区域 -->
+        <div class="header-section">
+            <h1><i class="fas fa-toolbox me-3"></i>NetDevOps工具箱仪表盘</h1>
+            <p>智能网络设备自动化运维平台</p>
+        </div>
+
+        <!-- 顶部卡片网格 -->
         <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title">🔌 API服务状态</h5>
-                        <p id="api-status">检查中...</p>
-                        <button id="refresh-api-btn" onclick="checkApiStatus()" class="btn btn-sm btn-info">刷新状态</button>
+            <!-- API服务状态卡片 -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h5 class="card-title mb-1"><i class="fas fa-plug text-info me-2"></i>API服务状态</h5>
+                                <p id="api-status" class="mb-0 text-muted">检查中...</p>
+                            </div>
+                            <button id="refresh-api-btn" onclick="checkApiStatus()" class="btn btn-sm btn-info">
+                                <i class="fas fa-sync-alt me-1"></i>刷新
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-            <!-- ===================================== 新增开始：AI报告小卡片 ===================================== -->
-            <div class="col-md-6">
-                <div class="card shadow-sm">
+
+            <!-- AI报告卡片 -->
+            <div class="col-md-6 col-lg-8">
+                <div class="card h-100">
                     <div class="card-header">
-                        <h5 class="mb-0">📊 AI备份运维报告</h5>
+                        <h5 class="mb-0"><i class="fas fa-chart-line text-primary me-2"></i>AI备份运维报告</h5>
                     </div>
                     <div class="card-body">
-                        <!-- 报告查询条件：天数输入框 -->
                         <div class="row align-items-center mb-3">
                             <div class="col-md-8">
-                                <label for="reportDays" class="form-label small text-muted">查询近N天备份（默认7天，1-30天）</label>
-                                <input type="number" class="form-control form-control-sm" id="reportDays" value="7" min="1" max="30">
+                                <label for="reportDays" class="form-label">查询近N天备份（1-30天）</label>
+                                <input type="number" class="form-control" id="reportDays" value="7" min="1" max="30">
                             </div>
                             <div class="col-md-4 d-flex align-items-end">
-                                <button id="generateReportBtn" class="btn btn-sm btn-primary w-100">生成AI报告</button>
+                                <button id="generateReportBtn" class="btn btn-primary w-100">
+                                    <i class="fas fa-robot me-1"></i>生成AI报告
+                                </button>
                             </div>
                         </div>
                         
-                        <!-- 报告生成状态提示 -->
                         <p id="report-status" class="mb-2">
                             <span class="text-muted">点击「生成AI报告」获取运维摘要</span>
                         </p>
                         
-                        <!-- 报告展示区域 -->
-                        <div class="card bg-light p-3 ai-report-container" id="aiReportContent">
-                            <span class="text-muted text-center d-block">暂无报告内容，请先生成</span>
+                        <div class="ai-report-container" id="aiReportContent">
+                            <span class="text-muted text-center d-block py-4">暂无报告内容，请先生成</span>
                         </div>
                         
-                        <!-- 报告生成时间 -->
-                        <div class="mt-2 small text-muted" id="reportGenerateTime">
-                        </div>
+                        <div class="mt-2 small text-muted" id="reportGenerateTime"></div>
                     </div>
                 </div>
             </div>
-            <!-- ===================================== 新增结束：AI报告小卡片 ===================================== -->
         </div>
 
-        <!-- ===================================== 新增：系统健康检查卡片 ===================================== -->
+        <!-- 系统健康检查卡片 -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card shadow-sm">
+                <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">🏥 系统健康状态</h5>
-                        <button id="checkSystemHealthBtn" class="btn btn-sm btn-primary">一键检查系统健康状态</button>
+                        <h5 class="mb-0"><i class="fas fa-heartbeat text-danger me-2"></i>系统健康状态</h5>
+                        <button id="checkSystemHealthBtn" class="btn btn-primary">
+                            <i class="fas fa-stethoscope me-1"></i>一键检查系统健康
+                        </button>
                     </div>
                     <div class="card-body">
-                        <!-- 第一层：整体健康结论 -->
-                        <div class="card bg-light p-3 mb-3" id="systemHealthSummary">
+                        <!-- 整体健康结论 -->
+                        <div class="health-card mb-4" id="systemHealthSummary">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="fw-bold">整体状态：<span class="text-muted">未检查</span></span>
                                 <span class="small text-muted">点击上方按钮开始检查</span>
                             </div>
                         </div>
 
-                        <!-- 第二层和第三层：系统指标和服务状态（分两列展示） -->
+                        <!-- 系统指标和服务状态 -->
                         <div class="row">
-                            <!-- 第二层：系统级别指标 -->
+                            <!-- 系统级别指标 -->
                             <div class="col-md-6">
                                 <div class="card h-100">
                                     <div class="card-header py-2">
-                                        <h6 class="mb-0">📊 系统级别指标</h6>
+                                        <h6 class="mb-0"><i class="fas fa-tachometer-alt text-warning me-2"></i>系统级别指标</h6>
                                     </div>
                                     <div class="card-body" id="systemMetricsContent">
                                         <div class="text-center text-muted py-4">
@@ -158,11 +668,11 @@
                                 </div>
                             </div>
 
-                            <!-- 第三层：服务健康状态 -->
+                            <!-- 服务健康状态 -->
                             <div class="col-md-6">
                                 <div class="card h-100">
                                     <div class="card-header py-2">
-                                        <h6 class="mb-0">🔧 服务健康状态</h6>
+                                        <h6 class="mb-0"><i class="fas fa-server text-success me-2"></i>服务健康状态</h6>
                                     </div>
                                     <div class="card-body" id="serviceStatusContent">
                                         <div class="text-center text-muted py-4">
@@ -176,125 +686,140 @@
                 </div>
             </div>
         </div>
-        <!-- ===================================== 新增结束：系统健康检查卡片 ===================================== -->
 
         <!-- 设备列表卡片 -->
-        <div class="card mt-4 shadow-sm">
+        <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">🖧 设备状态总览</h5>
+                <h5 class="mb-0"><i class="fas fa-network-wired text-secondary me-2"></i>设备状态总览</h5>
             </div>
-            <div class="card-body bg-white">
-                <!-- ===================================== 新增：Nornir批量并发检查区域 ===================================== -->
-                <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="card-body">
+                <!-- Nornir批量并发检查区域 -->
+                <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between mb-4 p-3 bg-opacity-10 rounded-lg" style="background-color: rgba(79, 70, 229, 0.1);">
                     <div class="d-flex align-items-center">
                         <input type="checkbox" id="nornirSelectAll" class="form-check-input me-2">
-                        <label for="nornirSelectAll" class="form-label mb-0 text-muted">全选设备</label>
-                        <span id="nornirSelectedCount" class="ms-2 small text-muted">(已选：0 台)</span>
+                        <label for="nornirSelectAll" class="form-label mb-0">全选设备</label>
+                        <span id="nornirSelectedCount" class="ms-3">已选：0 台</span>
                     </div>
-                    <button id="nornirBatchCheckBtn" class="btn btn-sm btn-primary" disabled>
-                        🚀 Nornir并发健康检查
+                    <button id="nornirBatchCheckBtn" class="btn btn-primary" disabled>
+                        <i class="fas fa-rocket me-1"></i>Nornir并发健康检查
                     </button>
                 </div>
-                <!-- ===================================== 新增结束：Nornir批量并发检查区域 ===================================== -->
 
-                <!-- 响应式表格，支持小屏幕自适应 -->
-                <table class="table table-hover table-striped align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <!-- ===================================== 新增：Nornir批量选择列 - 表头 ===================================== -->
-                            <th>
-                                <input type="checkbox" id="nornirTableSelectAll" class="form-check-input">
-                            </th>
-                            <!-- ===================================== 新增结束：Nornir批量选择列 - 表头 ===================================== -->
-                            <th>设备名</th>
-                            <th>IP地址</th>
-                            <th>设备类型</th>
-                            <th>设备状态</th>
-                            <!-- 【新增1：备份状态列】专门展示备份结果，不破坏原有设备状态 -->
-                            <th>备份状态</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- 循环遍历 Python 脚本传递的 devices 列表，无需修改 -->
-                        {% for device in devices %}
-                        <tr>
-                            <!-- ===================================== 新增：Nornir批量选择列 - 表体 ===================================== -->
-                            <td>
-                                <input type="checkbox" class="form-check-input nornirDeviceCheckbox" data-hostname="{{ device.device_name }}">
-                            </td>
-                            <!-- ===================================== 新增结束：Nornir批量选择列 - 表体 ===================================== -->
-                            <!-- 对应 Python 脚本中的 device_name 字段（SW1/SW2 等） -->
-                            <td>{{ device.device_name }}</td>
-                            <!-- 对应 Python 脚本中的 host 字段（设备 IP 地址） -->
-                            <td>{{ device.host }}</td>
-                            <!-- 对应 Python 脚本中的 device_type 字段（hp_comware），加轻微美化 -->
-                            <td>
-                                <span class="badge bg-info text-dark">{{ device.device_type }}</span>
-                            </td>
-                            <!-- 【保留】设备状态列，带 device-status 类名 -->
-                            <td class="device-status">
-                                {% if device.status == '在线' %}
-                                <span class="badge bg-success">在线</span>
-                                {% else %}
-                                <span class="badge bg-danger">离线</span>
-                                {% endif %}
-                            </td>
-                            <!-- 【新增2：备份状态单元格】带 backup-status 类名，供JS更新备份结果 -->
-                            <td class="backup-status">
-                                <span class="badge bg-secondary">未备份</span>
-                            </td>
-                            <!-- 【修改：操作列新增「查看备份历史」按钮】与原有按钮风格统一 -->
-                            <td>
-                                <!-- 健康检查按钮（保留原有功能） -->
-                                <button class="btn btn-sm btn-outline-primary health-check-btn" data-hostname="{{ device.device_name }}">
-                                    健康检查
-                                </button>
-                                <!-- 备份按钮（新增，样式协调，带专属类名和数据属性） -->
-                                <button class="btn btn-sm btn-outline-secondary backup-btn ms-1" data-hostname="{{ device.device_name }}">
-                                    备份设备
-                                </button>
-                                <!-- 【新增核心：查看备份历史按钮】样式协调，带专属类名，传递设备名 -->
-                                <button class="btn btn-sm btn-outline-dark backup-history-btn ms-1" data-hostname="{{ device.device_name }}">
-                                    备份历史
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <!-- 响应式表格 -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <!-- Nornir批量选择列 -->
+                                <th>
+                                    <input type="checkbox" id="nornirTableSelectAll" class="form-check-input">
+                                </th>
+                                <th>设备名</th>
+                                <th>IP地址</th>
+                                <th>设备类型</th>
+                                <th>设备状态</th>
+                                <th>备份状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for device in devices %}
+                            <tr>
+                                <!-- Nornir批量选择列 -->
+                                <td>
+                                    <input type="checkbox" class="form-check-input nornirDeviceCheckbox" data-hostname="{{ device.device_name }}">
+                                </td>
+                                <td>{{ device.device_name }}</td>
+                                <td>{{ device.host }}</td>
+                                <td>
+                                    <span class="badge bg-info text-dark">{{ device.device_type }}</span>
+                                </td>
+                                <!-- 设备状态列 -->
+                                <td class="device-status">
+                                    {% if device.status == '在线' %}
+                                    <span class="status-indicator">
+                                        <span class="status-dot online"></span>
+                                        <span class="badge bg-success">在线</span>
+                                    </span>
+                                    {% else %}
+                                    <span class="status-indicator">
+                                        <span class="status-dot offline"></span>
+                                        <span class="badge bg-danger">离线</span>
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <!-- 备份状态列 -->
+                                <td class="backup-status">
+                                    <span class="badge bg-secondary">未备份</span>
+                                </td>
+                                <!-- 操作列 -->
+                                <td>
+                                    <div class="d-flex gap-2">
+                                        <!-- 健康检查按钮 -->
+                                        <button class="btn btn-sm btn-outline-primary health-check-btn" data-hostname="{{ device.device_name }}">
+                                            <i class="fas fa-heartbeat me-1"></i>健康检查
+                                        </button>
+                                        <!-- 备份按钮 -->
+                                        <button class="btn btn-sm btn-outline-secondary backup-btn" data-hostname="{{ device.device_name }}">
+                                            <i class="fas fa-save me-1"></i>备份设备
+                                        </button>
+                                        <!-- 查看备份历史按钮 -->
+                                        <button class="btn btn-sm btn-outline-dark backup-history-btn" data-hostname="{{ device.device_name }}">
+                                            <i class="fas fa-history me-1"></i>备份历史
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <!-- 页脚区域，显示设备总数 -->
-        <footer class="mt-4 text-center text-muted">
-            <small>版本 0.5.0 | 基于Flask构建 | 设备总数: {{ devices|length }} 台</small>
+        <!-- 页脚区域 -->
+        <footer class="mt-5 py-4">
+            <div class="container">
+                <div class="text-center">
+                    <p class="mb-0">
+                        <i class="fas fa-code text-primary me-1"></i>版本 0.5.0 | 基于Flask构建 | 
+                        <i class="fas fa-desktop text-info me-1"></i>设备总数: {{ devices|length }} 台
+                    </p>
+                    <p class="small text-muted mt-1">
+                        © 2026 NetDevOps Toolbox | 智能网络运维解决方案
+                    </p>
+                </div>
+            </div>
         </footer>
     </div>
 
-    <!-- 【新增核心：备份历史模态框】用于展示备份记录，样式与页面统一 -->
+    <!-- 备份历史模态框 -->
     <div class="modal fade" id="backupHistoryModal" tabindex="-1" aria-labelledby="backupHistoryModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
-            <div class="modal-content shadow-sm">
-                <div class="modal-header" style="background-color: #e9f5ff;">
-                    <h5 class="modal-title" id="backupHistoryModalLabel">📜 设备备份历史 - <span id="modalDeviceName">未知设备</span></h5>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="backupHistoryModalLabel">
+                        <i class="fas fa-history text-primary me-2"></i>设备备份历史 - <span id="modalDeviceName">未知设备</span>
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- 备份历史查询条件（支持limit参数，与后端API对应） -->
+                    <!-- 备份历史查询条件 -->
                     <div class="row mb-3 align-items-center">
                         <div class="col-md-4">
-                            <label for="historyLimit" class="form-label small text-muted">查询记录数（默认20条）</label>
-                            <input type="number" class="form-control form-control-sm" id="historyLimit" value="20" min="1" max="100">
+                            <label for="historyLimit" class="form-label">查询记录数（1-100）</label>
+                            <input type="number" class="form-control" id="historyLimit" value="20" min="1" max="100">
                         </div>
                         <div class="col-md-8 d-flex align-items-end justify-content-md-end">
-                            <button id="refreshHistoryBtn" class="btn btn-sm btn-info">刷新备份历史</button>
+                            <button id="refreshHistoryBtn" class="btn btn-info">
+                                <i class="fas fa-sync-alt me-1"></i>刷新备份历史
+                            </button>
                         </div>
                     </div>
 
-                    <!-- 备份历史表格（带滚动容器，避免记录过多撑破页面） -->
+                    <!-- 备份历史表格 -->
                     <div class="modal-table-container">
-                        <table class="table table-hover table-striped align-middle table-sm">
+                        <table class="table table-hover table-sm">
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th>记录ID</th>
@@ -305,51 +830,53 @@
                                 </tr>
                             </thead>
                             <tbody id="backupHistoryTableBody">
-                                <!-- 备份历史数据将通过JS动态渲染 -->
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted">请点击「刷新备份历史」获取记录</td>
+                                    <td colspan="5" class="text-center text-muted py-4">请点击「刷新备份历史」获取记录</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
 
                     <!-- 备份历史统计信息 -->
-                    <div class="mt-2 small text-muted">
+                    <div class="mt-3 small text-muted">
                         <span id="historyCountInfo">总记录数：0 条</span>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ===================================== 新增：Nornir并发检查结果模态框 ===================================== -->
+    <!-- Nornir并发检查结果模态框 -->
     <div class="modal fade" id="nornirCheckResultModal" tabindex="-1" aria-labelledby="nornirCheckResultModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl"> <!-- 改为超大模态框，更好展示原始命令输出 -->
-            <div class="modal-content shadow-sm">
-                <div class="modal-header" style="background-color: #e9f5ff;">
-                    <h5 class="modal-title" id="nornirCheckResultModalLabel">📊 Nornir并发健康检查结果（原始命令输出）</h5>
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="nornirCheckResultModalLabel">
+                        <i class="fas fa-chart-pie text-primary me-2"></i>Nornir并发健康检查结果
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <!-- 并发检查汇总信息 -->
-                    <div class="card bg-light p-3 mb-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="fw-bold">汇总结果：</span>
-                            <span id="nornirSummaryText">待检查...</span>
-                        </div>
-                        <div class="d-flex gap-3 mt-2">
-                            <span id="nornirSuccessCount" class="text-success">成功：0 台</span>
-                            <span id="nornirFailedCount" class="text-danger">失败：0 台</span>
-                            <span id="nornirTotalCount" class="text-muted">总计：0 台</span>
+                    <div class="card mb-3" style="background-color: rgba(79, 70, 229, 0.1);">
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap gap-4 justify-content-between align-items-center">
+                                <span class="fw-bold">汇总结果：</span>
+                                <div class="d-flex gap-3">
+                                    <span id="nornirSuccessCount" class="text-success"><i class="fas fa-check-circle me-1"></i>成功：0 台</span>
+                                    <span id="nornirFailedCount" class="text-danger"><i class="fas fa-times-circle me-1"></i>失败：0 台</span>
+                                    <span id="nornirTotalCount" class="text-muted"><i class="fas fa-server me-1"></i>总计：0 台</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- 并发检查详细结果表格 -->
-                    <div class="modal-table-container" style="max-height: 600px;"> <!-- 提高最大高度，展示更多完整输出 -->
-                        <table class="table table-hover table-striped align-middle table-sm">
+                    <div class="modal-table-container" style="max-height: 600px;">
+                        <table class="table table-hover table-sm">
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th style="width: 120px;">设备名</th>
@@ -360,151 +887,120 @@
                             </thead>
                             <tbody id="nornirCheckResultTableBody">
                                 <tr>
-                                    <td colspan="4" class="text-center text-muted">暂无检查结果，请先执行并发检查</td>
+                                    <td colspan="4" class="text-center text-muted py-4">暂无检查结果，请先执行并发检查</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                 </div>
             </div>
         </div>
     </div>
 
-   <!-- 【保留】健康检查功能JS脚本（无需修改，与后端返回`ok`状态匹配） -->
-<script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
-<script>
-// 为所有“健康检查”按钮添加点击事件
-document.querySelectorAll('.health-check-btn').forEach(button => {
-    button.addEventListener('click', function() {
-        // 1. 获取按钮绑定的设备名和当前行的状态单元格
-        const hostname = this.getAttribute('data-hostname');
-        const statusCell = this.closest('tr').querySelector('.device-status');
-        
-        // 2. 点击后立即更新按钮和状态，给出加载反馈（防止重复点击）
-        const originalText = this.textContent;
-        this.textContent = '检查中...';
-        this.disabled = true;
-        statusCell.innerHTML = '<span class="badge bg-warning">检查中</span>';
-        
-        // 3. 调用后端健康检查API
-        fetch(`/api/health/${hostname}`)
-            // 处理非200状态码
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`请求失败，状态码：${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                // 与后端约定：健康检查成功返回 status: "ok"（无需修改，匹配后端）
-                if (data.status && data.status.toLowerCase() === '成功') {
-                    // 改良点1：先显示「检查成功」反馈（短暂提示用户），再恢复「在线」长期状态
-                    // 步骤1：立即渲染「本次检查成功」
-                    statusCell.innerHTML = '<span class="badge bg-info">检查成功</span>';
-                    // 步骤2：3秒后自动恢复「在线」状态（兼顾用户反馈和长期状态展示，可调整延时）
-                    setTimeout(() => {
-                        statusCell.innerHTML = '<span class="badge bg-success">在线</span>';
-                    }, 3000);
-                } else {
-                    // 改良点2：非成功状态直接渲染「异常」，无延时（明确设备故障）
-                    statusCell.innerHTML = '<span class="badge bg-danger">异常</span>';
-                }
-                console.log('健康检查详细结果:', data);
-            })
-            // 捕获异常
-            .catch(error => {
-                statusCell.innerHTML = '<span class="badge bg-secondary">失败</span>';
-                console.error('健康检查请求失败:', error);
-            })
-            // 恢复按钮状态
-            .finally(() => {
-                this.textContent = originalText;
-                this.disabled = false;
-            });
-    });
-});
-</script>
-
-    <!-- 【修改核心】备份功能JS脚本（对齐后端返回的中文状态+详细字段） -->
+    <!-- JavaScript -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
     <script>
-    // 为所有“备份设备”按钮添加点击事件
-    document.querySelectorAll('.backup-btn').forEach(button => {
+    // 为所有“健康检查”按钮添加点击事件
+    document.querySelectorAll('.health-check-btn').forEach(button => {
         button.addEventListener('click', function() {
-            // 1. 获取按钮绑定的设备名和当前行的备份状态单元格
             const hostname = this.getAttribute('data-hostname');
-            const backupCell = this.closest('tr').querySelector('.backup-status');
+            const statusCell = this.closest('tr').querySelector('.device-status');
             
-            // 2. 点击后立即更新按钮和备份状态，给出加载反馈
             const originalText = this.textContent;
-            this.textContent = '备份中...';
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
             this.disabled = true;
-            backupCell.innerHTML = '<span class="badge bg-warning">备份中</span>';
+            statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-warning">检查中</span></div>';
             
-            // 3. 调用后端备份API（对应后端 /api/backup/<hostname>）
-            fetch(`/api/backup/${hostname}`)
-                // 【修改1：先解析JSON，再判断响应是否正常，拿到后端详细信息】
+            fetch(`/api/health/${hostname}`)
                 .then(response => {
-                    // 无论响应是否ok，先解析后端返回的JSON数据（匹配后端返回的详细字段）
-                    return response.json().then(data => {
-                        if (!response.ok) {
-                            // 把后端返回的详细错误信息带入异常
-                            throw new Error(data.message || `备份请求失败，状态码：${response.status}`);
-                        }
-                        return data;
-                    });
-                })
-                // 处理解析后的备份结果，更新页面状态
-                .then(data => {
-                    // 【修改2：判断后端返回的中文状态“成功”（替换原英文success判断）】
-                    if (data.status && data.status === '成功') {
-                        // 【修改3：展示后端返回的备份路径，更直观】
-                        const successHtml = `
-                            <span class="badge bg-success">备份成功</span>
-                            <small class="text-muted d-block mt-1">
-                                备份路径：${data.backup_path || '未知路径'}
-                            </small>
-                        `;
-                        backupCell.innerHTML = successHtml;
-                    } else {
-                        // 展示后端返回的失败消息
-                        backupCell.innerHTML = `<span class="badge bg-danger">备份失败：${data.message || '未知错误'}</span>`;
+                    if (!response.ok) {
+                        throw new Error(`请求失败，状态码：${response.status}`);
                     }
-                    // 控制台打印详细备份结果（开发者调试用，查看后端返回的所有字段）
-                    console.log('备份详细结果:', data);
+                    return response.json();
                 })
-                // 捕获备份请求异常（服务器宕机、API不存在、后端返回的错误等）
+                .then(data => {
+                    if (data.status && data.status.toLowerCase() === '成功') {
+                        statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot online"></span><span class="badge bg-success">在线</span></div>';
+                    } else {
+                        statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">异常</span></div>';
+                    }
+                })
                 .catch(error => {
-                    // 展示详细异常信息（来自后端或请求错误）
-                    backupCell.innerHTML = `<span class="badge bg-secondary">❌ ${error.message}</span>`;
-                    console.error('备份请求异常:', error);
+                    statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">失败</span></div>';
+                    console.error('健康检查请求失败:', error);
                 })
-                // 无论成功/失败，最终恢复备份按钮原始状态
                 .finally(() => {
-                    this.textContent = originalText;
+                    this.innerHTML = '<i class="fas fa-heartbeat me-1"></i>健康检查';
                     this.disabled = false;
                 });
         });
     });
     </script>
 
-    <!-- 【微调】API状态检查JS脚本（兼容后端返回的中文异常状态） -->
+    <!-- 备份功能JS脚本 -->
     <script>
-    // 检查API状态的函数
+    document.querySelectorAll('.backup-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const hostname = this.getAttribute('data-hostname');
+            const backupCell = this.closest('tr').querySelector('.backup-status');
+            
+            const originalText = this.textContent;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>备份中...';
+            this.disabled = true;
+            backupCell.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-warning">备份中</span></div>';
+            
+            fetch(`/api/backup/${hostname}`)
+                .then(response => {
+                    return response.json().then(data => {
+                        if (!response.ok) {
+                            throw new Error(data.message || `备份请求失败，状态码：${response.status}`);
+                        }
+                        return data;
+                    });
+                })
+                .then(data => {
+                    if (data.status && data.status === '成功') {
+                        const successHtml = `
+                            <div class="status-indicator">
+                                <span class="status-dot online"></span>
+                                <span class="badge bg-success">备份成功</span>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                备份路径：${data.backup_path || '未知路径'}
+                            </small>
+                        `;
+                        backupCell.innerHTML = successHtml;
+                    } else {
+                        backupCell.innerHTML = `<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">备份失败：${data.message || '未知错误'}</span></div>`;
+                    }
+                })
+                .catch(error => {
+                    backupCell.innerHTML = `<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">❌ ${error.message}</span></div>`;
+                    console.error('备份请求异常:', error);
+                })
+                .finally(() => {
+                    this.innerHTML = '<i class="fas fa-save me-1"></i>备份设备';
+                    this.disabled = false;
+                });
+        });
+    });
+    </script>
+
+    <!-- API状态检查JS脚本 -->
+    <script>
     function checkApiStatus() {
         const statusElement = document.getElementById('api-status');
-        const refreshBtn = document.getElementById('refresh-api-btn'); // 获取刷新按钮
+        const refreshBtn = document.getElementById('refresh-api-btn');
         
-        // 1. 禁用按钮，防止重复点击，更新按钮文字
         refreshBtn.disabled = true;
-        refreshBtn.innerHTML = '刷新中...';
-        statusElement.innerHTML = '<span class="text-warning">检查中...</span>';
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>刷新中...';
+        statusElement.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-warning">检查中...</span></div>';
         
         fetch('/api/service_status')
             .then(response => {
-                // 先解析JSON，再判断响应是否成功
                 return response.json().then(data => {
                     if (!response.ok) {
                         throw new Error(`API请求失败，状态码：${response.status}`);
@@ -513,98 +1009,79 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
                 });
             })
             .then(data => {
-                // 2. 增加数据格式校验，防止后端返回异常数据（提升健壮性）
                 if (!data || !data.status) {
-                    statusElement.innerHTML = '<span class="badge bg-secondary">❓ 未知状态（数据格式异常）</span>';
+                    statusElement.innerHTML = '<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-secondary">未知状态</span></div>';
                     return;
                 }
                 
-                // 匹配后端返回的正常状态'healthy'
                 if (data.status === 'healthy') {
-                    statusElement.innerHTML = '<span class="badge bg-success">✅ 服务正常</span>';
+                    statusElement.innerHTML = '<div class="status-indicator"><span class="status-dot online"></span><span class="badge bg-success">服务正常</span></div>';
                 } else {
-                    // 【微调：兼容后端返回的中文异常状态，展示详细消息】
                     const errorMsg = data.message || '未知异常';
-                    statusElement.innerHTML = `<span class="badge bg-warning">⚠️ 服务异常: ${errorMsg}</span>`;
+                    statusElement.innerHTML = `<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-warning">服务异常: ${errorMsg}</span></div>`;
                 }
             })
             .catch(error => {
-                statusElement.innerHTML = '<span class="badge bg-danger">❌ 请求失败（无法连接API）</span>';
-                // 3. 打印错误信息，方便开发者调试（用户不可见，不影响体验）
+                statusElement.innerHTML = '<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">请求失败</span></div>';
                 console.error('API状态检查失败详情：', error);
             })
             .finally(() => {
-                // 4. 无论成功失败，最终启用按钮，恢复按钮文字（和其他功能逻辑一致）
                 refreshBtn.disabled = false;
-                refreshBtn.innerHTML = '刷新状态';
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>刷新';
             });
     }
 
-    // 页面加载时自动检查一次API状态（无需手动点击，提升便捷性）
     document.addEventListener('DOMContentLoaded', checkApiStatus);
     </script>
 
-    <!-- 【新增核心：备份历史查询JS脚本】兼容后端第四个API，落地版功能 -->
+    <!-- 备份历史查询JS脚本 -->
     <script>
-    // 全局变量：存储当前模态框对应的设备名
     let currentModalHostname = '';
-    // 初始化Bootstrap模态框
     const backupHistoryModal = new bootstrap.Modal(document.getElementById('backupHistoryModal'));
 
-    // 1. 为所有「查看备份历史」按钮绑定点击事件
     document.querySelectorAll('.backup-history-btn').forEach(button => {
         button.addEventListener('click', function() {
-            // 获取设备名
             currentModalHostname = this.getAttribute('data-hostname');
             const modalDeviceName = document.getElementById('modalDeviceName');
             const historyLimit = document.getElementById('historyLimit');
             
-            // 初始化模态框内容
             modalDeviceName.textContent = currentModalHostname;
-            historyLimit.value = 20; // 重置默认记录数为20
+            historyLimit.value = 20;
             document.getElementById('historyCountInfo').textContent = '总记录数：0 条';
             
-            // 显示模态框并自动查询备份历史
             backupHistoryModal.show();
             queryBackupHistory();
         });
     });
 
-    // 2. 为「刷新备份历史」按钮绑定点击事件
     document.getElementById('refreshHistoryBtn').addEventListener('click', function() {
         queryBackupHistory();
     });
 
-    // 3. 封装：查询备份历史的核心函数（复用性强）
     function queryBackupHistory() {
         if (!currentModalHostname) return;
         
-        // 获取DOM元素
         const historyLimit = document.getElementById('historyLimit');
         const tableBody = document.getElementById('backupHistoryTableBody');
         const countInfo = document.getElementById('historyCountInfo');
         const refreshBtn = document.getElementById('refreshHistoryBtn');
         
-        // 校验limit参数
         let limit = parseInt(historyLimit.value.trim());
         if (isNaN(limit) || limit < 1 || limit > 100) {
-            alert('请输入1-30之间的有效数字！');
+            alert('请输入1-100之间的有效数字！');
             historyLimit.value = 20;
             limit = 20;
         }
         
-        // 设置加载状态
-        const originalBtnText = refreshBtn.textContent;
-        refreshBtn.textContent = '刷新中...';
+        const originalBtnText = refreshBtn.innerHTML;
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>刷新中...';
         refreshBtn.disabled = true;
-        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-warning">正在查询备份历史...</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-warning py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在查询备份历史...</td></tr>';
         countInfo.textContent = '总记录数：查询中...';
         
-        // 调用后端第四个API（兼容带设备名和limit参数）
         const apiUrl = `/api/backup/history/${currentModalHostname}?limit=${limit}`;
         fetch(apiUrl)
             .then(response => {
-                // 先解析JSON，再判断响应状态
                 return response.json().then(data => {
                     if (!response.ok) {
                         throw new Error(data.error_msg || `请求失败，状态码：${response.status}`);
@@ -613,12 +1090,9 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
                 });
             })
             .then(data => {
-                // 清空表格内容
                 tableBody.innerHTML = '';
                 
-                // 处理后端返回结果（匹配你的API返回格式）
                 if (data.status === 'success' && data.history && data.history.length > 0) {
-                    // 渲染备份历史表格
                     data.history.forEach(record => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
@@ -637,57 +1111,45 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
                         tableBody.appendChild(tr);
                     });
                     
-                    // 更新统计信息
                     countInfo.textContent = `总记录数：${data.history_record || data.history.length} 条（当前查询${limit}条）`;
                 } else {
-                    // 无备份历史记录
-                    tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无备份历史记录</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无备份历史记录</td></tr>';
                     countInfo.textContent = '总记录数：0 条';
                 }
             })
             .catch(error => {
-                // 处理查询异常
-                tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">❌ ${error.message}</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">❌ ${error.message}</td></tr>`;
                 countInfo.textContent = '总记录数：查询失败';
                 console.error('备份历史查询异常：', error);
             })
             .finally(() => {
-                // 恢复按钮状态
-                refreshBtn.textContent = originalBtnText;
+                refreshBtn.innerHTML = originalBtnText;
                 refreshBtn.disabled = false;
             });
     }
     </script>
 
-    <!-- ===================================== 优化版：AI报告功能JS脚本 ===================================== -->
+    <!-- AI报告功能JS脚本 -->
     <script>
-    // AI报告纯文本 → 结构化HTML转换函数
     function formatReportToHtml(rawText) {
         if (!rawText || rawText.trim() === '') {
             return '<span class="report-empty">暂无有效备份数据可供分析</span>';
         }
 
         let html = rawText.trim();
-        // 1. 处理 **加粗内容** → <strong>
         html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-        // 2. 处理 章节标题 → <h3>
         html = html.replace(/<strong>(\d+\. .*?)<\/strong>/g, "<h3>$1</h3>");
-        // 3. 处理 无序列表 → <ul><li>
         html = html.replace(/\n\*   (.*?)(?=\n|$)/g, "\n<li>$1</li>");
         html = html.replace(/(<li>.*?<\/li>)+/gs, "<ul>$&</ul>");
-        // 4. 处理 有序列表 → <ol><li>
         html = html.replace(/\n(\d+)\.  (.*?)(?=\n|$)/g, "\n<li>$2</li>");
         html = html.replace(/(<li>.*?<\/li>)+/gs, "<ol>$&</ol>");
-        // 5. 处理 注释内容 → <p class="report-note">
         html = html.replace(/\*\((注：.*?)\)\*/g, "<p class='report-note'>$1</p>");
-        // 6. 处理换行，优化排版
         html = html.replace(/\n{2,}/g, "<br><br>");
         html = html.replace(/\n/g, " ");
 
         return `<div class="report-content-wrapper">${html}</div>`;
     }
 
-    // 生成AI备份报告的核心功能
     document.getElementById('generateReportBtn').addEventListener('click', function() {
         const generateBtn = this;
         const daysInput = document.getElementById('reportDays');
@@ -702,11 +1164,11 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
             return;
         }
 
-        const originalBtnText = generateBtn.textContent;
-        generateBtn.textContent = '生成中...';
+        const originalBtnText = generateBtn.innerHTML;
+        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
         generateBtn.disabled = true;
-        reportStatus.innerHTML = '<span class="text-warning">📝 正在生成AI运维报告，请稍候...</span>';
-        reportContent.innerHTML = '<span class="text-warning text-center d-block">报告生成中...</span>';
+        reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI运维报告，请稍候...</span>';
+        reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
         reportTime.textContent = '';
 
         const apiUrl = `/api/backup_record/ai/?days=${days}`;
@@ -722,7 +1184,7 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
             .then(data => {
                 if (data.code === 200) {
                     if (data.data && data.data !== '') {
-                        reportStatus.innerHTML = '<span class="text-success">✅ 报告生成成功！</span>';
+                        reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
                         const formattedHtml = formatReportToHtml(data.data);
                         reportContent.innerHTML = formattedHtml;
                         if (data.report_time) {
@@ -730,28 +1192,27 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
                             reportTime.textContent = `报告生成时间：${formatTime}`;
                         }
                     } else {
-                        reportStatus.innerHTML = '<span class="text-muted">ℹ️ 暂无有效报告数据</span>';
+                        reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
                         reportContent.innerHTML = '<span class="report-empty">暂无有效备份数据可供分析</span>';
                     }
                 } else {
-                    reportStatus.innerHTML = '<span class="text-muted">ℹ️ 暂无有效报告数据</span>';
+                    reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
                     reportContent.innerHTML = '<span class="report-empty">暂无有效备份数据可供分析</span>';
                 }
-                console.log('AI报告详细结果:', data);
             })
             .catch(error => {
-                reportStatus.innerHTML = `<span class="text-danger">❌ 报告生成失败！</span>`;
-                reportContent.innerHTML = `<span class="text-danger text-center d-block">${error.message}</span>`;
+                reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
+                reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
                 console.error('AI报告生成异常：', error);
             })
             .finally(() => {
-                generateBtn.textContent = originalBtnText;
+                generateBtn.innerHTML = originalBtnText;
                 generateBtn.disabled = false;
             });
     });
     </script>
 
-    <!-- ===================================== 新增：系统健康检查功能JS脚本 ===================================== -->
+    <!-- 系统健康检查功能JS脚本 -->
     <script>
     document.getElementById('checkSystemHealthBtn').addEventListener('click', function() {
         const btn = this;
@@ -759,13 +1220,13 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
         const metricsContent = document.getElementById('systemMetricsContent');
         const serviceContent = document.getElementById('serviceStatusContent');
 
-        const originalBtnText = btn.textContent;
-        btn.textContent = '检查中...';
+        const originalBtnText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
         btn.disabled = true;
 
-        summaryDiv.innerHTML = '<div class="d-flex justify-content-between align-items-center"><span class="fw-bold">整体状态：<span class="text-warning">检查中...</span></span><span class="small text-muted">正在获取系统健康数据...</span></div>';
-        metricsContent.innerHTML = '<div class="text-center text-warning py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在收集系统指标...</div>';
-        serviceContent.innerHTML = '<div class="text-center text-warning py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在检查服务状态...</div>';
+        summaryDiv.innerHTML = '<div class="d-flex justify-content-between align-items-center"><span class="fw-bold">整体状态：<span class="badge bg-warning">检查中...</span></span><span class="small text-muted">正在获取系统健康数据...</span></div>';
+        metricsContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>正在收集系统指标...</div>';
+        serviceContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>正在检查服务状态...</div>';
 
         fetch('/api/system/healthy')
             .then(response => {
@@ -802,51 +1263,39 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
                     metricsContent.innerHTML = `
                         <div class="row g-3">
                             <div class="col-6">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center py-2">
-                                        <small class="text-muted d-block">CPU使用率</small>
-                                        <strong class="h5 mb-0">${systemMetrics.cpu_percent || 'N/A'}%</strong>
-                                    </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">${systemMetrics.cpu_percent || 'N/A'}%</div>
+                                    <div class="stat-label">CPU使用率</div>
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center py-2">
-                                        <small class="text-muted d-block">内存使用率</small>
-                                        <strong class="h5 mb-0">${systemMetrics.memory_percent || 'N/A'}%</strong>
-                                    </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">${systemMetrics.memory_percent || 'N/A'}%</div>
+                                    <div class="stat-label">内存使用率</div>
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center py-2">
-                                        <small class="text-muted d-block">磁盘使用率</small>
-                                        <strong class="h5 mb-0">${systemMetrics.disk_percent || 'N/A'}%</strong>
-                                    </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">${systemMetrics.disk_percent || 'N/A'}%</div>
+                                    <div class="stat-label">磁盘使用率</div>
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center py-2">
-                                        <small class="text-muted d-block">内存已用</small>
-                                        <strong class="h5 mb-0">${systemMetrics.memory_used_gb || 'N/A'} GB</strong>
-                                    </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">${systemMetrics.memory_used_gb || 'N/A'} GB</div>
+                                    <div class="stat-label">内存已用</div>
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center py-2">
-                                        <small class="text-muted d-block">磁盘已用</small>
-                                        <strong class="h5 mb-0">${systemMetrics.disk_used_gb || 'N/A'} GB</strong>
-                                    </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">${systemMetrics.disk_used_gb || 'N/A'} GB</div>
+                                    <div class="stat-label">磁盘已用</div>
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center py-2">
-                                        <small class="text-muted d-block">内存总量</small>
-                                        <strong class="h5 mb-0">${systemMetrics.memory_total_gb || 'N/A'} GB</strong>
-                                    </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">${systemMetrics.memory_total_gb || 'N/A'} GB</div>
+                                    <div class="stat-label">内存总量</div>
                                 </div>
                             </div>
                         </div>
@@ -858,7 +1307,7 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
                 }
 
                 if (serviceStatus && typeof serviceStatus === 'object') {
-                    let serviceHtml = '<div class="list-group list-group-flush">';
+                    let serviceHtml = '<div class="service-list">';
                     for (const [serviceName, status] of Object.entries(serviceStatus)) {
                         let badgeClass = 'bg-secondary';
                         let statusText = status;
@@ -879,7 +1328,7 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
                         const displayName = serviceNames[serviceName] || serviceName;
 
                         serviceHtml += `
-                            <div class="list-group-item d-flex justify-content-between align-items-center py-2">
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
                                 <span>${displayName}</span>
                                 <span class="badge ${badgeClass}">${statusText}</span>
                             </div>
@@ -898,15 +1347,14 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
                 console.error('系统健康检查异常：', error);
             })
             .finally(() => {
-                btn.textContent = originalBtnText;
+                btn.innerHTML = originalBtnText;
                 btn.disabled = false;
             });
     });
     </script>
 
-    <!-- ===================================== 核心修改：Nornir并发健康检查最终落地版JS ===================================== -->
+    <!-- Nornir并发健康检查JS脚本 -->
     <script>
-    // 初始化Nornir相关DOM元素和模态框
     const nornirSelectAll = document.getElementById('nornirSelectAll');
     const nornirTableSelectAll = document.getElementById('nornirTableSelectAll');
     const nornirSelectedCount = document.getElementById('nornirSelectedCount');
@@ -914,7 +1362,6 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
     const nornirDeviceCheckboxes = document.querySelectorAll('.nornirDeviceCheckbox');
     const nornirCheckResultModal = new bootstrap.Modal(document.getElementById('nornirCheckResultModal'));
 
-    // 1. 全选/取消全选功能（顶部全选框 + 表格内全选框，双向同步）
     function syncNornirSelectAllStatus() {
         const allChecked = Array.from(nornirDeviceCheckboxes).every(checkbox => checkbox.checked);
         const anyChecked = Array.from(nornirDeviceCheckboxes).some(checkbox => checkbox.checked);
@@ -922,12 +1369,10 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
         nornirTableSelectAll.checked = allChecked;
         nornirBatchCheckBtn.disabled = !anyChecked;
         
-        // 更新选中设备计数
         const selectedCount = Array.from(nornirDeviceCheckboxes).filter(checkbox => checkbox.checked).length;
-        nornirSelectedCount.textContent = `(已选：${selectedCount} 台)`;
+        nornirSelectedCount.textContent = `已选：${selectedCount} 台`;
     }
 
-    // 顶部全选框事件
     nornirSelectAll.addEventListener('change', function() {
         nornirDeviceCheckboxes.forEach(checkbox => {
             checkbox.checked = this.checked;
@@ -935,172 +1380,98 @@ document.querySelectorAll('.health-check-btn').forEach(button => {
         syncNornirSelectAllStatus();
     });
 
-    // 表格内全选框事件（与顶部全选框同步）
     nornirTableSelectAll.addEventListener('change', function() {
-        nornirSelectAll.checked = this.checked;
         nornirDeviceCheckboxes.forEach(checkbox => {
             checkbox.checked = this.checked;
         });
         syncNornirSelectAllStatus();
     });
 
-    // 单个设备复选框事件
     nornirDeviceCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', syncNornirSelectAllStatus);
     });
 
-    // 2. 封装：获取选中的设备列表
-    function getSelectedNornirDevices() {
-        const selectedDevices = [];
-        nornirDeviceCheckboxes.forEach(checkbox => {
-            if (checkbox.checked) {
-                const hostname = checkbox.getAttribute('data-hostname');
-                selectedDevices.push(hostname);
-            }
-        });
-        return selectedDevices;
-    }
-
-    // 3. Nornir并发检查核心功能（最终落地版：展示完整原始命令输出，无截取）
     nornirBatchCheckBtn.addEventListener('click', function() {
-        const btn = this;
-        const selectedDevices = getSelectedNornirDevices();
+        const selectedDevices = Array.from(nornirDeviceCheckboxes)
+            .filter(checkbox => checkbox.checked)
+            .map(checkbox => checkbox.getAttribute('data-hostname'));
+
         if (selectedDevices.length === 0) {
-            alert('请先选择需要并发检查的设备！');
+            alert('请先选择设备！');
             return;
         }
 
-        // 初始化模态框内容
-        const resultTableBody = document.getElementById('nornirCheckResultTableBody');
-        const summaryText = document.getElementById('nornirSummaryText');
-        const successCount = document.getElementById('nornirSuccessCount');
-        const failedCount = document.getElementById('nornirFailedCount');
-        const totalCount = document.getElementById('nornirTotalCount');
+        const originalText = this.innerHTML;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
+        this.disabled = true;
 
-        // 设置加载状态
-        const originalBtnText = btn.textContent;
-        btn.textContent = '检查中...';
-        btn.disabled = true;
-        summaryText.innerHTML = '<span class="text-warning">正在执行并发健康检查，请稍候...</span>';
-        successCount.textContent = '成功：0 台';
-        failedCount.textContent = '失败：0 台';
-        totalCount.textContent = `总计：${selectedDevices.length} 台`;
-        resultTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-warning">正在执行并发检查，请勿关闭...</td></tr>';
+        fetch('/api/nornir/check', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ hostnames: selectedDevices }),
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`请求失败，状态码：${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const tableBody = document.getElementById('nornirCheckResultTableBody');
+            const successCount = document.getElementById('nornirSuccessCount');
+            const failedCount = document.getElementById('nornirFailedCount');
+            const totalCount = document.getElementById('nornirTotalCount');
 
-        // 拼接设备列表（逗号分隔，符合后端API要求）
-        const devicesStr = selectedDevices.join(',');
-        // 调用你的第6个API：/api/health/nornir-check
-        const apiUrl = `/api/health/nornir-check?devices=${encodeURIComponent(devicesStr)}`;
+            let success = 0;
+            let failed = 0;
 
-        // 发送请求调用Nornir并发检查API
-        fetch(apiUrl)
-            .then(response => {
-                // 先解析JSON，再判断响应状态（与现有JS逻辑对齐）
-                return response.json().then(data => {
-                    if (!response.ok) {
-                        throw new Error(data.error || `并发检查请求失败，状态码：${response.status}`);
+            tableBody.innerHTML = '';
+
+            if (data.results && Array.isArray(data.results)) {
+                data.results.forEach(result => {
+                    const tr = document.createElement('tr');
+                    const isSuccess = result.status === 'success' || result.status === '成功';
+                    const statusBadge = isSuccess ? '<span class="badge bg-success">成功</span>' : '<span class="badge bg-danger">失败</span>';
+                    
+                    if (isSuccess) {
+                        success++;
+                    } else {
+                        failed++;
                     }
-                    return data;
+
+                    const output = result.output ? `<pre class="raw-command-output mt-1">${result.output}</pre>` : '';
+
+                    tr.innerHTML = `
+                        <td>${result.hostname}</td>
+                        <td>${statusBadge}</td>
+                        <td>${output}</td>
+                        <td>${result.timestamp || new Date().toLocaleString('zh-CN')}</td>
+                    `;
+                    tableBody.appendChild(tr);
                 });
-            })
-            .then(data => {
-                // 控制台打印完整返回数据，方便调试查看
-                console.log("后端返回的完整Nornir检查数据：", data);
-                
-                // 清空表格内容
-                resultTableBody.innerHTML = '';
-                let successNum = 0;
-                let failedNum = 0;
+            } else {
+                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">暂无检查结果数据</td></tr>';
+            }
 
-                // 解析后端返回结果（核心修改：精准提取完整的version_result和interface_result，无截取）
-                if (data.success && Array.isArray(data.success)) {
-                    // 处理成功设备（核心：提取后端返回的完整字段，保留原始格式）
-                    data.success.forEach(item => {
-                        successNum++;
-                        // 逐层提取数据，完善容错处理，避免页面报错
-                        const deviceResult = item.result || {};
-                        const deviceDetails = deviceResult.details || {};
-                        
-                        // 【核心修改1：精准提取后端返回的完整字段，无任何截取】
-                        const fullVersionOutput = deviceDetails.version_result || "无版本查询原始输出";
-                        const fullInterfaceOutput = deviceDetails.interface_result || "无接口查询原始输出";
-                        
-                        // 【核心修改2：拼接完整的原始命令输出，模拟设备终端格式】
-                        const fullRawCommandOutput = [
-                            "==================== 设备原始命令输出开始 ====================",
-                            "",
-                            "【命令：display version】",
-                            fullVersionOutput,
-                            "",
-                            "【命令：display interface brief】",
-                            fullInterfaceOutput,
-                            "",
-                            "==================== 设备原始命令输出结束 ===================="
-                        ].join('\n');
+            successCount.innerHTML = `<i class="fas fa-check-circle me-1"></i>成功：${success} 台`;
+            failedCount.innerHTML = `<i class="fas fa-times-circle me-1"></i>失败：${failed} 台`;
+            totalCount.innerHTML = `<i class="fas fa-server me-1"></i>总计：${selectedDevices.length} 台`;
 
-                        // 【核心修改3：渲染完整输出，优化滚动和样式，无前端截取】
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td>${item.hostname || deviceResult.device_name || '未知设备'}</td>
-                            <td><span class="badge bg-success">检查成功</span></td>
-                            <td>
-                                <pre class="raw-command-output bg-light p-3 rounded mb-0" style="max-height: 400px; overflow-y: auto;">${fullRawCommandOutput}</pre>
-                            </td>
-                            <td>${new Date().toLocaleString('zh-CN')}</td>
-                        `;
-                        resultTableBody.appendChild(tr);
-                    });
-                }
-
-                if (data.failed && Array.isArray(data.failed)) {
-                    // 处理失败设备（保留原始错误信息）
-                    data.failed.forEach(item => {
-                        failedNum++;
-                        const errorRaw = item.error || item.raw_error || '未知检查失败原因';
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td>${item.hostname || '未知设备'}</td>
-                            <td><span class="badge bg-danger">检查失败</span></td>
-                            <td>
-                                <pre class="raw-command-output bg-light p-3 rounded mb-0 text-danger" style="max-height: 150px; overflow-y: auto;">${errorRaw}</pre>
-                            </td>
-                            <td>${new Date().toLocaleString('zh-CN')}</td>
-                        `;
-                        resultTableBody.appendChild(tr);
-                    });
-                }
-
-                // 更新汇总统计
-                successCount.textContent = `成功：${successNum} 台`;
-                failedCount.textContent = `失败：${failedNum} 台`;
-                totalCount.textContent = `总计：${selectedDevices.length} 台`;
-                
-                if (failedNum === 0 && successNum > 0) {
-                    summaryText.innerHTML = '<span class="text-success">✅ 所有选中设备并发检查全部成功！</span>';
-                } else if (failedNum > 0) {
-                    summaryText.innerHTML = `<span class="text-warning">⚠️ 并发检查完成，部分设备检查失败（失败：${failedNum} 台）</span>`;
-                } else {
-                    summaryText.innerHTML = '<span class="text-muted">ℹ️ 暂无设备检查结果</span>';
-                }
-
-                // 显示结果模态框
-                nornirCheckResultModal.show();
-            })
-            .catch(error => {
-                // 捕获网络或未知异常
-                resultTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">❌ ${error.message}</td></tr>`;
-                summaryText.innerHTML = '<span class="text-danger">❌ 并发检查请求异常！</span>';
-                console.error('Nornir并发检查异常：', error);
-            })
-            .finally(() => {
-                // 恢复按钮状态
-                btn.textContent = originalBtnText;
-                btn.disabled = false;
-            });
+            nornirCheckResultModal.show();
+        })
+        .catch(error => {
+            console.error('Nornir并发检查异常：', error);
+            alert(`并发检查失败：${error.message}`);
+        })
+        .finally(() => {
+            this.innerHTML = originalText;
+            this.disabled = false;
+        });
     });
 
-    // 页面加载完成后初始化选中状态
-    document.addEventListener('DOMContentLoaded', syncNornirSelectAllStatus);
+    syncNornirSelectAllStatus();
     </script>
 </body>
 </html>

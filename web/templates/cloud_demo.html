@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云网络概念演示 - NetDevOps工具箱</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 现代化深色主题 */
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary-color: #64748b;
+            --background-color: #0f172a;
+            --card-background: #1e293b;
+            --card-hover: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* 平滑滚动 */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* 容器样式 */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 标题区域 */
+        .header-section {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem 0;
+            background: linear-gradient(135deg, var(--primary-color), var(--info-color));
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .header-section h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-section p {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin: 0;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+            transition: var(--transition);
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary-color);
+        }
+
+        .card-header {
+            background-color: rgba(79, 70, 229, 0.1);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.25rem 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+            background-color: var(--card-background);
+        }
+
+        /* 导航栏样式 */
+        .navbar {
+            background-color: var(--card-background) !important;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .navbar-brand, .nav-link {
+            color: var(--text-primary) !important;
+        }
+
+        .navbar-nav .nav-link.active {
+            color: var(--primary-color) !important;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            border-radius: 8px;
+            font-weight: 600;
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+            text-transform: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+
+        .btn-outline-primary {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            background-color: transparent;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-outline-success {
+            border-color: var(--success-color);
+            color: var(--success-color);
+            background-color: transparent;
+        }
+
+        .btn-outline-success:hover {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-outline-secondary {
+            border-color: var(--secondary-color);
+            color: var(--secondary-color);
+            background-color: transparent;
+        }
+
+        .btn-outline-secondary:hover {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        /* 表格样式 */
+        .table {
+            color: var(--text-primary);
+            background-color: var(--card-background);
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .table thead {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--text-primary);
+        }
+
+        .table th,
+        .table td {
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 1.25rem;
+        }
+
+        .table tbody tr {
+            transition: var(--transition);
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(79, 70, 229, 0.2);
+            transform: translateX(4px);
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(79, 70, 229, 0.2);
+        }
+
+        /* 确保表格中所有文字在深色主题上清晰可见 */
+        .table {
+            color: var(--text-primary) !important;
+        }
+
+        .table td {
+            color: var(--text-primary) !important;
+        }
+
+        .table .badge {
+            color: var(--text-primary) !important;
+        }
+
+        /* 覆盖默认的text-dark样式 */
+        .table .text-dark {
+            color: var(--text-primary) !important;
+        }
+
+        /* 确保行悬停时所有文字保持白色 */
+        .table tbody tr:hover {
+            color: var(--text-primary) !important;
+        }
+
+        .table tbody tr:hover td {
+            color: var(--text-primary) !important;
+        }
+
+        /* 徽章样式 */
+        .badge {
+            border-radius: 9999px;
+            font-weight: 600;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .bg-primary {
+            background-color: var(--primary-color);
+        }
+
+        .bg-success {
+            background-color: var(--success-color);
+        }
+
+        .bg-danger {
+            background-color: var(--danger-color);
+        }
+
+        .bg-warning {
+            background-color: var(--warning-color);
+            color: var(--background-color);
+        }
+
+        .bg-info {
+            background-color: var(--info-color);
+        }
+
+        .bg-secondary {
+            background-color: var(--secondary-color);
+        }
+
+        /* 表单样式 */
+        .form-control {
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            background-color: var(--background-color);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            color: var(--text-primary);
+        }
+
+        .form-control::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* 列表组样式 */
+        .list-group {
+            background-color: var(--card-background);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .list-group-item {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            transition: var(--transition);
+        }
+
+        .list-group-item:hover {
+            background-color: var(--card-hover);
+            border-color: var(--primary-color);
+        }
+
+        /* 警告框样式 */
+        .alert {
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: rgba(13, 202, 240, 0.1);
+            color: var(--text-primary);
+        }
+
+        .alert-info {
+            background-color: rgba(13, 202, 240, 0.1);
+            border-color: var(--info-color);
+            color: var(--text-primary);
+        }
+
+        .alert-success {
+            background-color: rgba(16, 185, 129, 0.1);
+            border-color: var(--success-color);
+            color: var(--text-primary);
+        }
+
+        .alert-warning {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--warning-color);
+            color: var(--text-primary);
+        }
+
+        .alert-danger {
+            background-color: rgba(239, 68, 68, 0.1);
+            border-color: var(--danger-color);
+            color: var(--text-primary);
+        }
+
+        /* 文字颜色 */
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--text-primary);
+        }
+
+        p, .lead, .text-muted, .small {
+            color: var(--text-secondary);
+        }
+
+        .text-muted {
+            color: var(--text-muted) !important;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--background-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--secondary-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-color);
+        }
+
+        /* 代码块样式 */
+        pre {
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            color: var(--text-primary);
+            overflow-x: auto;
+        }
+
+        code {
+            color: var(--text-primary);
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+        }
+
+        /* 动画效果 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* 加载动画 */
+        .spinner-border {
+            border-color: var(--primary-color);
+            border-right-color: transparent;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .header-section h1 {
+                font-size: 2rem;
+            }
+
+            .card {
+                margin-bottom: 1.5rem;
+            }
+
+            .table th,
+            .table td {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.875rem;
+            }
+        }
+
+        /* 仪表盘预览样式 */
+        #dashboard-preview {
+            text-align: center;
+        }
+
+        #dashboard-preview .p-3 {
+            background-color: var(--card-background) !important;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: var(--shadow-md);
+        }
+
+        /* 状态指示器 */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .status-dot.online {
+            background-color: var(--success-color);
+        }
+
+        .status-dot.offline {
+            background-color: var(--danger-color);
+        }
+
+        .status-dot.pending {
+            background-color: var(--warning-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <!-- 导航 -->
+        <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/">NetDevOps工具箱</a>
+                <div class="navbar-nav">
+                    <a class="nav-link" href="/">设备管理</a>
+                    <a class="nav-link active" href="/cloud">云网络概念</a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 页面标题区域 -->
+        <div class="header-section">
+            <h1><i class="fas fa-cloud me-3"></i>云网络概念演示</h1>
+            <p>展示本平台如何扩展至管理云网络资源（VPC、安全组等）</p>
+        </div>
+
+        <!-- 说明信息 -->
+        <div class="alert alert-info">
+            <strong>说明：</strong> 此为概念演示页面，展示平台架构可平滑演进至云网络管理。数据为模拟数据，真实环境需集成云厂商API。
+        </div>
+
+        <!-- 云网络资源展示 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-server text-primary me-2"></i>云网络资源（模拟）</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between mb-4 p-3 bg-opacity-10 rounded-lg" style="background-color: rgba(79, 70, 229, 0.1);">
+                    <div class="d-flex gap-3">
+                        <button class="btn btn-primary" onclick="loadResources('all')">
+                            <i class="fas fa-list me-1"></i>加载所有资源
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="loadResources('vpc')">
+                            <i class="fas fa-network-wired me-1"></i>仅VPC
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="loadResources('securitygroup')">
+                            <i class="fas fa-shield-alt me-1"></i>仅安全组
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 响应式表格 -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>资源类型</th>
+                                <th>名称</th>
+                                <th>ID</th>
+                                <th>CIDR网段</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resources-table-body">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="fas fa-info-circle me-2"></i>点击上方按钮加载资源...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 架构演进图 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-sitemap text-info me-2"></i>架构演进路径</h5>
+            </div>
+            <div class="card-body">
+                <pre style="background-color: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+当前能力 (Physical)         未来扩展 (Cloud)
+├── 设备发现              → 云资源发现 (API)
+├── CLI配置备份           → 云配置快照 (API)
+├── 健康检查              → 云服务健康检查
+├── VLAN配置              → 安全组/VPC配置
+└── Web可视化             → 云控制台集成
+                </pre>
+                <p class="mb-0 mt-3"><small>技术栈延续：Python → 云SDK (boto3/huaweicloud-sdk)，Nornir/Ansible → Terraform/云编排</small></p>
+            </div>
+        </div>
+
+        <!-- API接口展示 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-plug text-success me-2"></i>API接口扩展</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="list-group">
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">🔌 API #1: 设备发现</h6>
+                                        <p class="small text-muted mb-0">GET /api/devices</p>
+                                    </div>
+                                    <span class="badge bg-primary">设备管理</span>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">🔌 API #2: 配置备份</h6>
+                                        <p class="small text-muted mb-0">POST /api/devices/backup</p>
+                                    </div>
+                                    <span class="badge bg-primary">设备管理</span>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">🔌 API #3: 健康检查</h6>
+                                        <p class="small text-muted mb-0">GET /api/devices/health</p>
+                                    </div>
+                                    <span class="badge bg-primary">设备管理</span>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">🔌 API #4: VLAN配置</h6>
+                                        <p class="small text-muted mb-0">PUT /api/devices/vlan</p>
+                                    </div>
+                                    <span class="badge bg-primary">设备管理</span>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">🔌 API #5: 命令执行</h6>
+                                        <p class="small text-muted mb-0">POST /api/devices/exec</p>
+                                    </div>
+                                    <span class="badge bg-primary">设备管理</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="list-group">
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">☁️ API #6: 云资源列表</h6>
+                                        <p class="small text-muted mb-0">GET /api/cloud/resources</p>
+                                    </div>
+                                    <span class="badge bg-success">云网络</span>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">☁️ API #7: VPC创建</h6>
+                                        <p class="small text-muted mb-0">POST /api/cloud/vpcs</p>
+                                    </div>
+                                    <span class="badge bg-success">云网络</span>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">☁️ API #8: 安全组管理</h6>
+                                        <p class="small text-muted mb-0">PUT /api/cloud/security-groups</p>
+                                    </div>
+                                    <span class="badge bg-success">云网络</span>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">☁️ API #9: 云资源监控</h6>
+                                        <p class="small text-muted mb-0">GET /api/cloud/monitoring</p>
+                                    </div>
+                                    <span class="badge bg-success">云网络</span>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">☁️ API #10: 云资源编排</h6>
+                                        <p class="small text-muted mb-0">POST /api/cloud/orchestration</p>
+                                    </div>
+                                    <span class="badge bg-success">云网络</span>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">☁️ API #11: 混合架构视图</h6>
+                                        <p class="small text-muted mb-0">GET /api/cloud/hybrid-view</p>
+                                    </div>
+                                    <span class="badge bg-success">云网络</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 模拟操作和项目定位 -->
+        <div class="row">
+            <div class="col-md-6">
+                <!-- 模拟操作 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-cogs text-warning me-2"></i>模拟操作</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="create-vpc-form">
+                            <div class="mb-3">
+                                <label for="vpc-name" class="form-label">VPC名称</label>
+                                <input type="text" class="form-control" id="vpc-name" value="demo-vpc" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="vpc-cidr" class="form-label">CIDR网段</label>
+                                <input type="text" class="form-control" id="vpc-cidr" value="172.16.0.0/16">
+                            </div>
+                            <button type="button" class="btn btn-outline-success w-100" onclick="simulateCreateVpc()">
+                                <i class="fas fa-plus-circle me-1"></i>模拟创建VPC
+                            </button>
+                        </form>
+                        
+                        <div id="simulation-result" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <!-- 项目定位 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-info-circle text-secondary me-2"></i>项目定位</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3">
+                            <strong>NetDevOps工具箱</strong> 是一个面向云原生时代的网络自动化平台原型。
+                            它展示了如何用统一的架构管理物理网络与云网络资源。
+                        </p>
+                        <a href="/" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="fas fa-arrow-left me-1"></i>返回设备管理
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Web仪表盘扩展 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-tachometer-alt text-info me-2"></i>Web仪表盘扩展</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary w-100 mb-3" onclick="showDashboard('physical')">
+                            <i class="fas fa-desktop me-2"></i>物理设备仪表盘
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary w-100 mb-3" onclick="showDashboard('cloud')">
+                            <i class="fas fa-cloud me-2"></i>云资源仪表盘
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary w-100 mb-3" onclick="showDashboard('hybrid')">
+                            <i class="fas fa-exchange-alt me-2"></i>混合架构仪表盘
+                        </button>
+                    </div>
+                </div>
+                <div id="dashboard-preview" class="text-center">
+                    <p class="text-muted"><i class="fas fa-hand-pointer me-2"></i>点击上方按钮预览不同仪表盘</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页脚区域 -->
+        <footer class="mt-5 py-4">
+            <div class="container">
+                <div class="text-center">
+                    <p class="mb-0">
+                        <i class="fas fa-code text-primary me-1"></i>版本 6.0.0 | 基于Flask构建 | 
+                        <i class="fas fa-cloud text-info me-1"></i>云网络概念演示
+                    </p>
+                    <p class="small text-muted mt-1">
+                        © 2026 NetDevOps Toolbox | 智能网络运维解决方案
+                    </p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // 加载资源
+    function loadResources(type) {
+        const tableBody = document.getElementById('resources-table-body');
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-warning py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在加载资源...</td></tr>';
+        
+        fetch(`/api/cloud/resources?type=${type}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success' && data.data.length > 0) {
+                    let html = '';
+                    data.data.forEach(resource => {
+                        const statusBadge = resource.status === 'active' 
+                            ? '<span class="badge bg-success">运行中</span>' 
+                            : '<span class="badge bg-danger">已停止</span>';
+                        const typeBadge = resource.resource_type === 'VPC' ? 'bg-primary' : 'bg-success';
+                        
+                        html += `
+                        <tr>
+                            <td>
+                                <span class="badge ${typeBadge}">${resource.resource_type}</span>
+                            </td>
+                            <td>${resource.name}</td>
+                            <td>${resource.id}</td>
+                            <td>${resource.cidr || '-'}</td>
+                            <td>${statusBadge}</td>
+                            <td>${resource.created_at}</td>
+                        </tr>
+                        `;
+                    });
+                    tableBody.innerHTML = html;
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="fas fa-search me-2"></i>未找到资源</td></tr>';
+                }
+            })
+            .catch(error => {
+                tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>加载失败：${error.message}</td></tr>`;
+            });
+    }
+
+    // 模拟创建VPC
+    function simulateCreateVpc() {
+        const name = document.getElementById('vpc-name').value;
+        const cidr = document.getElementById('vpc-cidr').value;
+        const resultDiv = document.getElementById('simulation-result');
+        
+        if (!name || !cidr) {
+            resultDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>请填写完整的VPC信息</div>';
+            return;
+        }
+        
+        resultDiv.innerHTML = '<div class="alert alert-warning"><div class="spinner-border spinner-border-sm me-2"></div>正在模拟创建VPC...</div>';
+        
+        setTimeout(() => {
+            const randomId = 'vpc-' + Math.floor(Math.random() * 1000000);
+            resultDiv.innerHTML = `
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i><strong>创建成功！</strong> 模拟创建VPC：
+                <ul class="small mt-2 mb-0">
+                    <li><strong>名称：</strong>${name}</li>
+                    <li><strong>CIDR：</strong>${cidr}</li>
+                    <li><strong>状态：</strong>运行中</li>
+                    <li><strong>ID：</strong>${randomId}</li>
+                    <li><strong>创建时间：</strong>${new Date().toLocaleString('zh-CN')}</li>
+                </ul>
+            </div>
+            `;
+        }, 1000);
+    }
+
+    // 显示仪表盘预览
+    function showDashboard(type) {
+        const previewDiv = document.getElementById('dashboard-preview');
+        let content = '';
+        
+        if (type === 'physical') {
+            content = `
+            <div class="p-3 rounded">
+                <h6 class="mb-3"><i class="fas fa-desktop text-primary me-2"></i>物理设备仪表盘</h6>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-center p-3 mb-2" style="background-color: rgba(79, 70, 229, 0.1); border-radius: 8px;">
+                            <div class="stat-value">24</div>
+                            <div class="stat-label">设备总数</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 mb-2" style="background-color: rgba(16, 185, 129, 0.1); border-radius: 8px;">
+                            <div class="stat-value" style="color: var(--success-color);">22</div>
+                            <div class="stat-label">在线设备</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 mb-2" style="background-color: rgba(245, 158, 11, 0.1); border-radius: 8px;">
+                            <div class="stat-value" style="color: var(--warning-color);">3</div>
+                            <div class="stat-label">告警数量</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 mb-2" style="background-color: rgba(59, 130, 246, 0.1); border-radius: 8px;">
+                            <div class="stat-value" style="color: var(--info-color);">2小时前</div>
+                            <div class="stat-label">最近备份</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+        } else if (type === 'cloud') {
+            content = `
+            <div class="p-3 rounded">
+                <h6 class="mb-3"><i class="fas fa-cloud text-success me-2"></i>云资源仪表盘</h6>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-center p-3 mb-2" style="background-color: rgba(16, 185, 129, 0.1); border-radius: 8px;">
+                            <div class="stat-value" style="color: var(--success-color);">8</div>
+                            <div class="stat-label">VPC数量</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 mb-2" style="background-color: rgba(79, 70, 229, 0.1); border-radius: 8px;">
+                            <div class="stat-value" style="color: var(--primary-color);">24</div>
+                            <div class="stat-label">安全组</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 mb-2" style="background-color: rgba(59, 130, 246, 0.1); border-radius: 8px;">
+                            <div class="stat-value" style="color: var(--info-color);">42</div>
+                            <div class="stat-label">云服务器</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 mb-2" style="background-color: rgba(245, 158, 11, 0.1); border-radius: 8px;">
+                            <div class="stat-value" style="color: var(--warning-color);">1.2 Gbps</div>
+                            <div class="stat-label">网络流量</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+        } else if (type === 'hybrid') {
+            content = `
+            <div class="p-3 rounded">
+                <h6 class="mb-3"><i class="fas fa-exchange-alt text-info me-2"></i>混合架构仪表盘</h6>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-center p-3 mb-2" style="background-color: rgba(79, 70, 229, 0.1); border-radius: 8px;">
+                            <div class="stat-value" style="color: var(--primary-color);">24</div>
+                            <div class="stat-label">物理设备</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 mb-2" style="background-color: rgba(16, 185, 129, 0.1); border-radius: 8px;">
+                            <div class="stat-value" style="color: var(--success-color);">74</div>
+                            <div class="stat-label">云资源</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 mb-2" style="background-color: rgba(59, 130, 246, 0.1); border-radius: 8px;">
+                            <div class="stat-value" style="color: var(--info-color);">6</div>
+                            <div class="stat-label">跨域连接</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 mb-2" style="background-color: rgba(16, 185, 129, 0.1); border-radius: 8px;">
+                            <div class="stat-value" style="color: var(--success-color);">99.8%</div>
+                            <div class="stat-label">整体可用率</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+        
+        previewDiv.innerHTML = content;
+    }
+    </script>
+</body>
+</html>

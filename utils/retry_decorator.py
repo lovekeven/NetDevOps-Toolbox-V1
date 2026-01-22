@@ -7,7 +7,7 @@ import time
 from typing import Tuple, Type, Callable, Any  # Callable表示可调用对象，可以被（）调用执行的对象
 from functools import wraps  # functools这个模块中的 wraps 装饰器，他是下面装饰器的辅助装饰器，目的是保留原函数的信息
 
-logger = setup_logger("retry_decorator.py", "retry_decorator")
+logger = setup_logger("retry_decorator.py", "retry_decorator.log")
 
 
 def network_retry(

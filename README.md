@@ -124,39 +124,64 @@ Web仪表盘是目前最便捷的使用方式，两种部署方式启动后，�
 ## 五，项目结构
 
 - NetDevOps-Toolbox-V1/ # 项目根目录
-  - ├── main.py # 统一调度中心（核心入口）
-  - ├── backup.py # 备份功能核心脚本
-  - ├── health_check.py # 健康检查功能核心脚本
-  - ├── devices.yaml # 设备信息配置文件（需用户自行编写）
-  - ├── README.md # 项目说明文档（本文件）
-  - ├── LICENSE # 开源许可证（MIT）
-  - ├── log_setup.py # 创建日志配置模块
-  - ├── test_device_reader.py # 测试函数脚本
-  - ├── api_checker.py # API模块，可以查询云端服务器和设备
-  - ├── retry_decorator.py # 装饰器模块
-  - ├── requestrequirements.txt # 该项目需要安装的模块
-  - ├── Dockerfile 
-  - ├── web_dashboard.py # WEB仪表盘脚本
-  - ├── database.py #数据库连接脚本
-  - ├── report_generator.py #调用AI大模型
-  - ├── nornir_config.yaml # Nornir主配置文件
-  - ├── nornir_inventory.yaml # Nornir框架下的设备清单
-  - ├── nornir_tasks.py # Nornir并发执行任务
-  - ├── HISTORY.md # 记录工具版本迭代
-  - ├── docs/
-  - │   ├── CHANGELOG.md #项目演进历史
+  - ├── web/ # Web模块（新增，推荐使用）
+  - │   ├── __init__.py
+  - │   ├── web_dashboard.py # WEB仪表盘脚本（推荐）
+  - │   └── templates/ # Web前端模板目录（存放HTML页面）
+  - │       ├── __init__.py
+  - │       ├── index.html # Web仪表盘首页/核心操作页面
+  - │       └── cloud_demo.html # 云网络概念演示页面（新增）
+  - ├── main.py # 统一调度中心（命令行方式，备选）
+  - ├── config/ # 配置文件目录（新增）
+  - │   ├── devices.yaml # 设备信息配置文件
+  - │   ├── nornir_config.yaml # Nornir主配置文件
+  - │   └── nornir_inventory.yaml # Nornir框架下的设备清单
+  - ├── core/ # 核心功能模块（新增）
+  - │   ├── AI/ # AI智能分析模块
+  - │   │   └── report_generator.py # 调用AI大模型
+  - │   ├── api/ # API模块
+  - │   │   └── api_checker.py # 查询云端服务器和设备
+  - │   ├── backup/ # 备份功能模块
+  - │   │   └── backup_handler.py # 备份功能核心脚本
+  - │   ├── cloud/ # 云网络概念模块（新增）
+  - │   │   └── concept_simulator.py # 云网络概念模拟器
+  - │   ├── health_check/ # 健康检查模块
+  - │   │   └── health_checker.py # 健康检查功能核心脚本
+  - │   ├── monitoring/ # 系统监控模块
+  - │   │   └── monitoring.py # 系统指标收集
+  - │   ├── nornir/ # Nornir并发模块
+  - │   │   └── nornir_tasks.py # Nornir并发执行任务
+  - │   └── __init__.py
+  - ├── db/ # 数据库模块（新增）
+  - │   ├── __init__.py
+  - │   └── database.py # 数据库连接脚本
+  - ├── depoly/ # 部署相关（新增）
+  - │   ├── Dockerfile
+  - │   └── requirements.txt
+  - ├── docs/ # 文档目录（新增）
+  - │   ├── CHANGELOG.md # 项目演进历史
   - │   └── PROJECT_JOURNEY.md # 王建壮的网络工具箱项目演技和优化的日志
-  - ├── templates # Web前端模板目录（存放HTML页面）
-  - │   ├── index.html # Web仪表盘首页/核心操作页面
+  - ├── reports/ # 报告目录（新增）
+  - │   └── __init__.py
+  - ├── tests/ # 测试目录（新增）
+  - │   ├── __init__.py
+  - │   └── test_device_reader.py # 测试函数脚本
+  - ├── utils/ # 工具模块（新增）
+  - │   ├── __init__.py
+  - │   ├── common.py
+  - │   ├── log_setup.py # 创建日志配置模块
+  - │   └── retry_decorator.py # 装饰器模块
   - ├── netdevops.db # 数据库（自动生成）
   - ├── backupN1/ # 备份文件归档目录（自动生成）
   - │   ├── 192.168.91.111__配置__20240520-143025.txt
   - │   └── 192.168.91.112__配置__20240520-143030.txt
   - ├── logs/ # 日志文件归档目录（自动生成）
   - │   ├── backup.log
-  - │   └── health_check.log
-  - │   └──......
-  - └── health_check_report.txt # 健康检查报告（自动生成））
+  - │   ├── health_check.log
+  - │   └── ...
+  - ├── README.md # 项目说明文档（本文件）
+  - ├── LICENSE # 开源许可证（MIT）
+  └── requirements.txt # 项目依赖
 
 
 ### 致谢
