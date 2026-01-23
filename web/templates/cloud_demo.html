@@ -448,44 +448,6 @@
                 font-size: 0.875rem;
             }
         }
-
-        /* 仪表盘预览样式 */
-        #dashboard-preview {
-            text-align: center;
-        }
-
-        #dashboard-preview .p-3 {
-            background-color: var(--card-background) !important;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            box-shadow: var(--shadow-md);
-        }
-
-        /* 状态指示器 */
-        .status-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-
-        .status-dot.online {
-            background-color: var(--success-color);
-        }
-
-        .status-dot.offline {
-            background-color: var(--danger-color);
-        }
-
-        .status-dot.pending {
-            background-color: var(--warning-color);
-        }
     </style>
 </head>
 <body>
@@ -575,123 +537,7 @@
             </div>
         </div>
 
-        <!-- API接口展示 -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-plug text-success me-2"></i>API接口扩展</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="list-group">
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">🔌 API #1: 设备发现</h6>
-                                        <p class="small text-muted mb-0">GET /api/devices</p>
-                                    </div>
-                                    <span class="badge bg-primary">设备管理</span>
-                                </div>
-                            </div>
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">🔌 API #2: 配置备份</h6>
-                                        <p class="small text-muted mb-0">POST /api/devices/backup</p>
-                                    </div>
-                                    <span class="badge bg-primary">设备管理</span>
-                                </div>
-                            </div>
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">🔌 API #3: 健康检查</h6>
-                                        <p class="small text-muted mb-0">GET /api/devices/health</p>
-                                    </div>
-                                    <span class="badge bg-primary">设备管理</span>
-                                </div>
-                            </div>
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">🔌 API #4: VLAN配置</h6>
-                                        <p class="small text-muted mb-0">PUT /api/devices/vlan</p>
-                                    </div>
-                                    <span class="badge bg-primary">设备管理</span>
-                                </div>
-                            </div>
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">🔌 API #5: 命令执行</h6>
-                                        <p class="small text-muted mb-0">POST /api/devices/exec</p>
-                                    </div>
-                                    <span class="badge bg-primary">设备管理</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="list-group">
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">☁️ API #6: 云资源列表</h6>
-                                        <p class="small text-muted mb-0">GET /api/cloud/resources</p>
-                                    </div>
-                                    <span class="badge bg-success">云网络</span>
-                                </div>
-                            </div>
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">☁️ API #7: VPC创建</h6>
-                                        <p class="small text-muted mb-0">POST /api/cloud/vpcs</p>
-                                    </div>
-                                    <span class="badge bg-success">云网络</span>
-                                </div>
-                            </div>
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">☁️ API #8: 安全组管理</h6>
-                                        <p class="small text-muted mb-0">PUT /api/cloud/security-groups</p>
-                                    </div>
-                                    <span class="badge bg-success">云网络</span>
-                                </div>
-                            </div>
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">☁️ API #9: 云资源监控</h6>
-                                        <p class="small text-muted mb-0">GET /api/cloud/monitoring</p>
-                                    </div>
-                                    <span class="badge bg-success">云网络</span>
-                                </div>
-                            </div>
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">☁️ API #10: 云资源编排</h6>
-                                        <p class="small text-muted mb-0">POST /api/cloud/orchestration</p>
-                                    </div>
-                                    <span class="badge bg-success">云网络</span>
-                                </div>
-                            </div>
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">☁️ API #11: 混合架构视图</h6>
-                                        <p class="small text-muted mb-0">GET /api/cloud/hybrid-view</p>
-                                    </div>
-                                    <span class="badge bg-success">云网络</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+
 
         <!-- 模拟操作和项目定位 -->
         <div class="row">
@@ -709,7 +555,11 @@
                             </div>
                             <div class="mb-3">
                                 <label for="vpc-cidr" class="form-label">CIDR网段</label>
-                                <input type="text" class="form-control" id="vpc-cidr" value="172.16.0.0/16">
+                                <input type="text" class="form-control" id="vpc-cidr" value="10.0.0.0/16">
+                            </div>
+                            <div class="mb-3">
+                                <label for="vpc-region" class="form-label">区域</label>
+                                <input type="text" class="form-control" id="vpc-region" value="cn-east-1">
                             </div>
                             <button type="button" class="btn btn-outline-success w-100" onclick="simulateCreateVpc()">
                                 <i class="fas fa-plus-circle me-1"></i>模拟创建VPC
@@ -736,35 +586,6 @@
                             <i class="fas fa-arrow-left me-1"></i>返回设备管理
                         </a>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Web仪表盘扩展 -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-tachometer-alt text-info me-2"></i>Web仪表盘扩展</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <button class="btn btn-outline-primary w-100 mb-3" onclick="showDashboard('physical')">
-                            <i class="fas fa-desktop me-2"></i>物理设备仪表盘
-                        </button>
-                    </div>
-                    <div class="col-md-4">
-                        <button class="btn btn-outline-primary w-100 mb-3" onclick="showDashboard('cloud')">
-                            <i class="fas fa-cloud me-2"></i>云资源仪表盘
-                        </button>
-                    </div>
-                    <div class="col-md-4">
-                        <button class="btn btn-outline-primary w-100 mb-3" onclick="showDashboard('hybrid')">
-                            <i class="fas fa-exchange-alt me-2"></i>混合架构仪表盘
-                        </button>
-                    </div>
-                </div>
-                <div id="dashboard-preview" class="text-center">
-                    <p class="text-muted"><i class="fas fa-hand-pointer me-2"></i>点击上方按钮预览不同仪表盘</p>
                 </div>
             </div>
         </div>
@@ -827,140 +648,55 @@
             });
     }
 
-    // 模拟创建VPC
+    // 模拟创建VPC（连接后端API）
     function simulateCreateVpc() {
         const name = document.getElementById('vpc-name').value;
         const cidr = document.getElementById('vpc-cidr').value;
+        const region = document.getElementById('vpc-region').value;
         const resultDiv = document.getElementById('simulation-result');
         
-        if (!name || !cidr) {
-            resultDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>请填写完整的VPC信息</div>';
+        if (!name || !cidr || !region) {
+            resultDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>请填写完整的VPC信息（名称、CIDR网段、区域）</div>';
             return;
         }
         
-        resultDiv.innerHTML = '<div class="alert alert-warning"><div class="spinner-border spinner-border-sm me-2"></div>正在模拟创建VPC...</div>';
+        resultDiv.innerHTML = '<div class="alert alert-warning"><div class="spinner-border spinner-border-sm me-2"></div>正在连接后端创建VPC...</div>';
         
-        setTimeout(() => {
-            const randomId = 'vpc-' + Math.floor(Math.random() * 1000000);
-            resultDiv.innerHTML = `
-            <div class="alert alert-success">
-                <i class="fas fa-check-circle me-2"></i><strong>创建成功！</strong> 模拟创建VPC：
-                <ul class="small mt-2 mb-0">
-                    <li><strong>名称：</strong>${name}</li>
-                    <li><strong>CIDR：</strong>${cidr}</li>
-                    <li><strong>状态：</strong>运行中</li>
-                    <li><strong>ID：</strong>${randomId}</li>
-                    <li><strong>创建时间：</strong>${new Date().toLocaleString('zh-CN')}</li>
-                </ul>
-            </div>
-            `;
-        }, 1000);
-    }
-
-    // 显示仪表盘预览
-    function showDashboard(type) {
-        const previewDiv = document.getElementById('dashboard-preview');
-        let content = '';
-        
-        if (type === 'physical') {
-            content = `
-            <div class="p-3 rounded">
-                <h6 class="mb-3"><i class="fas fa-desktop text-primary me-2"></i>物理设备仪表盘</h6>
-                <div class="row">
-                    <div class="col-6">
-                        <div class="text-center p-3 mb-2" style="background-color: rgba(79, 70, 229, 0.1); border-radius: 8px;">
-                            <div class="stat-value">24</div>
-                            <div class="stat-label">设备总数</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-center p-3 mb-2" style="background-color: rgba(16, 185, 129, 0.1); border-radius: 8px;">
-                            <div class="stat-value" style="color: var(--success-color);">22</div>
-                            <div class="stat-label">在线设备</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-center p-3 mb-2" style="background-color: rgba(245, 158, 11, 0.1); border-radius: 8px;">
-                            <div class="stat-value" style="color: var(--warning-color);">3</div>
-                            <div class="stat-label">告警数量</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-center p-3 mb-2" style="background-color: rgba(59, 130, 246, 0.1); border-radius: 8px;">
-                            <div class="stat-value" style="color: var(--info-color);">2小时前</div>
-                            <div class="stat-label">最近备份</div>
-                        </div>
-                    </div>
+        fetch('/api/cloud/simulate/create_vpc', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+                cidr: cidr,
+                region: region
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const resource = data.resource;
+                resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i><strong>创建成功！</strong> 模拟创建VPC：
+                    <ul class="small mt-2 mb-0">
+                        <li><strong>名称：</strong>${resource.name}</li>
+                        <li><strong>CIDR：</strong>${resource.cidr}</li>
+                        <li><strong>状态：</strong>${resource.status}</li>
+                        <li><strong>ID：</strong>${resource.id}</li>
+                        <li><strong>区域：</strong>${resource.region}</li>
+                        <li><strong>子网数量：</strong>${resource.subnet_count}</li>
+                    </ul>
                 </div>
-            </div>
-            `;
-        } else if (type === 'cloud') {
-            content = `
-            <div class="p-3 rounded">
-                <h6 class="mb-3"><i class="fas fa-cloud text-success me-2"></i>云资源仪表盘</h6>
-                <div class="row">
-                    <div class="col-6">
-                        <div class="text-center p-3 mb-2" style="background-color: rgba(16, 185, 129, 0.1); border-radius: 8px;">
-                            <div class="stat-value" style="color: var(--success-color);">8</div>
-                            <div class="stat-label">VPC数量</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-center p-3 mb-2" style="background-color: rgba(79, 70, 229, 0.1); border-radius: 8px;">
-                            <div class="stat-value" style="color: var(--primary-color);">24</div>
-                            <div class="stat-label">安全组</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-center p-3 mb-2" style="background-color: rgba(59, 130, 246, 0.1); border-radius: 8px;">
-                            <div class="stat-value" style="color: var(--info-color);">42</div>
-                            <div class="stat-label">云服务器</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-center p-3 mb-2" style="background-color: rgba(245, 158, 11, 0.1); border-radius: 8px;">
-                            <div class="stat-value" style="color: var(--warning-color);">1.2 Gbps</div>
-                            <div class="stat-label">网络流量</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            `;
-        } else if (type === 'hybrid') {
-            content = `
-            <div class="p-3 rounded">
-                <h6 class="mb-3"><i class="fas fa-exchange-alt text-info me-2"></i>混合架构仪表盘</h6>
-                <div class="row">
-                    <div class="col-6">
-                        <div class="text-center p-3 mb-2" style="background-color: rgba(79, 70, 229, 0.1); border-radius: 8px;">
-                            <div class="stat-value" style="color: var(--primary-color);">24</div>
-                            <div class="stat-label">物理设备</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-center p-3 mb-2" style="background-color: rgba(16, 185, 129, 0.1); border-radius: 8px;">
-                            <div class="stat-value" style="color: var(--success-color);">74</div>
-                            <div class="stat-label">云资源</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-center p-3 mb-2" style="background-color: rgba(59, 130, 246, 0.1); border-radius: 8px;">
-                            <div class="stat-value" style="color: var(--info-color);">6</div>
-                            <div class="stat-label">跨域连接</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-center p-3 mb-2" style="background-color: rgba(16, 185, 129, 0.1); border-radius: 8px;">
-                            <div class="stat-value" style="color: var(--success-color);">99.8%</div>
-                            <div class="stat-label">整体可用率</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            `;
-        }
-        
-        previewDiv.innerHTML = content;
+                `;
+            } else {
+                resultDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>创建失败：${data.message}</div>`;
+            }
+        })
+        .catch(error => {
+            resultDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>连接后端失败：${error.message}</div>`;
+        });
     }
     </script>
 </body>

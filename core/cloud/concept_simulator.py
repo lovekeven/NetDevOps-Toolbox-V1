@@ -4,56 +4,62 @@
 用于展示项目具备管理云网络资源的抽象能力。
 """
 
+import os
+import sys
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.models import CloudVPC, CloudSecurityGroup  # 引入创建的云VPC资源这个子类"
 from dataclasses import dataclass
 from typing import List
 import json
 from datetime import datetime
 
 
-@dataclass
-class CloudVPC:
-    """模拟云VPC资源"""
+# 删除相同的这个类，使用统一模型
+# @dataclass
+# class CloudVPC:
+#     """模拟云VPC资源"""
 
-    id: str  # VPC 唯一标识符
-    name: str
-    cidr_block: str  # VPC 的主网段
-    region: str  # VPC 是 “地域级资源”，VPC 所属地域
-    status: str = "Available"  # VPC 状态
-    subnets: List[str] = None  # VPC 下的子网列表
+#     id: str  # VPC 唯一标识符
+#     name: str
+#     cidr_block: str  # VPC 的主网段
+#     region: str  # VPC 是 “地域级资源”，VPC 所属地域
+#     status: str = "Available"  # VPC 状态
+#     subnets: List[str] = None  # VPC 下的子网列表
 
-    def to_dict(self):
+#     def to_dict(self):
 
-        return {
-            "resource_type": "VPC",
-            "id": self.id,
-            "name": self.name,
-            "cidr": self.cidr_block,
-            "region": self.region,
-            "status": self.status,
-            "subnet_count": len(self.subnets) if self.subnets else 0,
-            "managed_by": "NetDevOps Platform (Simulated)",
-        }
+#         return {
+#             "resource_type": "VPC",
+#             "id": self.id,
+#             "name": self.name,
+#             "cidr": self.cidr_block,
+#             "region": self.region,
+#             "status": self.status,
+#             "subnet_count": len(self.subnets) if self.subnets else 0,
+#             "managed_by": "NetDevOps Platform (Simulated)",
+#         }8个
 
 
-@dataclass
-class CloudSecurityGroup:
-    """模拟云安全组资源"""
+# @dataclass
+# class CloudSecurityGroup:
+#     """模拟云安全组资源"""
 
-    id: str  # 安全组唯一 ID
-    name: str
-    vpc_id: str  # 关联的 VPC ID，这个门卫属于哪个 VPC 地盘
-    ingress_rules: List[dict]  # 入站规则列表，谁可以进这个虚拟地盘
-    egress_rules: List[dict]  # 出站规则列表，谁可以出去这个虚拟地盘
+#     id: str  # 安全组唯一 ID
+#     name: str
+#     vpc_id: str  # 关联的 VPC ID，这个门卫属于哪个 VPC 地盘
+#     ingress_rules: List[dict]  # 入站规则列表，谁可以进这个虚拟地盘
+#     egress_rules: List[dict]  # 出站规则列表，谁可以出去这个虚拟地盘
 
-    def to_dict(self):
-        return {
-            "resource_type": "SecurityGroup",
-            "id": self.id,
-            "name": self.name,
-            "vpc_id": self.vpc_id,
-            "rule_count": len(self.ingress_rules) + len(self.egress_rules),
-            "managed_by": "NetDevOps Platform (Simulated)",
-        }
+#     def to_dict(self):
+#         return {
+#             "resource_type": "SecurityGroup",
+#             "id": self.id,
+#             "name": self.name,
+#             "vpc_id": self.vpc_id,
+#             "rule_count": len(self.ingress_rules) + len(self.egress_rules),
+#             "managed_by": "NetDevOps Platform (Simulated)",
+#         }
 
 
 # 云网络模拟器（封地总管家）
@@ -64,26 +70,27 @@ class CloudNetworkSimulator:
         self.resources = self._init_demo_resources()
 
     def _init_demo_resources(self):
-        """初始化一些演示用的模拟资源"""
+        """使用你的统一模型初始化资源"""
         vpcs = [
             CloudVPC(
-                id="vpc-netdevops-demo-1",
+                vpc_id="vpc-netdevops-demo-1",
                 name="prod-core-network",
                 cidr_block="10.0.0.0/16",
                 region="cn-east-1",
+                status="available",
                 subnets=["10.0.1.0/24", "10.0.2.0/24"],
             ),
             CloudVPC(
-                id="vpc-netdevops-demo-2",
+                vpc_id="vpc-netdevops-demo-2",
                 name="dev-test-network",
                 cidr_block="192.168.0.0/16",
                 region="cn-east-1",
-                status="InUse",
+                status="available",
             ),
         ]
         security_groups = [
             CloudSecurityGroup(
-                id="sg-netdevops-web",
+                sg_id="sg-netdevops-web",
                 name="web-servers",
                 vpc_id="vpc-netdevops-demo-1",
                 ingress_rules=[
@@ -120,7 +127,7 @@ class CloudNetworkSimulator:
     def simulate_creating_vpc(self, name, cidr, region):
         """模拟创建VPC"""
         new_vpc = CloudVPC(
-            id=f"vpc-simulated-{datetime.now().strftime('%Y%m%d%H%M%S')}",  # 这里的datetime是用的此脚本的模块
+            vpc_id=f"vpc-simulated-{datetime.now().strftime('%Y%m%d%H%M%S')}",  # 这里的datetime是用的此脚本的模块
             # strftime() 返回的是字符串
             name=name,
             cidr_block=cidr,
