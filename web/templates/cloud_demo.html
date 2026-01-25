@@ -477,11 +477,11 @@
         <!-- 云网络资源展示 -->
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-server text-primary me-2"></i>云网络资源（模拟）</h5>
+                <h5 class="mb-0"><i class="fas fa-server text-primary me-2"></i>云网络资源</h5>
             </div>
             <div class="card-body">
                 <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between mb-4 p-3 bg-opacity-10 rounded-lg" style="background-color: rgba(79, 70, 229, 0.1);">
-                    <div class="d-flex gap-3">
+                    <div class="d-flex gap-3 flex-wrap">
                         <button class="btn btn-primary" onclick="loadResources('all')">
                             <i class="fas fa-list me-1"></i>加载所有资源
                         </button>
@@ -491,6 +491,19 @@
                         <button class="btn btn-outline-primary" onclick="loadResources('securitygroup')">
                             <i class="fas fa-shield-alt me-1"></i>仅安全组
                         </button>
+                    </div>
+                    <div class="d-flex gap-3 align-items-center flex-wrap">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-primary active" id="btn-simulated" onclick="switchMode('simulated')">
+                                <i class="fas fa-flask me-1"></i>模拟模式
+                            </button>
+                            <button type="button" class="btn btn-outline-success" id="btn-real" onclick="switchMode('real')">
+                                <i class="fas fa-cloud me-1"></i>真实API模式
+                            </button>
+                        </div>
+                        <small id="mode-hint" class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>当前：模拟数据
+                        </small>
                     </div>
                 </div>
 
@@ -609,21 +622,42 @@
     <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    // 加载资源
+    let currentMode = 'simulated';
+    
+    function switchMode(mode) {
+        currentMode = mode;
+        const btnSimulated = document.getElementById('btn-simulated');
+        const btnReal = document.getElementById('btn-real');
+        const modeHint = document.getElementById('mode-hint');
+        
+        if (mode === 'simulated') {
+            btnSimulated.classList.add('active');
+            btnReal.classList.remove('active');
+            modeHint.innerHTML = '<i class="fas fa-info-circle me-1"></i>当前：模拟数据';
+        } else {
+            btnReal.classList.add('active');
+            btnSimulated.classList.remove('active');
+            modeHint.innerHTML = '<i class="fas fa-info-circle me-1"></i>当前：真实API数据';
+        }
+        
+        loadResources('all');
+    }
+    
     function loadResources(type) {
         const tableBody = document.getElementById('resources-table-body');
         tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-warning py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在加载资源...</td></tr>';
         
-        fetch(`/api/cloud/resources?type=${type}`)
+        fetch(`/api/cloud/resources?simulated=${currentMode}&type=${type}`)
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'success' && data.data.length > 0) {
+                if (data.status === 'success' && data.data && data.data.length > 0) {
                     let html = '';
                     data.data.forEach(resource => {
                         const statusBadge = resource.status === 'active' 
                             ? '<span class="badge bg-success">运行中</span>' 
                             : '<span class="badge bg-danger">已停止</span>';
                         const typeBadge = resource.resource_type === 'VPC' ? 'bg-primary' : 'bg-success';
+                        const createTime = resource.created_at || resource.create_time || '未知';
                         
                         html += `
                         <tr>
@@ -634,7 +668,30 @@
                             <td>${resource.id}</td>
                             <td>${resource.cidr || '-'}</td>
                             <td>${statusBadge}</td>
-                            <td>${resource.created_at}</td>
+                            <td>${createTime}</td>
+                        </tr>
+                        `;
+                    });
+                    tableBody.innerHTML = html;
+                } else if (Array.isArray(data) && data.length > 0) {
+                    let html = '';
+                    data.forEach(resource => {
+                        const statusBadge = resource.status === 'active' 
+                            ? '<span class="badge bg-success">运行中</span>' 
+                            : '<span class="badge bg-danger">已停止</span>';
+                        const typeBadge = resource.resource_type === 'VPC' ? 'bg-primary' : 'bg-success';
+                        const createTime = resource.created_at || resource.create_time || '未知';
+                        
+                        html += `
+                        <tr>
+                            <td>
+                                <span class="badge ${typeBadge}">${resource.resource_type}</span>
+                            </td>
+                            <td>${resource.name}</td>
+                            <td>${resource.id}</td>
+                            <td>${resource.cidr || '-'}</td>
+                            <td>${statusBadge}</td>
+                            <td>${createTime}</td>
                         </tr>
                         `;
                     });

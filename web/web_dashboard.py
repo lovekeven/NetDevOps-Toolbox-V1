@@ -2,6 +2,7 @@ from datetime import datetime
 import sys
 import os
 
+print(f"当前Python路径：{sys.executable}")
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(ROOT_DIR)
 
@@ -20,6 +21,9 @@ from core.monitoring.monitoring import SystemMonitor, get_prometheus_metrics
 
 # 引入云服务平台
 from core.cloud.concept_simulator import cloud_simulator
+
+# 引入真实阿里云客户
+from core.cloud.real_providers.ali_client import AliyunCloudClient
 
 
 logger = setup_logger("web_dashboard", "web_dashboard.log")
@@ -330,62 +334,120 @@ def check_system_health():
         )
 
 
-# 第九个API接口获取云端模拟资源
+# 第九个API接口获取云端模拟资源，可切换模拟/真实模式
 @app.route("/api/cloud/resources")
 def get_cloud_resources():
-    try:
+    """获取云资源（可切换模拟/真实模式）"""
+    mode = request.args.get("simulated", "real")
+    if mode == "real":
+        ALIYUN_AK = os.getenv("ALIYUN_AK")
+        ALIYUN_SK = os.getenv("ALIYUN_SK")
+        ALIYUN_REGION_ID = os.getenv("ALIYUN_REGION_ID", "cn-hangzhou")
+        if not ALIYUN_AK or not ALIYUN_SK:
+            logger.error("请在环境变量清单中设置对应的阿里云密钥")
+            return (
+                jsonify({"error": "未配置阿里云凭证", "message": "请设置ALIYUN_AK和ALIYUN_SK环境变量"}),
+                400,
+            )  # 用户未传必要信息
         resource_type = request.args.get("type", "all")
+        try:
+            client = AliyunCloudClient(ALIYUN_AK, ALIYUN_SK, ALIYUN_REGION_ID)
+            logger.info("初始化阿里云客户端成功！")
+            if resource_type == "all":
+                try:
+                    all_resourse = client.get_all_resources()
+                    logger.info("获取全部真实云资源成功！")
+                    return jsonify([all_re.to_dict() for all_re in all_resourse])
+                except Exception as e:
+                    logger.error(f"获取全部真实网络资源失败{e}")
+                    return jsonify({"error": f"获取全部真实网络资源失败{error_msg[:200]}"}), 500
+            else:
+                if resource_type == "vpc":
+                    try:
+                        vpcs = client.get_vpcs()
+                        logger.info("获取VPC列表成功")
+                        return jsonify([vpc.to_dict() for vpc in vpcs])
+                    except Exception as e:
+                        error_msg = str(e)
+                        return (
+                            jsonify({"error": f"获取VPC列表失败{error_msg[:200]}", "message": "请查看相关配置"}),
+                            500,
+                        )
+                else:
+                    try:
+                        security_groups = client.get_all_security_groups()
+                        logger.info("获取全部真实安全组成功！")
+                        return jsonify([sec.to_dict() for sec in security_groups])
+                    except Exception as e:
+                        error_msg = str(e)
+                        return (
+                            jsonify({"error": f"获取真实安全组失败{error_msg[:200]}", "message": "请查看相关配置"}),
+                            500,
+                        )
 
-        if resource_type.lower() == "vpc":
-            cloud_resources = cloud_simulator.get_resource_by_type(resource_type=resource_type)
-            if not cloud_resources:
-                return jsonify({"status": "failed", "message": "未寻找到vpc模拟资源", "cloud_resources": []}), 404
-            # 返回类型是列表（元素是字典）
-            return jsonify(
-                {
-                    "status": "success",
-                    "message": "云网络资源（模拟数据）",
-                    "data": cloud_resources,
-                    "count": len(cloud_resources),
-                    "note": "此为概念演示，展示平台可扩展至管理云网络资源",
-                }
-            )
-        elif resource_type.lower() == "securitygroup":
-            cloud_resources = cloud_simulator.get_resource_by_type(resource_type=resource_type)
-            if not cloud_resources:
-                return (
-                    jsonify({"status": "failed", "message": "未寻找到安全组模拟资源", "cloud_resources": []}),
-                    404,
+        except Exception as e:
+            error_msg = str(e)
+            return (
+                jsonify(
+                    {"error": "初始化阿里云客户端失败！", "message": "请查看你ALIYUN_A和ALIYUN_SK环境变量是否配置正确"}
+                ),
+                401,
+            )  # 凭证无效，认证失败
+
+    else:
+        try:
+            resource_type = request.args.get("type", "all")
+
+            if resource_type.lower() == "vpc":
+                cloud_resources = cloud_simulator.get_resource_by_type(resource_type=resource_type)
+                if not cloud_resources:
+                    return jsonify({"status": "failed", "message": "未寻找到vpc模拟资源", "cloud_resources": []}), 404
+                # 返回类型是列表（元素是字典）
+                return jsonify(
+                    {
+                        "status": "success",
+                        "message": "云网络资源（模拟数据）",
+                        "data": cloud_resources,
+                        "count": len(cloud_resources),
+                        "note": "此为概念演示，展示平台可扩展至管理云网络资源",
+                    }
                 )
-            # 返回类型是列表（元素是字典）
-            return jsonify(
-                {
-                    "status": "success",
-                    "message": "云网络资源（模拟数据）",
-                    "data": cloud_resources,
-                    "count": len(cloud_resources),
-                    "note": "此为概念演示，展示平台可扩展至管理云网络资源",
-                }
-            )
-        elif resource_type == "all":
-            cloud_resources = cloud_simulator.get_all_resources()
-            # 返回类型是列表（元素是字典
-            if not cloud_resources:
-                return jsonify({"status": "failed", "message": "未寻找到vpc模拟资源", "cloud_resources": []}), 404
-            return jsonify(
-                {
-                    "status": "success",
-                    "message": "云网络资源（模拟数据）",
-                    "data": cloud_resources,
-                    "count": len(cloud_resources),
-                    "note": "此为概念演示，展示平台可扩展至管理云网络资源",
-                }
-            )
-    except Exception as e:
-        error_msg = str(e)
-        logger.error(f"获取模拟器资源出现错误{error_msg[:200]}")
-        return jsonify({"status": "failed", "message": error_msg[:200], "cloud_resources": "N/A"}), 500
-    # 第九个API接口写的时候可以更简便，一个if eles 就可以搞定，因为不是all就是其他类型
+            elif resource_type.lower() == "securitygroup":
+                cloud_resources = cloud_simulator.get_resource_by_type(resource_type=resource_type)
+                if not cloud_resources:
+                    return (
+                        jsonify({"status": "failed", "message": "未寻找到安全组模拟资源", "cloud_resources": []}),
+                        404,
+                    )
+                # 返回类型是列表（元素是字典）
+                return jsonify(
+                    {
+                        "status": "success",
+                        "message": "云网络资源（模拟数据）",
+                        "data": cloud_resources,
+                        "count": len(cloud_resources),
+                        "note": "此为概念演示，展示平台可扩展至管理云网络资源",
+                    }
+                )
+            elif resource_type == "all":
+                cloud_resources = cloud_simulator.get_all_resources()
+                # 返回类型是列表（元素是字典
+                if not cloud_resources:
+                    return jsonify({"status": "failed", "message": "未寻找到vpc模拟资源", "cloud_resources": []}), 404
+                return jsonify(
+                    {
+                        "status": "success",
+                        "message": "云网络资源（模拟数据）",
+                        "data": cloud_resources,
+                        "count": len(cloud_resources),
+                        "note": "此为概念演示，展示平台可扩展至管理云网络资源",
+                    }
+                )
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"获取模拟器资源出现错误{error_msg[:200]}")
+            return jsonify({"status": "failed", "message": error_msg[:200], "cloud_resources": "N/A"}), 500
+        # 第九个API接口写的时候可以更简便，一个if eles 就可以搞定，因为不是all就是其他类型
 
 
 # 第十个API接口模拟创建VPC
@@ -411,10 +473,54 @@ def create_vpc():
         error_msg = str(e)
         logger.error(f"模拟创建VPC失败 {error_msg[:100]}")
         return jsonify({"status": "failed", "message": f"模拟创建VPC失败{error_msg[:100]}"}), 500
-#第十一个API接口云网络概念演示页面
-@app.route('/cloud')
+
+
+# 第十一个API接口云网络概念演示页面
+@app.route("/cloud")
 def cloud_demo():
-    return render_template('cloud_demo.html')#这里没有填充物，是一个静态页面，也可以实现交互
+    return render_template("cloud_demo.html")  # 这里没有填充物，是一个静态页面，也可以实现交互
+
+
+# 第十二个API接口从真实阿里云获取VPC列表和安全组
+
+
+# @app.route("/api/cloud/real/vpcs", methods=["GET"])
+# def get_real_vpc():
+#     ALIYUN_AK = os.getenv("ALIYUN_AK")
+#     ALIYUN_SK = os.getenv("ALIYUN_SK")
+#     ALIYUN_REGION_ID = os.getenv("ALIYUN_REGION_ID", "cn-hangzhou")
+#     if not ALIYUN_AK and not ALIYUN_SK:
+#         logger.error("请在环境变量清单中设置对应的阿里云密钥")
+#         return (
+#             jsonify({"error": "未配置阿里云凭证", "message": "请设置ALIYUN_A和ALIYUN_SK环境变量"}),
+#             400,
+#         )  # 用户未传必要信息
+#     try:
+#         client = AliyunCloudClient(ALIYUN_AK, ALIYUN_SK, ALIYUN_REGION_ID)
+#         logger.info("初始化阿里云客户端成功！")
+#         try:
+#             vpcs = client.get_vpcs()
+#             logger.info("获取VPC列表成功")
+#             return jsonify([vpc.to_dict() for vpc in vpcs])
+#         except Exception as e:
+#             error_msg = str(e)
+#             return (
+#                 jsonify(
+#                     {
+#                         "error": f"获取VPC列表失败{error_msg[:200]}",
+#                     }
+#                 ),
+#                 500,
+#             )
+#     except Exception as e:
+#         error_msg = str(e)
+#         return (
+#             jsonify(
+#                 {"error": "初始化阿里云客户端失败！", "message": "请查看你ALIYUN_AK和ALIYUN_SK环境变量是否配置正确"}
+#             ),
+#             401,
+#         )  # 凭证无效，认证失败
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)

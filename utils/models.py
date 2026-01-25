@@ -1,12 +1,12 @@
 # 定义一个父类
 class NetworkResource:
-    def __init__(self, resource_id, name, resource_type, status="unknown"):
+    def __init__(self, resource_id, name, resource_type, status="unknown", create_time=None):
         self.id = resource_id
         self.name = name
         self.type = resource_type  # 如：'physical_device', 'cloud_vpc'
         self.status = status
         self.last_check_time = None
-
+        self.create_time = create_time
     def get_details(self):
         """获取资源详情（子类必须实现）"""
         raise NotImplementedError("子类必须实现此方法")
@@ -20,6 +20,7 @@ class NetworkResource:
             "type": self.type,
             "status": self.status,
             "last_check": self.last_check_time,
+            "create_time": self.create_time,
         }
 
 
@@ -95,7 +96,7 @@ class CloudSecurityGroup(NetworkResource):
         base_dict = super().to_dict()
         base_dict.update(
             {
-                "resource_type": "SecurityGroup",
+                "resource_type": self.type,
                 "vpc_id": self.vpc_id,
                 "rule_count": len(self.ingress_rules) + len(self.egress_rules),
                 "managed_by": "NetDevOps Platform (Simulated)",
