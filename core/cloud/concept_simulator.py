@@ -99,6 +99,7 @@ class CloudNetworkSimulator:
                 ],
                 # 只放行 80 端口：from_port:80, to_port:80 → 仅服务器 80 端口允许访问（最常用）
                 egress_rules=[{"protocol": "all", "cidr": "0.0.0.0/0"}],
+                status="available",
             )
         ]
 

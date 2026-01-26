@@ -2,22 +2,27 @@ import json  # 阿里云返回的是二进制，转换为JSON格式的字符串�
 import sys
 import os
 from typing import List
-from utils.aliyun_time import convert_aliyun_time   
+from utils.aliyun_time import convert_aliyun_time
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(ROOT_DIR)
 from aliyunsdkcore.client import AcsClient
-#1.创建阿里云 API 客户端的核心类，所有阿里云接口都靠它初始化（AK/SK/ 地域）；
-#2.综合类的大厅
+
+# 1.创建阿里云 API 客户端的核心类，所有阿里云接口都靠它初始化（AK/SK/ 地域）；
+# 2.综合类的大厅
 from aliyunsdkcore.acs_exception.exceptions import ServerException
-#1.专门捕获阿里云 SDK 的「服务端异常」（比如阿里云接口挂了、地域不可用）
+
+# 1.专门捕获阿里云 SDK 的「服务端异常」（比如阿里云接口挂了、地域不可用）
 
 from aliyunsdkvpc.request.v20160428.DescribeVpcsRequest import DescribeVpcsRequest
-#1.专门查询VPC的请求类
+
+# 1.专门查询VPC的请求类
 from aliyunsdkecs.request.v20140526.DescribeInstancesRequest import DescribeInstancesRequest
-#1.专门用于「查询阿里云 ECS 实例（云服务器）列表」的请求类
+
+# 1.专门用于「查询阿里云 ECS 实例（云服务器）列表」的请求类
 from aliyunsdkecs.request.v20140526.DescribeSecurityGroupsRequest import DescribeSecurityGroupsRequest
-#1. 专门用于「查询阿里云安全组列表」的请求类
+
+# 1. 专门用于「查询阿里云安全组列表」的请求类
 
 from utils.models import CloudVPC, CloudSecurityGroup
 
@@ -37,7 +42,7 @@ class AliyunCloudClient:
             request = DescribeVpcsRequest()
             request.set_accept_format("json")
             response = self.client.do_action_with_exception(request)
-            #do_action_with_exception客户端提交的方法
+            # do_action_with_exception客户端提交的方法
             response_dict = json.loads(response.decode("utf-8"))
             vpcs = []
             for vpc in response_dict.get("Vpcs", {}).get("Vpc", []):
@@ -63,6 +68,7 @@ class AliyunCloudClient:
             request.set_accept_format("json")
             response = self.client.do_action_with_exception(request)
             response_dict = json.loads(response.decode("utf-8"))
+            # 1..decode("utf-8") —— 二进制转 UTF-8 字符串
             sgs = []
             for sg in response_dict.get("SecurityGroups", {}).get("SecurityGroup", []):
                 create_time = convert_aliyun_time(sg.get("CreationTime"))
@@ -98,13 +104,15 @@ class AliyunCloudClient:
             instances = []
             for instance in response_dict.get("Instances", {}).get("Instance", []):
                 create_time = convert_aliyun_time(instance.get("CreationTime"))
-                instances.append({
-                    "instance_id": instance.get("InstanceId"),
-                    "name": instance.get("InstanceName"),
-                    "status": instance.get("Status").lower(),
-                    "vpc_id": instance.get("VpcAttributes", {}).get("VpcId"),
-                    "create_time": create_time,
-                })
+                instances.append(
+                    {
+                        "instance_id": instance.get("InstanceId"),
+                        "name": instance.get("InstanceName"),
+                        "status": instance.get("Status").lower(),
+                        "vpc_id": instance.get("VpcAttributes", {}).get("VpcId"),
+                        "create_time": create_time,
+                    }
+                )
             return instances
         except ServerException as e:
             print(f"获取ECS实例失败: {e}")
@@ -138,4 +146,3 @@ if __name__ == "__main__":
             print(f"--安全组: {sg.name}:ID{sg.sg_id}   VPCID:{sg.vpc_id}")
     except Exception as e:
         print(f"获取安全组列表失败: {e}")
-

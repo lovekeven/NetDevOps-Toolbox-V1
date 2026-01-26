@@ -1,6 +1,8 @@
+from ast import Global
 from datetime import datetime
 import sys
 import os
+from unittest import result
 
 print(f"当前Python路径：{sys.executable}")
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -16,7 +18,7 @@ import yaml
 from core.AI.report_generator import deepseek_assistant
 from core.nornir.nornir_tasks import run_concurrent_health_check
 from utils.log_setup import setup_logger
-import logging
+import logging  # 这个可以不用写
 from core.monitoring.monitoring import SystemMonitor, get_prometheus_metrics
 
 # 引入云服务平台
@@ -25,6 +27,8 @@ from core.cloud.concept_simulator import cloud_simulator
 # 引入真实阿里云客户
 from core.cloud.real_providers.ali_client import AliyunCloudClient
 
+# 引入混合资源管理器(全局实例)
+from core.hybrid_manager.hybrid_manager import HybridResourceManager, hybrid_manager
 
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
@@ -456,7 +460,7 @@ def get_cloud_resources():
 # 普通用户在地址栏输入这个 URL，按下回车：浏览器发 GET 请求 → 后端限定了只接受 POST → 返回 405 错误（Method Not Allowed）；
 def create_vpc():
     try:
-        data = request.json
+        data = request.get_json()
         # Flask这个底层帮我干好了,他帮我干好了现在data已经是一个字典了
         if not data or "name" not in data:
             # 他这里为啥不判断其他参数情况，因为下面给他设默认值了
@@ -521,6 +525,116 @@ def cloud_demo():
 #             401,
 #         )  # 凭证无效，认证失败
 
+
+# 第十三个API接口：获取混合资源（物理设备+云资源）
+@app.route("/api/hybrid/resources", methods=["GET"])
+def get_hybrid_resources():
+    try:
+        # 按ID获取
+        resource_id = request.args.get("id")
+        if resource_id:
+            logger.info(f"ID查询模式:正在查询{resource_id}.......")
+            resource = hybrid_manager.get_resource_by_id(resource_id=resource_id)
+            if not resource:
+                logger.error(f"ID查询模式:未找到ID为 {resource_id} 的资源")
+                return (
+                    jsonify(
+                        {
+                            "status": "error",
+                            "message": f"未找到ID为 {resource_id} 的资源",
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    ),
+                    404,
+                )
+
+            resources_dict = resource.to_dict()
+            logger.info(f"ID查询模式:查询{resource_id}成功！")
+            count = 1
+        else:
+            # 按类型获取
+            resource_type = request.args.get("type", "all")
+            logger.info(f"按类型获取资源: type={resource_type}")
+            if resource_type == "all":
+                resources = hybrid_manager.get_all_resources()
+                logger.info(f"获取所有资源成功, 数量: {len(resources)}")
+            else:
+                resources = hybrid_manager.get_resource_by_type(resource_type)
+                logger.info(f"获取类型为 {resource_type} 的资源成功, 数量: {len(resources)}")
+            resources_dict = [r.to_dict() for r in resources]
+            count = len(resources_dict)
+            logger.info(f"资源总数: {count}")
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "message": "混合云网络资源",
+                    "mode": hybrid_manager.cloud_model,
+                    "data": resources_dict,  # 一个是字典多个是列表，如果是一个的话len函数是计算的一共有几个键值对
+                    "count": count,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        logger.error(f"获取混合资源失败: {e}")
+        return jsonify({"status": "error", "message": f"获取混合资源失败: {str(e)[:200]}"}), 500
+
+
+# 第十四个API接口：获取混合资源健康状态
+@app.route("/api/hybrid/health", methods=["GET"])
+def get_hybrid_health():
+    try:
+        summary = hybrid_manager.get_health_summary()
+        logger.info("获取混合资源健康状态成功！")
+        return jsonify({"status": "success", "data": summary})
+    except Exception as e:
+        logger.error(f"获取健康状态失败: {e}")
+        return jsonify({"status": "error", "message": f"获取健康状态失败: {str(e)[:200]}"}), 500
+
+
+# 第十五个API接口：设置云资源模式
+@app.route("/api/hybrid/mode", methods=["POST"])
+def set_cloud_mode():
+    try:
+        data = request.get_json(force=True, silent=False)
+        mode = data.get("mode", "simulated")
+        if mode not in ["simulated", "real"]:
+            return jsonify({"status": "error", "message": "模式必须是 'simulated' 或 'real'"}), 400
+        global hybrid_manager
+        # 1.def __init__(self, cloud_mode="simulated"):也就是说只有初始化的时候才会执行这个，如果只改参数的话是不执行这个的
+        # 资源还是原来的旧资源，所以这里要重新初始化，新实例之前还是用旧的
+        hybrid_manager = HybridResourceManager(cloud_mode=mode)
+        logger.info(f'正在进入{mode}模式.......')
+        logger.info(f"模式切换成功,当前模式{mode}")
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "message": f"已切换到 {mode} 模式",
+                    "resource_count": len(hybrid_manager.all_resources),
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        logger.error(f"模式切换失败{e}")
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": f"模式切换失败{e}",
+                    "resource_count": "N/A",
+                }
+            ),
+            500,
+        )
+# 第十六个API接口：混合仪表盘页面
+@app.route('/hybrid')
+def hybrid_dashboard():
+    """混合仪表盘页面"""
+    return render_template('hybrid_dashboard.html')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)

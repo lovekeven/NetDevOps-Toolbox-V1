@@ -2,9 +2,9 @@
 inventory:
   plugin: SimpleInventory
   options:
-    host_file: 'd:\Desktop\NetDevOps_Projects\NetDevOps-Toolbox-V1\config\nornir_inventory.yaml' 
+    host_file: 'd:\Desktop\NetDevOps_Projects\NetDevOps-Toolbox-V1\config\nornir_inventory.yaml'
 runner:
-  plugin: threaded 
+  plugin: threaded
   options:
     num_workers: 10000
 logging:

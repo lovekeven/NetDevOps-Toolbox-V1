@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>混合云网络统一管理平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary-color: #64748b;
+            --background-color: #0f172a;
+            --card-background: #1e293b;
+            --card-hover: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+        }
+
+        .navbar {
+            background-color: var(--card-background) !important;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .navbar-brand {
+            color: var(--text-primary) !important;
+        }
+
+        .card {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+            transition: var(--transition);
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary-color);
+        }
+
+        .card-header {
+            background-color: rgba(79, 70, 229, 0.1);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.25rem 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+            background-color: var(--card-background);
+        }
+
+        .resource-card {
+            transition: var(--transition);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .resource-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .resource-card.physical {
+            border-left-color: var(--success-color);
+        }
+
+        .resource-card.cloud {
+            border-left-color: var(--info-color);
+        }
+
+        .status-badge {
+            font-size: 0.75em;
+            border-radius: 9999px;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .health-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .healthy { background-color: var(--success-color); }
+        .warning { background-color: var(--warning-color); }
+        .critical { background-color: var(--danger-color); }
+
+        .btn {
+            border-radius: 8px;
+            font-weight: 600;
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+
+        .btn-outline-primary {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            background-color: transparent;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-outline-success {
+            border-color: var(--success-color);
+            color: var(--success-color);
+            background-color: transparent;
+        }
+
+        .btn-outline-success:hover {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-outline-info {
+            border-color: var(--info-color);
+            color: var(--info-color);
+            background-color: transparent;
+        }
+
+        .btn-outline-info:hover {
+            background-color: var(--info-color);
+            color: white;
+        }
+
+        .form-control, .form-select {
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: var(--background-color);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            color: var(--text-primary);
+        }
+
+        .form-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .text-muted {
+            color: var(--text-muted) !important;
+        }
+
+        .badge {
+            color: var(--text-primary) !important;
+        }
+
+        .bg-primary {
+            background-color: var(--primary-color);
+        }
+
+        .bg-success {
+            background-color: var(--success-color);
+        }
+
+        .bg-danger {
+            background-color: var(--danger-color);
+        }
+
+        .bg-warning {
+            background-color: var(--warning-color);
+            color: var(--background-color);
+        }
+
+        .bg-info {
+            background-color: var(--info-color);
+        }
+
+        .bg-secondary {
+            background-color: var(--secondary-color);
+        }
+
+        .bg-light {
+            background-color: var(--card-background);
+            color: var(--text-primary);
+        }
+
+        .spinner-border {
+            border-color: var(--primary-color);
+            border-right-color: transparent;
+        }
+
+        .table {
+            color: var(--text-primary);
+            background-color: var(--card-background);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .table thead {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--text-primary);
+        }
+
+        .table th,
+        .table td {
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 1.25rem;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(79, 70, 229, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-network-wired me-2"></i>NetDevOps 混合云平台
+            </a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="/" style="color: var(--text-primary);">设备管理</a>
+                <a class="nav-link" href="/cloud" style="color: var(--text-primary);">☁️ 云网络概念</a>
+                <a class="nav-link active" href="/hybrid" style="color: var(--text-primary);">🌐 混合云平台</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>控制面板</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">云资源模式</label>
+                            <div class="btn-group w-100" role="group">
+                                <button type="button" class="btn btn-outline-primary active" id="btn-simulated" onclick="setMode('simulated')">
+                                    <i class="fas fa-flask me-1"></i>模拟模式
+                                </button>
+                                <button type="button" class="btn btn-outline-success" id="btn-real" onclick="setMode('real')">
+                                    <i class="fas fa-cloud me-1"></i>真实API
+                                </button>
+                            </div>
+                            <small class="form-text text-muted" id="modeStatus">
+                                <i class="fas fa-info-circle me-1"></i>当前：模拟模式
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">资源类型过滤</label>
+                            <select class="form-select" id="resourceFilter" onchange="loadResources()">
+                                <option value="all">所有资源</option>
+                                <option value="physical_device">物理设备</option>
+                                <option value="cloud_vpc">云VPC</option>
+                                <option value="cloud_security_group">安全组</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">按ID查询</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="resourceIdInput" placeholder="输入资源ID">
+                                <button class="btn btn-primary" type="button" onclick="searchById()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-primary w-100 mb-2" onclick="loadResources()">
+                            <i class="fas fa-sync-alt me-1"></i>刷新资源
+                        </button>
+                        
+                        <button class="btn btn-outline-info w-100" onclick="loadHealthData()">
+                            <i class="fas fa-heartbeat me-1"></i>健康检查
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-heart-pulse me-2"></i>健康状态</h5>
+                    </div>
+                    <div class="card-body" id="healthStatus">
+                        <div class="text-center">
+                            <div class="spinner-border spinner-border-sm me-2"></div>加载中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-server me-2"></i>混合网络资源</h5>
+                        <span class="badge bg-primary" id="resourceCount">0 个资源</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-8">
+                                <canvas id="resourceChart" height="100"></canvas>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card" style="background-color: var(--card-background);">
+                                    <div class="card-body">
+                                        <h6><i class="fas fa-chart-pie me-1"></i>资源概览</h6>
+                                        <div id="resourceStats">
+                                            <div class="text-center text-muted py-3">
+                                                <i class="fas fa-spinner fa-spin"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="resourceList" class="row">
+                            <div class="col-12 text-center text-muted py-5">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>点击上方按钮加载资源...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let resourceChart = null;
+        let currentMode = 'simulated';
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            loadResources();
+            loadHealthData();
+        });
+        
+        function loadResources() {
+            const filter = document.getElementById('resourceFilter').value;
+            console.log('loadResources 被调用, currentMode =', currentMode, 'filter =', filter);
+            let url = `/api/hybrid/resources?mode=${currentMode}`;
+            if (filter !== 'all') {
+                url += `&type=${filter}`;
+            }
+            console.log('请求 URL:', url);
+            
+            const resourceList = document.getElementById('resourceList');
+            resourceList.innerHTML = '<div class="col-12 text-center py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在加载资源...</div>';
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('资源数据:', data);
+                    if (data.status === 'success') {
+                        updateResourceDisplay(data);
+                        // 添加刷新完成的提醒
+                        const notification = document.createElement('div');
+                        notification.className = 'alert alert-success alert-dismissible fade show position-fixed top-20 right-20 z-50';
+                        notification.style = 'top: 100px; right: 20px; max-width: 300px;';
+                        notification.innerHTML = `
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <span>资源刷新完成，已是最新状态</span>
+                            </div>
+                        `;
+                        document.body.appendChild(notification);
+                        setTimeout(() => {
+                            notification.remove();
+                        }, 3000);
+                    } else {
+                        resourceList.innerHTML = `<div class="col-12 text-center text-danger py-5"><i class="fas fa-exclamation-triangle fa-3x mb-3"></i><p>加载失败: ${data.message}</p></div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    resourceList.innerHTML = `<div class="col-12 text-center text-danger py-5"><i class="fas fa-times-circle fa-3x mb-3"></i><p>请求失败</p></div>`;
+                });
+        }
+        
+        function updateResourceDisplay(data) {
+            console.log('更新资源显示, data:', data);
+            console.log('模式:', data.mode);
+            console.log('资源数量:', data.count);
+            console.log('资源类型:', data.data.map(r => r.type));
+            
+            document.getElementById('resourceCount').textContent = data.count + ' 个资源';
+            document.getElementById('modeStatus').innerHTML = `<i class="fas fa-info-circle me-1"></i>当前：${data.mode === 'simulated' ? '模拟模式' : '真实API模式'}`;
+            
+            const resourceList = document.getElementById('resourceList');
+            resourceList.innerHTML = '';
+            
+            if (!data.data || data.data.length === 0) {
+                resourceList.innerHTML = '<div class="col-12 text-center text-muted py-5"><i class="fas fa-inbox fa-3x mb-3"></i><p>暂无资源</p></div>';
+                return;
+            }
+            
+            data.data.forEach(resource => {
+                const card = createResourceCard(resource);
+                resourceList.appendChild(card);
+            });
+            
+            updateResourceStats(data.data);
+        }
+        
+        function createResourceCard(resource) {
+            const type = resource.type || resource.resource_type;
+            const isPhysical = type.includes('physical');
+            const isVPC = type.includes('vpc');
+            const isSG = type.includes('security');
+            
+            let statusClass = 'warning';
+            if (resource.status === 'active' || resource.status === 'available' || resource.status === 'running') {
+                statusClass = 'healthy';
+            } else if (resource.status === 'error' || resource.status === 'failed' || resource.status === 'stopped') {
+                statusClass = 'critical';
+            }
+            
+            const col = document.createElement('div');
+            col.className = 'col-md-6 col-lg-4 mb-3';
+            
+            col.innerHTML = `
+                <div class="card resource-card ${isPhysical ? 'physical' : 'cloud'}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="card-title mb-0">
+                                <span class="health-indicator ${statusClass}"></span>
+                                ${resource.name}
+                            </h6>
+                            <span class="badge bg-secondary status-badge">
+                                ${isPhysical ? '物理设备' : (isVPC ? '云VPC' : (isSG ? '安全组' : '云资源'))}
+                            </span>
+                        </div>
+                        <p class="card-text text-muted small mb-2">
+                            ID: ${resource.id}<br>
+                            ${resource.cidr ? '网段: ' + resource.cidr + '<br>' : ''}
+                            ${resource.ip_address ? 'IP: ' + resource.ip_address + '<br>' : ''}
+                            ${resource.vendor ? '厂商: ' + resource.vendor + '<br>' : ''}
+                            ${resource.region ? '区域: ' + resource.region + '<br>' : ''}
+                            ${resource.create_time ? '创建时间: ' + resource.create_time + '<br>' : ''}
+                        </p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                状态: <span class="text-capitalize">${resource.status}</span>
+                            </small>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${resource.id}')">
+                                <i class="fas fa-info-circle me-1"></i>详情
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return col;
+        }
+        
+        function updateResourceStats(resources) {
+            const stats = {};
+            resources.forEach(r => {
+                const type = r.type || r.resource_type;
+                stats[type] = (stats[type] || 0) + 1;
+            });
+            
+            let statsHtml = '';
+            for (const [type, count] of Object.entries(stats)) {
+                const typeName = type === 'physical_device' ? '物理设备' : 
+                               type === 'cloud_vpc' ? '云VPC' : 
+                               type === 'cloud_security_group' ? '安全组' : type;
+                statsHtml += `<div class="mb-1 d-flex justify-content-between"><span>${typeName}</span><strong>${count}</strong></div>`;
+            }
+            document.getElementById('resourceStats').innerHTML = statsHtml || '<div class="text-center text-muted">暂无数据</div>';
+            
+            updateResourceChart(stats);
+        }
+        
+        function updateResourceChart(stats) {
+            const ctx = document.getElementById('resourceChart').getContext('2d');
+            
+            if (resourceChart) {
+                resourceChart.destroy();
+            }
+            
+            const labels = Object.keys(stats).map(type => 
+                type === 'physical_device' ? '物理设备' : 
+                type === 'cloud_vpc' ? '云VPC' : 
+                type === 'cloud_security_group' ? '安全组' : type
+            );
+            const data = Object.values(stats);
+            const colors = ['#10b981', '#4f46e5', '#3b82f6', '#6f42c1', '#f59e0b'];
+            
+            resourceChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: '#cbd5e1'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: '资源类型分布',
+                            color: '#f1f5f9'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function loadHealthData() {
+            const healthStatus = document.getElementById('healthStatus');
+            healthStatus.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm me-2"></div>检查中...</div>';
+            
+            fetch(`/api/hybrid/health?mode=${currentMode}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        updateHealthDisplay(data.data);
+                    }
+                })
+                .catch(error => {
+                    console.error('健康检查失败:', error);
+                    healthStatus.innerHTML = '<div class="text-center text-danger"><i class="fas fa-times-circle fa-2x mb-2"></i><p>检查失败</p></div>';
+                });
+        }
+        
+        function updateHealthDisplay(healthData) {
+            const healthPercentage = healthData.health_percentage || 0;
+            let healthClass = 'text-success';
+            let healthIcon = 'fa-check-circle';
+            
+            if (healthPercentage < 80) {
+                healthClass = 'text-warning';
+                healthIcon = 'fa-exclamation-triangle';
+            }
+            if (healthPercentage < 60) {
+                healthClass = 'text-danger';
+                healthIcon = 'fa-times-circle';
+            }
+            
+            const lastCheck = healthData.last_check ? new Date(healthData.last_check).toLocaleString('zh-CN') : '未知';
+            const totalResources = healthData.total || 0;
+            const healthyResources = healthData.healthy_resources || 0;
+            
+            const html = `
+                <div class="text-center mb-3">
+                    <i class="fas ${healthIcon} ${healthClass}" style="font-size: 3rem;"></i>
+                    <h3 class="${healthClass}">${healthPercentage}%</h3>
+                    <p class="text-muted">资源健康率</p>
+                </div>
+                <div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>总资源数</span>
+                        <strong>${totalResources}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>健康资源</span>
+                        <strong>${healthyResources}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>最后检查</span>
+                        <small class="text-muted">${lastCheck}</small>
+                    </div>
+                    <hr style="border-color: var(--border-color);">
+                    <div class="small">
+                        ${Object.entries(healthData.resource_types || {}).map(([type, count]) => `
+                            <div class="d-flex justify-content-between">
+                                <span>${type === 'physical_device' ? '物理设备' : type === 'cloud_vpc' ? '云VPC' : type === 'cloud_security_group' ? '安全组' : type}</span>
+                                <span>${count}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('healthStatus').innerHTML = html;
+        }
+        
+        function setMode(mode) {
+            console.log('========================================');
+            console.log('开始切换模式:', mode);
+            console.log('调用 API:', '/api/hybrid/mode');
+            console.log('请求数据:', { mode: mode });
+            console.log('========================================');
+            
+            fetch('/api/hybrid/mode', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ mode: mode })
+            })
+            .then(response => {
+                console.log('========================================');
+                console.log('收到响应:', response);
+                console.log('响应状态:', response.status);
+                console.log('响应状态文本:', response.statusText);
+                console.log('========================================');
+                return response.json();
+            })
+            .then(data => {
+                console.log('========================================');
+                console.log('响应数据:', data);
+                console.log('========================================');
+                if (data.status === 'success') {
+                    currentMode = mode;
+                    console.log('currentMode 已更新为:', currentMode);
+                    const btnSimulated = document.getElementById('btn-simulated');
+                    const btnReal = document.getElementById('btn-real');
+                    const modeStatus = document.getElementById('modeStatus');
+                    
+                    if (mode === 'simulated') {
+                        btnSimulated.classList.add('active');
+                        btnReal.classList.remove('active');
+                        modeStatus.innerHTML = '<i class="fas fa-info-circle me-1"></i>当前：模拟模式';
+                    } else {
+                        btnReal.classList.add('active');
+                        btnSimulated.classList.remove('active');
+                        modeStatus.innerHTML = '<i class="fas fa-info-circle me-1"></i>当前：真实API模式';
+                        
+                        // 添加真实模式提醒
+                        const notification = document.createElement('div');
+                        notification.className = 'alert alert-info alert-dismissible fade show position-fixed top-20 right-20 z-50';
+                        notification.style = 'top: 100px; right: 20px; max-width: 300px;';
+                        notification.innerHTML = `
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <span>真实模式需要配置阿里云 AK/SK，否则会自动退回模拟模式</span>
+                            </div>
+                        `;
+                        document.body.appendChild(notification);
+                        setTimeout(() => {
+                            notification.remove();
+                        }, 5000);
+                    }
+                    
+                    loadResources();
+                    loadHealthData();
+                } else {
+                    console.error('模式切换失败:', data.message);
+                    alert('模式切换失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('========================================');
+                console.error('模式切换失败:', error);
+                console.error('========================================');
+                alert('模式切换失败，请检查网络连接');
+            });
+        }
+        
+        function searchById() {
+            const resourceId = document.getElementById('resourceIdInput').value.trim();
+            if (!resourceId) {
+                alert('请输入资源ID');
+                return;
+            }
+            
+            console.log('搜索资源ID:', resourceId, 'currentMode:', currentMode);
+            const resourceList = document.getElementById('resourceList');
+            resourceList.innerHTML = '<div class="col-12 text-center py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在查询...</div>';
+            
+            fetch(`/api/hybrid/resources?id=${resourceId}&mode=${currentMode}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('搜索结果:', data);
+                    if (data.status === 'success') {
+                        resourceList.innerHTML = '';
+                        const card = createResourceCard(data.data);
+                        resourceList.appendChild(card);
+                    } else {
+                        resourceList.innerHTML = `<div class="col-12 text-center text-danger py-5"><i class="fas fa-search fa-3x mb-3"></i><p>未找到ID为 "${resourceId}" 的资源</p></div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('查询失败:', error);
+                    resourceList.innerHTML = `<div class="col-12 text-center text-danger py-5"><i class="fas fa-times-circle fa-3x mb-3"></i><p>查询失败</p></div>`;
+                });
+        }
+        
+        function viewDetails(resourceId) {
+            alert('查看资源详情: ' + resourceId + '\n功能待实现');
+        }
+    </script>
+</body>
+</html>
