@@ -1,6 +1,7 @@
 # 文件路径：tests/test_cloud_resource.py
 import os
 import sys
+import pytest
 
 # 配置路径（保证能导入core模块）
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -8,7 +9,7 @@ sys.path.append(ROOT_DIR)
 
 # 导入需要测试的模块
 from core.cloud.concept_simulator import cloud_simulator
-from utils import NetworkResource
+from utils.models import NetworkResource
 
 
 # ========== 必须以test_开头的测试函数 ==========
@@ -38,6 +39,10 @@ def test_vpc_type_check():
         assert isinstance(vpc, NetworkResource), f"VPC{vpc.name}不是NetworkResource子类"
         # 断言3：有to_dict方法
         assert hasattr(vpc, "to_dict"), f"VPC{vpc.name}缺失to_dict方法"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
 
 
 # import os

@@ -1,5 +1,6 @@
 import sys
 import os
+import pytest
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(ROOT_DIR)
@@ -44,6 +45,5 @@ def test_read_devices_yml_empty():
 
 
 if __name__ == "__main__":
-    test_read_devices_yml()
-    test_read_devices_yml_empty()
+    pytest.main([__file__, "-v"])
     print("所有测试通过！")

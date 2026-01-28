@@ -7,6 +7,7 @@ class NetworkResource:
         self.status = status
         self.last_check_time = None
         self.create_time = create_time
+
     def get_details(self):
         """获取资源详情（子类必须实现）"""
         raise NotImplementedError("子类必须实现此方法")
@@ -40,6 +41,11 @@ class PhysicalDevice(NetworkResource):
     def get_details(self):
         # 这里可以整合你health_check.py里的逻辑
         return f"物理设备 {self.name} ({self.ip_address}) - {self.vendor}"
+
+    def to_dict(self):
+        base_dict = super().to_dict()
+        base_dict.update({"ip_address": self.ip_address, "vendor": self.vendor})
+        return base_dict
 
 
 class CloudVPC(NetworkResource):

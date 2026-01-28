@@ -55,6 +55,8 @@ class HybridResourceManager:
     def _load_physical_devices(self):
         if NORNIR_AVAILABLE is False:
             logger.error("加载nornir物理清单失败! 请查看Nornir的安装")
+            self.physical_devices = []
+            return
         try:
             INVENTORY_PATH = os.path.join(ROOT_DIR, "config", "nornir_config.yaml")  # 注意这里是配置文件
             # 1.必须给config_file指定完整/相对路径,只给文件名的话，Nornir 只会在当前运行脚本的目录里找，找不到就报错
@@ -76,8 +78,12 @@ class HybridResourceManager:
             logger.info(f"共从nornir框架加载{len(self.physical_devices)}台物理设备")
         except NornirNoValidInventoryError as e:
             logger.error(f"加载nornir物理清单失败!请检查nornir清单相关配置{e}")
+            self.physical_devices = []
+            return
         except Exception as e:
             logger.error(f"加载nornir物理清单失败!请检查nornir主配置文件或检查相关物理模板{e}")
+            self.physical_devices = []
+            return
 
     # 第二步：加载/收集云资源，注意并不是真实云资源和模拟云资源同时的，而是其中之一
     def _load_cloud_resources(self):
@@ -173,4 +179,5 @@ class HybridResourceManager:
         }
 
 
-hybrid_manager = HybridResourceManager(cloud_mode="simulated")
+# hybrid_manager = HybridResourceManager(cloud_mode="simulated")
+# 这个初始化实例在这里是顶级代码
