@@ -20,12 +20,12 @@ from aliyunsdkcore.acs_exception.exceptions import ServerException
 
 # 定义一个父类
 class NetworkResource:
-    def __init__(self, resource_id, name, resource_type, status="unknown", create_time=None):
+    def __init__(self, resource_id, name, resource_type, status="unknown", last_check_time=None, create_time=None):
         self.id = resource_id
         self.name = name
         self.type = resource_type  # 如：'physical_device', 'cloud_vpc'
         self.status = status
-        self.last_check_time = None
+        self.last_check_time = last_check_time
         self.create_time = create_time
 
     def get_details(self):
@@ -48,7 +48,22 @@ class NetworkResource:
 class PhysicalDevice(NetworkResource):
     """物理网络设备"""
 
-    def __init__(self, device_id, name, ip_address, vendor, **kwargs):
+    def __init__(
+        self,
+        device_id,
+        name,
+        ip_address,
+        vendor,
+        check_status,
+        up_interfaces,
+        dowan_interface,
+        total_interfaces,
+        cpu_usage,
+        memory_usage,
+        reachable,
+        version,
+        **kwargs,
+    ):
         super().__init__(device_id, name, resource_type="physical_device", **kwargs)
         # 1.这句话的本质是：调用父类（NetworkResource）的__init__方法，给父类的属性赋值 —— 不是 “继承函数”，是 “主动调用父类的
         # 初始化方法，让子类能复用父类的属性”！
@@ -57,6 +72,14 @@ class PhysicalDevice(NetworkResource):
 
         self.ip_address = ip_address
         self.vendor = vendor
+        self.check_status = check_status
+        self.up_interfaces = up_interfaces
+        self.down_interface = dowan_interface
+        self.total_interfaces = total_interfaces
+        self.cpu_usage = cpu_usage
+        self.memory_usage = memory_usage
+        self.reachable = reachable
+        self.version = version
 
     def get_details(self):
         # 这里可以整合你health_check.py里的逻辑
@@ -64,8 +87,41 @@ class PhysicalDevice(NetworkResource):
 
     def to_dict(self):
         base_dict = super().to_dict()
-        base_dict.update({"ip_address": self.ip_address, "vendor": self.vendor})
+        base_dict.update(
+            {
+                "ip_address": self.ip_address,
+                "vendor": self.vendor,
+                "check_status": self.check_status,
+                "up_interface": self.up_interfaces,
+                "down_interface": self.down_interface,
+                "total_interface": self.total_interfaces,
+                "cpu_usage": self.cpu_usage,
+                "memory_usage": self.memory_usage,
+                "reachable": self.reachable,
+                "version": self.version,
+            }
+        )
         return base_dict
+    def update(self, check_results):
+        """
+        用设备健康检查结果更新档案卡属性
+        :param check_results: 检查结果字典（即check_single_device返回的results）
+        """
+        # 基础检查状态
+        self.check_status = check_results.get("check_status", "未知")
+        self.reachable = check_results.get("reachable", False)
+        self.status = check_results.get("status", "unknown")  # 健康状态：healthy/degraded/failed
+        # 时间字段（最后检查时间）
+        self.last_check_time = check_results.get("check_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        # 硬件指标
+        self.cpu_usage = check_results.get("CPU_usage", "N/A")
+        self.memory_usage = check_results.get("memory_usage", "N/A")
+        self.version = check_results.get("version", "未知")
+        # 接口指标（注意字段映射）
+        self.up_interfaces = check_results.get("up_interface", 0)
+        self.down_interface = check_results.get("down_interface", 0)  # 已修正笔误
+        self.total_interfaces = check_results.get("total_interface", 0)
+        logger.info(f"设备[{self.name}]档案卡已更新为最新检查结果")
 
 
 class CloudVPC(NetworkResource):
@@ -167,6 +223,14 @@ def load_physical_devices(config_path_physical):
                 ip_address=hostname,  # 核心改动：用hostname作为IP地址
                 vendor=vendor,  # 核心改动：从data.vendor取厂商/设备类型
                 create_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                check_status="未知",
+                up_interfaces="未知",
+                dowan_interface="未知",
+                total_interfaces="未知",
+                cpu_usage="N/A",
+                memory_usage="N/A",
+                reachable="未检测",
+                version = '未知'
             )
             device_cards.append(dev_card)
             logger.info(f"生成物理设备档案卡：{dev_card.get_details()}")
@@ -352,9 +416,10 @@ GLOBAL_PHYSICAL_DEVICE_CARDS = None
 # 延迟初始化，避免模块重复导入时重复执行
 
 
+# 物理设备档案卡的全局变量
 def get_global_physical_cards():
     global GLOBAL_PHYSICAL_DEVICE_CARDS
-    #声明他是一个全局变量接下来在这个函数里要操作的 GLOBAL_PHYSICAL_DEVICE_CARDS，不是我函数自己的局部变量，而是「公共客厅」里那个
+    # 声明他是一个全局变量接下来在这个函数里要操作的 GLOBAL_PHYSICAL_DEVICE_CARDS，不是我函数自己的局部变量，而是「公共客厅」里那个
     # 模块级的全局变量，我要改的是它的内容！
     if GLOBAL_PHYSICAL_DEVICE_CARDS is None:
         GLOBAL_PHYSICAL_DEVICE_CARDS = load_physical_devices(config_path_physical)

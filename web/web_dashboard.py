@@ -33,6 +33,9 @@ from core.cloud.real_providers.ali_client import AliyunCloudClient
 from core.hybrid_manager.hybrid_manager import HybridResourceManager
 
 hybrid_manager = HybridResourceManager(cloud_mode="simulated")
+# 引入全局的物理设备档案卡
+from utils.models import get_global_physical_cards
+
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
 app = Flask(__name__)
@@ -645,6 +648,42 @@ def set_cloud_mode():
 def hybrid_dashboard():
     """混合仪表盘页面"""
     return render_template("hybrid_dashboard.html")
+
+
+# 第十七个API接口：档案卡的页面
+@app.route("/api/device_cards")
+def check_physical_device_cards():
+    physical_device_cards = get_global_physical_cards()
+    check_cards_type = request.args.get("device", "all")
+    try:
+        if check_cards_type == "all":
+            logger.info("正在查看所有的物理设备的档案卡片.....")
+            all_cards = []
+            for cards in physical_device_cards:
+                result = cards.to_dict()
+                all_cards.append(result)
+            logger.info("查看所有物理设备的健康档案卡片成功！")
+            return jsonify(all_cards), 200
+        else:
+            for cards in physical_device_cards:
+                if cards.name == check_cards_type:
+                    logger.info(f"正在查看{cards.name}设备的健康档案卡片...")
+                    result = cards.to_dict()
+                    logger.info(f"查看{cards.name}设备的健康档案卡片成功！")
+                    return jsonify(result), 200
+            # 遍历完所有设备后，如果都不匹配，才返回不存在的错误
+            logger.info(f"{check_cards_type}设备的健康档案卡片不存在！")
+            return jsonify({"message": f"{check_cards_type}设备的健康档案卡片不存在！"}), 404
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"查看健康档案卡片失败：{error_msg}")
+        return jsonify(
+            {
+                "message": "查看物理设备健康档案卡片失败！",
+                "error": error_msg[:200],
+                "status": "failed",
+            }
+        ),500
 
 
 if __name__ == "__main__":

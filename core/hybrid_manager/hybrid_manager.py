@@ -71,7 +71,15 @@ class HybridResourceManager:
                     name=device_name,
                     ip_address=host.hostname,
                     vendor=host.platform if hasattr(host, "platform") else "unknown",
+                    check_status="未知",
+                    up_interfaces="未知",
+                    dowan_interface="未知",
+                    total_interfaces="未知",
+                    cpu_usage="N/A",
+                    memory_usage="N/A",
+                    reachable="未检测",
                     status="active",  # 假设都是活跃的
+                    version="未知",
                 )
                 self.physical_devices.append(physical)
             logger.info("加载nornir物理清单成功")

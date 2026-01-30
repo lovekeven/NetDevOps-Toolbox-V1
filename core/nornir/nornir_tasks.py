@@ -7,6 +7,7 @@ from utils.log_setup import setup_logger
 from nornir.core.task import Task, Result
 from nornir_netmiko import netmiko_send_command
 from datetime import datetime
+from utils.models import get_global_physical_cards
 
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,9 +22,11 @@ def check_devices_health(task: Task) -> Result:
     device_name = task.host.name  # 这个助手已经拿到档案卡片了，控制台已经把host实例绑定到助手上面了
     device_ip = task.host.hostname  # 从host实例中提取IP地址
     logger.info(f"正在检查设备{device_name}   ({device_ip})的健康状态.....")
+    current_card = None
     base_result = {
         "host": device_ip,  # 和单设备的host（IP）字段一致
         "device_name": device_name,  # 和单设备的设备名字段一致
+        "version": "未知",
         "check_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # 统一时间戳格式
         "status": "unknown",  # 兼容并发的健康状态：healthy/degraded/failed
         "check_status": "成功",  # 和单设备的检查状态（成功/失败）完全对齐
@@ -34,8 +37,20 @@ def check_devices_health(task: Task) -> Result:
         "memory_usage": "N/A",  # 和单设备的内存使用率字段一致（具体%值）
         "error_message": "",  # 和单设备的错误信息字段一致
         "device_health_issues": [],  # 保留并发的问题列表，兼容原有逻辑
-        "reachable": True  # 保留设备可达性标识
+        "reachable": True,  # 保留设备可达性标识
     }
+    try:
+        physical_cards = get_global_physical_cards()  # 获取全局卡片列表
+        # 根据IP匹配对应设备的卡片（和单设备检查逻辑完全一致）
+        current_card = next((card for card in physical_cards if card.ip_address == device_ip), None)
+        if current_card:
+            logger.info(f"并发检查-设备卡片匹配成功：{device_name}({device_ip})")
+        else:
+            logger.warning(f"并发检查-未匹配到{device_ip}的设备卡片，跳过档案卡更新")
+    except Exception as e:
+        logger.error(f"并发检查-加载全局设备卡片失败：{e}")
+        base_result["error_message"] += f"设备卡片加载失败；"
+    
     try:
         # 获取版本信息
         logger.info(f"正在查询设备{device_name}的版本信息.....")
@@ -96,19 +111,24 @@ def check_devices_health(task: Task) -> Result:
         base_result["up_interface"] = up_ports
         base_result["down_interface"] = down_ports
         base_result["total_interface"] = total_ports
+        base_result["version"] = version_result.result[:100]
 
         # 2.分析CPU使用率
         CPU_usage = CPU_usage_result.result
         CPU_lines = CPU_usage.split("\n")
         CPU_usage_high = False
-        cpu_usage_val = "N/A"
+        cpu_usage_val = "N/A"  # CPU使用率的值
         for line in CPU_lines:
             line_clean = line.strip()
             if not line_clean:
                 continue
             if "seconds" in line_clean:
-                match = re.search(r"(\d+)%", line_clean)
-                # 正则表达式匹配的是「文本字符」，不管字符看起来像数字还是字母，提取结果本质都是字符串
+                match = re.search(
+                    r"(\d+)%", line_clean
+                )  # 返回的不是字符串，而是一个正则匹配对象（Match Object）（你代码里的match就是这个对象）；
+                # match.group(1) 是从这个对象里提取出你需要的字符串内容，这也是为什么它返回的是字符串 ——
+                # 因为正则匹配的原始数据是文本（line_clean是字符串），提取的结果自然也是字符串。正则表达式匹配的是「文本字符」
+                # ，不管字符看起来像数字还是字母，提取结果本质都是字符串
                 if match:
                     cpu_usage_val = f"{match.group(1)}%"  # 提取具体%值，和单设备格式一致
                     if int(match.group(1)) > 88:
@@ -153,22 +173,21 @@ def check_devices_health(task: Task) -> Result:
             base_result["status"] = "healthy"  # 并发健康状态
         else:
             base_result["status"] = "degraded"  # 并发健康状态
+        base_result["check_status"] = "成功"
         base_result["device_health_issues"] = device_health_issues if device_health_issues else ["无"]
         # 错误信息统一：把问题列表拼接到error_message（和单设备的error_message字段对齐）
-        base_result["error_message"] = ";".join(device_health_issues) if device_health_issues else ""
-
+        base_result["error_message"] = ";".join(device_health_issues) if device_health_issues != ["无"] else ""
+        if current_card:  # 匹配到卡片才更新，避免报错
+            current_card.update(base_result) 
         # ========== 6. 日志收尾 → 和单设备检查的日志样式完全统一 ==========
         logger.info(f"设备{device_name}（{device_ip}）检查完成！")
+        logger.info(f"-版本：{base_result['version']}")
         logger.info(f"- 活跃端口（UP）/总接口数：{base_result['up_interface']}/{base_result['total_interface']}")
         logger.info(f"- CPU使用率：{base_result['CPU_usage']} | 内存使用率：{base_result['memory_usage']}")
         logger.info(f"- 设备健康状态：{base_result['status']} | 存在问题：{base_result['device_health_issues']}")
 
         # ========== 7. 返回Result → 结果字典和单设备1:1统一 ==========
-        return Result(
-            host=task.host,
-            result=base_result,  # 直接返回统一后的结果字典
-            failed=False
-        )
+        return Result(host=task.host, result=base_result, failed=False)  # 直接返回统一后的结果字典
         # 收集结果
         # details = {
         #     "version_result": version_result.result if version_result.result else "",
@@ -196,21 +215,22 @@ def check_devices_health(task: Task) -> Result:
         error_msg = str(e)[:100]  # 截取前100位，和单设备一致
         logger.error(f"设备{device_name}（{device_ip}）检查失败！原因：{error_msg}")
         # 异常时更新统一结果字典，和单设备的失败状态对齐
-        base_result.update({
-            "status": "failed",  # 并发健康状态：失败
-            "check_status": "失败",  # 和单设备的检查状态（失败）对齐
-            "check_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "error_message": error_msg,  # 和单设备的error_message字段对齐
-            "reachable": False,
-            "CPU_usage": "N/A",
-            "memory_usage": "N/A"
-        })
-        # 异常返回Result，标记failed=True
-        return Result(
-            host=task.host,
-            result=base_result,  # 异常也返回统一的结果字典
-            failed=True
+        base_result.update(
+            {
+                "status": "failed",  # 并发健康状态：失败
+                "check_status": "失败",  # 和单设备的检查状态（失败）对齐
+                "check_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "error_message": error_msg,  # 和单设备的error_message字段对齐
+                "reachable": False,
+                "CPU_usage": "N/A",
+                "memory_usage": "N/A",
+                "device_health_issues": ["无"],
+            }
         )
+        if current_card:
+            current_card.update(base_result) 
+        # 异常返回Result，标记failed=True
+        return Result(host=task.host, result=base_result, failed=True)  # 异常也返回统一的结果字典
 
 
 # 第三步：检查设备健康的总调度员（主函数）
