@@ -6,6 +6,7 @@ from nornir import InitNornir
 from utils.log_setup import setup_logger
 from nornir.core.task import Task, Result
 from nornir_netmiko import netmiko_send_command
+from datetime import datetime
 
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,7 +19,23 @@ logger = setup_logger("nornir_tasks", "nornir_tasks.log")
 # 第二步：定义一个检查健康的主任务，分两个子任务,对一个设备进行检查
 def check_devices_health(task: Task) -> Result:
     device_name = task.host.name  # 这个助手已经拿到档案卡片了，控制台已经把host实例绑定到助手上面了
-    logger.info(f"正在检查设备{device_name}的健康状态.....")
+    device_ip = task.host.hostname  # 从host实例中提取IP地址
+    logger.info(f"正在检查设备{device_name}   ({device_ip})的健康状态.....")
+    base_result = {
+        "host": device_ip,  # 和单设备的host（IP）字段一致
+        "device_name": device_name,  # 和单设备的设备名字段一致
+        "check_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # 统一时间戳格式
+        "status": "unknown",  # 兼容并发的健康状态：healthy/degraded/failed
+        "check_status": "成功",  # 和单设备的检查状态（成功/失败）完全对齐
+        "up_interface": 0,  # 和单设备的UP接口数字段一致
+        "down_interface": 0,  # 和单设备的DOWN接口数字段一致
+        "total_interface": 0,  # 和单设备的总接口数字段一致
+        "CPU_usage": "N/A",  # 和单设备的CPU使用率字段一致（具体%值）
+        "memory_usage": "N/A",  # 和单设备的内存使用率字段一致（具体%值）
+        "error_message": "",  # 和单设备的错误信息字段一致
+        "device_health_issues": [],  # 保留并发的问题列表，兼容原有逻辑
+        "reachable": True  # 保留设备可达性标识
+    }
     try:
         # 获取版本信息
         logger.info(f"正在查询设备{device_name}的版本信息.....")
@@ -35,13 +52,13 @@ def check_devices_health(task: Task) -> Result:
         # 查询CPU使用率
         logger.info(f"正在查询设备{device_name}的CPU使用率....")
         CPU_usage_result = task.run(
-            task=netmiko_send_command, command_string="display memory-usage", name=f"查询CPU使用率-{device_name}"
+            task=netmiko_send_command, command_string="display cpu-usage", name=f"查询CPU使用率-{device_name}"
         )
         # 查询内存使用率
         logger.info(f"查询{device_name}CPU使用率成功！")
         logger.info(f"正在查询设备{device_name}的内存使用率....")
         memory_usage_result = task.run(
-            task=netmiko_send_command, command_string="display cpu-usage", name=f"查询内存使用率-{device_name}"
+            task=netmiko_send_command, command_string="display memory-usage", name=f"查询内存使用率-{device_name}"
         )
         logger.info(f"查询{device_name}内存使用率成功！")
         # 1.分析接口状态
@@ -54,6 +71,7 @@ def check_devices_health(task: Task) -> Result:
         lines = output_inteface.split("\n")
         data_start = 0
         for i, line in enumerate(lines):
+            # enumerate()是 Python 里专门用来遍历可迭代对象（比如列表、文件行）时，同时获取「元素的索引 + 元素本身」的内置函数，
             # 找到数据的开始行
             if "Interface" in line and "Protocol" in line:
                 data_start = i + 1
@@ -75,10 +93,15 @@ def check_devices_health(task: Task) -> Result:
                     logger.info(f"端口 GE1/0/1 状态为DOWN")
                     logger.warning(f"关键端口 GE1/0/1 已DOWN")
         total_ports = up_ports + down_ports
+        base_result["up_interface"] = up_ports
+        base_result["down_interface"] = down_ports
+        base_result["total_interface"] = total_ports
+
         # 2.分析CPU使用率
         CPU_usage = CPU_usage_result.result
         CPU_lines = CPU_usage.split("\n")
         CPU_usage_high = False
+        cpu_usage_val = "N/A"
         for line in CPU_lines:
             line_clean = line.strip()
             if not line_clean:
@@ -86,69 +109,107 @@ def check_devices_health(task: Task) -> Result:
             if "seconds" in line_clean:
                 match = re.search(r"(\d+)%", line_clean)
                 # 正则表达式匹配的是「文本字符」，不管字符看起来像数字还是字母，提取结果本质都是字符串
-                if match and int(match.group(1)) > 88:
-                    CPU_usage_high = True
+                if match:
+                    cpu_usage_val = f"{match.group(1)}%"  # 提取具体%值，和单设备格式一致
+                    if int(match.group(1)) > 88:
+                        CPU_usage_high = True
+                        logger.warning(f"设备{device_name}（{device_ip}）CPU使用率过高：{cpu_usage_val}（超过88%）")
+        base_result["CPU_usage"] = cpu_usage_val
         # 3.分析内存使用率
         memory_usage = memory_usage_result.result
         memory_lines = memory_usage.split("\n")
         memory_usage_high = False
+        mem_usage_val = "N/A"
         for line in memory_lines:
             line_clean = line.strip()
             if not line_clean:
                 continue
             if "Memory" in line and "usage" in line:
                 match = re.search(r"(\d+)%", line)
-                if match and int(match.group(1)) > 88:
-                    memory_usage_high = True
+                if match:
+                    mem_usage_val = f"{match.group(1)}%"  # 提取具体%值，和单设备格式一致
+                    if int(match.group(1)) > 88:
+                        memory_usage_high = True
+                        logger.warning(f"设备{device_name}（{device_ip}）内存使用率过高：{mem_usage_val}（超过88%）")
+        # 赋值给统一字段（和单设备的memory_usage完全一致）
+        base_result["memory_usage"] = mem_usage_val
+
         # 4.判断设备是否健康
         is_health = True
         device_health_issues = []
         if critical_ports_down:
             is_health = False
             device_health_issues.append("关键端口DOWN")
-        if down_ports / total_ports > 0.3:  # 超过百分之30的端口都是down
+        if total_ports > 0 and (down_ports / total_ports) > 0.3:  # 超过百分之30的端口都是down
             is_health = False
             device_health_issues.append(f"过多端口down ({down_ports}/{total_ports})")
         if CPU_usage_high:
             is_health = False
             device_health_issues.append("CPU使用率过高，已经超过88%")
         if memory_usage_high:
-            is_health: False
+            is_health = False
             device_health_issues.append("内存使用率过高，已经超过88%")
+        if is_health:
+            base_result["status"] = "healthy"  # 并发健康状态
+        else:
+            base_result["status"] = "degraded"  # 并发健康状态
+        base_result["device_health_issues"] = device_health_issues if device_health_issues else ["无"]
+        # 错误信息统一：把问题列表拼接到error_message（和单设备的error_message字段对齐）
+        base_result["error_message"] = ";".join(device_health_issues) if device_health_issues else ""
 
+        # ========== 6. 日志收尾 → 和单设备检查的日志样式完全统一 ==========
+        logger.info(f"设备{device_name}（{device_ip}）检查完成！")
+        logger.info(f"- 活跃端口（UP）/总接口数：{base_result['up_interface']}/{base_result['total_interface']}")
+        logger.info(f"- CPU使用率：{base_result['CPU_usage']} | 内存使用率：{base_result['memory_usage']}")
+        logger.info(f"- 设备健康状态：{base_result['status']} | 存在问题：{base_result['device_health_issues']}")
+
+        # ========== 7. 返回Result → 结果字典和单设备1:1统一 ==========
+        return Result(
+            host=task.host,
+            result=base_result,  # 直接返回统一后的结果字典
+            failed=False
+        )
         # 收集结果
-        details = {
-            "version_result": version_result.result if version_result.result else "",
-            "interface_result": interface_result.result if interface_result.result else "",
-            "interfaces_total": total_ports,
-            "interfaces_down": down_ports,
-            "CPU_usage_result": "告警！" if CPU_usage_high else "正常，未超过88%",
-            "memory_usage_result": "告警！" if memory_usage_high else "正常，未超过88%",
-            "device_health_issues": device_health_issues if device_health_issues else "无",
-            "reachable": True,
-        }
-        status = "healthy" if is_health else "degraded"  # 质量下降的、性能退化的
-        logger.info(f"设备{device_name}检查完成，状态: {status}, 问题: {device_health_issues}")
-        return Result(
-            host=task.host,
-            result={
-                "device_name": device_name,
-                "status": status,
-                "details": details,
-                "device_health_issues": device_health_issues,
-            },
-        )  # task.host（Host实例）会被存入Result对象的专属属性中
+        # details = {
+        #     "version_result": version_result.result if version_result.result else "",
+        #     "interface_result": interface_result.result if interface_result.result else "",
+        #     "interfaces_total": total_ports,
+        #     "interfaces_down": down_ports,
+        #     "CPU_usage_result": "告警！" if CPU_usage_high else "正常，未超过88%",
+        #     "memory_usage_result": "告警！" if memory_usage_high else "正常，未超过88%",
+        #     "device_health_issues": device_health_issues if device_health_issues else "无",
+        #     "reachable": True,
+        # }
+        # status = "healthy" if is_health else "degraded"  # 质量下降的、性能退化的
+        # logger.info(f"设备{device_name}检查完成，状态: {status}, 问题: {device_health_issues}")
+        # return Result(
+        #     host=task.host,
+        #     result={
+        #         "device_name": device_name,
+        #         "status": status,
+        #         "details": details,
+        #         "device_health_issues": device_health_issues,
+        #     },
+        # )  # task.host（Host实例）会被存入Result对象的专属属性中
     except Exception as e:
-        logger.error(f"检查设备时出现错误 {e}")
-        error_msg = str(e)
+        # 异常处理 → 和单设备的错误处理风格、字段完全统一
+        error_msg = str(e)[:100]  # 截取前100位，和单设备一致
+        logger.error(f"设备{device_name}（{device_ip}）检查失败！原因：{error_msg}")
+        # 异常时更新统一结果字典，和单设备的失败状态对齐
+        base_result.update({
+            "status": "failed",  # 并发健康状态：失败
+            "check_status": "失败",  # 和单设备的检查状态（失败）对齐
+            "check_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "error_message": error_msg,  # 和单设备的error_message字段对齐
+            "reachable": False,
+            "CPU_usage": "N/A",
+            "memory_usage": "N/A"
+        })
+        # 异常返回Result，标记failed=True
         return Result(
             host=task.host,
-            result={
-                "device_name": device_name,
-                "status": "failed",
-                "error": error_msg[:100],
-            },
-            failed=True,
+            result=base_result,  # 异常也返回统一的结果字典
+            failed=True
         )
 
 
@@ -181,7 +242,7 @@ def run_concurrent_health_check(hosts=None):
             health_result = multi_results[0]  # 这是一台一台的遍历，这里就是主任务
             if health_result.failed:
                 standardized_results["failed"].append(
-                    {"hostname": host_name, "error": health_result.result.get("error", "未知错误")}
+                    {"hostname": host_name, "error": health_result.result.get("error_message", "未知错误")}
                 )
             else:
                 standardized_results["success"].append({"hostname": host_name, "result": health_result.result})

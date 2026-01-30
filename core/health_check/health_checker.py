@@ -11,6 +11,9 @@ CONFIG_PATH = os.path.join(ROOT_DIR, "config", "devices.yaml")
 from utils.log_setup import setup_logger
 
 logger = setup_logger("netdevops_health_check", "health_check.log")
+from datetime import datetime
+from utils.models import get_global_physical_cards
+
 
 
 # 第一步：定义可以读取yml文件的函数
@@ -108,14 +111,16 @@ def check_memory_usage(connections):
         error_massage = "检查内存使用率失败"
         return "N/A", error_massage
 
-
-# 第五步对单个设备进行检查
+# 第五步对单个设备进行检查（改造后：绑定全局卡片+统一样式，对齐并发框架）
 def check_single_device(device_info):
     logger.info(f"正在连接设备{device_info['host']}......")
     connections = None
+    # 1. 初始化结果字典：补check_time（并发框架必带），字段和并发完全对齐，保留你的原有字段
     results = {
         "host": device_info["host"],
+        "device_name": "未知设备",  # 从全局卡片拉取，统一设备名字段
         "status": "未知",
+        "check_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # 统一时间戳，并发框架通用
         "up_interface": 0,
         "down_interface": 0,
         "total_interface": 0,
@@ -123,31 +128,53 @@ def check_single_device(device_info):
         "memory_usage": "N/A",
         "error_message": "",
     }
+    # 2. 核心：绑定全局设备卡片，从卡片拉取设备名（和并发框架的设备档案统一）
     try:
+        physical_cards = get_global_physical_cards()  # 调用全局变量，获取所有设备卡片
+        # 根据IP匹配当前设备的卡片，next避免遍历，效率高
+        current_card = next((card for card in physical_cards if card.get("host") == device_info["host"]), None)
+        if current_card:
+            results["device_name"] = current_card.get("device_name", "未知设备")  # 替换为卡片里的设备名
+            logger.info(f"设备卡片匹配成功：{results['device_name']}({device_info['host']})")
+        else:
+            logger.warning(f"未匹配到{device_info['host']}的设备卡片，使用默认设备名")
+    except Exception as e:
+        logger.error(f"加载全局设备卡片失败：{e}")
+        results["error_message"] += f"设备卡片加载失败；"
+
+    try:
+        # 3. 原有连接逻辑不变，成功后更新status为"成功"
         connections = ConnectHandler(**device_info)
         logger.info("连接成功！")
-        logger.info(f"正在检查设备{device_info['host']}的各项状态.......")
+        logger.info(f"正在检查设备{results['device_name']}({device_info['host']})的各项状态.......")
+        
+        # 4. 原有接口检查逻辑不变，直接复用
         try:
             total_interface, up_interface, down_interface, if_error = check_interface_status(connections)
             if if_error:
-                results["error_message"] += "检查端口状态失败"
+                results["error_message"] += "检查端口状态失败；"
         except Exception as e:
-            results["error_message"] += f"检查端口状态失败 {e}"
+            results["error_message"] += f"检查端口状态失败 {e}；"
             total_interface, up_interface, down_interface = 0, 0, 0
+       
         try:
             CPU_usage, if_error = check_cpu_usage(connections)
             if if_error:
-                results["error_message"] += "检查CPU使用率失败！"
+                results["error_message"] += "检查CPU使用率失败！；"
         except Exception as e:
-            results["error_message"] += f"检查CPU使用率失败！ {e}"
+            results["error_message"] += f"检查CPU使用率失败！ {e}；"
             CPU_usage = "N/A"
+        
+       
         try:
             memory_usage, if_error = check_memory_usage(connections)
             if if_error:
-                results["error_message"] += "检查内存使用率失败！"
+                results["error_message"] += "检查内存使用率失败！；"
         except Exception as e:
-            results["error_message"] += f"检查内存使用率失败！ {e}"
+            results["error_message"] += f"检查内存使用率失败！ {e}；"
             memory_usage = "N/A"
+
+        # 7. 更新检查结果，保留原有逻辑
         results.update(
             {
                 "status": "成功",
@@ -158,8 +185,9 @@ def check_single_device(device_info):
                 "memory_usage": memory_usage,
             }
         )
+        
         logger.info("检查成功！")
-        logger.info(f"-设备：{results['host']}")
+        logger.info(f"-设备：{results['device_name']}（{results['host']}）")
         logger.info(f"-活跃端口（UP）数量：{results['up_interface']}")
         logger.info(f"-活跃端口（UP）数量/设备总接口数：{results['up_interface']}/{results['total_interface']}")
         logger.info(f"-CPU使用率：{results['CPU_usage']}")
@@ -172,23 +200,111 @@ def check_single_device(device_info):
         return results
     except Exception as e:
         error_msg = str(e)
-        logger.error("连接失败！")
+        logger.error(f"设备{results['device_name']}（{device_info['host']}）连接失败！")
         if "Authentication" in error_msg:
-            logger.error(f"   原因：认证失败！请检查用户名/密码！")
+            err_detail = "认证失败！请检查用户名/密码！"
         elif "Timeout" in error_msg:
-            logger.error(f"   原因：连接超时，设备可能不可达或防火墙阻断！")
+            err_detail = "连接超时，设备可能不可达或防火墙阻断！"
         elif "DNS failure" in error_msg:
-            logger.error(f"   原因：无法解析主机名！请检查IP地址")
+            err_detail = "无法解析主机名！请检查IP地址！"
         else:
-            logger.error(f"   原因：{e[:50]}......")
-        results.update({"status": "失败", "error_message": error_msg[:100]})
+            err_detail = f"{e[:50]}......"
+        logger.error(f"   原因：{err_detail}")
+       
+        results.update({
+            "status": "失败",
+            "error_message": err_detail
+        })
         return results
+
     finally:
         if connections:
             try:
                 connections.disconnect()
-            except:
+                logger.info(f"设备{device_info['host']}连接已正常断开")
+            except Exception as e:
+                logger.warning(f"设备{device_info['host']}连接断开失败：{e}")
                 pass
+# # 第五步对单个设备进行检查
+# def check_single_device(device_info):
+#     logger.info(f"正在连接设备{device_info['host']}......")
+#     connections = None
+#     results = {
+#         "host": device_info["host"],
+#         "status": "未知",
+#         "up_interface": 0,
+#         "down_interface": 0,
+#         "total_interface": 0,
+#         "CPU_usage": "N/A",
+#         "memory_usage": "N/A",
+#         "error_message": "",
+#     }
+#     try:
+#         connections = ConnectHandler(**device_info)
+#         logger.info("连接成功！")
+#         logger.info(f"正在检查设备{device_info['host']}的各项状态.......")
+#         try:
+#             total_interface, up_interface, down_interface, if_error = check_interface_status(connections)
+#             if if_error:
+#                 results["error_message"] += "检查端口状态失败"
+#         except Exception as e:
+#             results["error_message"] += f"检查端口状态失败 {e}"
+#             total_interface, up_interface, down_interface = 0, 0, 0
+#         try:
+#             CPU_usage, if_error = check_cpu_usage(connections)
+#             if if_error:
+#                 results["error_message"] += "检查CPU使用率失败！"
+#         except Exception as e:
+#             results["error_message"] += f"检查CPU使用率失败！ {e}"
+#             CPU_usage = "N/A"
+#         try:
+#             memory_usage, if_error = check_memory_usage(connections)
+#             if if_error:
+#                 results["error_message"] += "检查内存使用率失败！"
+#         except Exception as e:
+#             results["error_message"] += f"检查内存使用率失败！ {e}"
+#             memory_usage = "N/A"
+#         results.update(
+#             {
+#                 "status": "成功",
+#                 "up_interface": up_interface,
+#                 "down_interface": down_interface,
+#                 "total_interface": total_interface,
+#                 "CPU_usage": CPU_usage,
+#                 "memory_usage": memory_usage,
+#             }
+#         )
+#         logger.info("检查成功！")
+#         logger.info(f"-设备：{results['host']}")
+#         logger.info(f"-活跃端口（UP）数量：{results['up_interface']}")
+#         logger.info(f"-活跃端口（UP）数量/设备总接口数：{results['up_interface']}/{results['total_interface']}")
+#         logger.info(f"-CPU使用率：{results['CPU_usage']}")
+#         logger.info(f"-内存使用率：{results['memory_usage']}")
+#         if results["down_interface"] > 0:
+#             logger.warning(f"-端口存在异常：{results['down_interface']}个DOWN端口！")
+#         if results["error_message"]:
+#             logger.warning(f"-错误信息：{results['error_message']}")
+#         logger.info("检查完毕！")
+#         return results
+#     except Exception as e:
+#         error_msg = str(e)
+#         logger.error("连接失败！")
+#         if "Authentication" in error_msg:
+#             logger.error(f"   原因：认证失败！请检查用户名/密码！")
+#         elif "Timeout" in error_msg:
+#             logger.error(f"   原因：连接超时，设备可能不可达或防火墙阻断！")
+#         elif "DNS failure" in error_msg:
+#             logger.error(f"   原因：无法解析主机名！请检查IP地址")
+#         else:
+#             logger.error(f"   原因：{e[:50]}......")
+#         results.update({"status": "失败", "error_message": error_msg[:100]})
+#         return results
+#     finally:
+#         if connections:
+#             try:
+#                 connections.disconnect()
+#             except:
+#                 pass
 
 
 # 第六步：写检查报告

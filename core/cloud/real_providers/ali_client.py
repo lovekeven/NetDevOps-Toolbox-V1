@@ -2,10 +2,12 @@ import json  # 阿里云返回的是二进制，转换为JSON格式的字符串�
 import sys
 import os
 from typing import List
-from utils.aliyun_time import convert_aliyun_time
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(ROOT_DIR)
+from utils.aliyun_time import convert_aliyun_time
+
+
 from aliyunsdkcore.client import AcsClient
 
 # 1.创建阿里云 API 客户端的核心类，所有阿里云接口都靠它初始化（AK/SK/ 地域）；

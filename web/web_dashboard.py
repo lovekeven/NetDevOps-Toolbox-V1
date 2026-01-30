@@ -21,44 +21,51 @@ from utils.log_setup import setup_logger
 import logging  # 这个可以不用写
 from core.monitoring.monitoring import SystemMonitor, get_prometheus_metrics
 
-# 引入云服务平台
-from core.cloud.concept_simulator import cloud_simulator
+# 引入模拟云服务平台
+from core.cloud.concept_simulator import CloudNetworkSimulator
+
+cloud_simulator = CloudNetworkSimulator()
 
 # 引入真实阿里云客户
 from core.cloud.real_providers.ali_client import AliyunCloudClient
 
 # 引入混合资源管理器(全局实例)
-from core.hybrid_manager.hybrid_manager import HybridResourceManager, hybrid_manager
+from core.hybrid_manager.hybrid_manager import HybridResourceManager
 
+hybrid_manager = HybridResourceManager(cloud_mode="simulated")
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
 app = Flask(__name__)
 
-CONFIG_PATH = os.path.join(ROOT_DIR, "config", "devices.yaml")
+
+CONFIG_PATH = os.path.join(ROOT_DIR, "config", "nornir_inventory.yaml")
 
 
+# 第二步：改造解析逻辑，适配你的扁平化Nornir清单（关键改2）
 def get_devices(filename=CONFIG_PATH):
     device_list = []
     try:
         with open(filename, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
-            for device_name, device_info in data["devices"].items():
+            # 你的Nornir清单顶层就是设备名，无外层"devices"键，直接遍历data.items()（核心改）
+            for device_name, device_info in data.items():
+                # 逐层提取字段，加容错get，避免字段不存在时报错（关键）
+                netmiko_extras = device_info.get("connection_options", {}).get("netmiko", {}).get("extras", {})
                 device = {
-                    "device_name": device_name,
-                    # 1.鱼和熊掌必须兼得」的场景，但「复制字典再删除device_name键值对」
-                    # 是实现「二者兼得」的唯一且必要的步骤 **，没有其他更优的替代方案（至少在当前的业务场景下）。
-                    # 也就是说如果你想让用户再页面看到SW1，就必须增加这个键值对，但是你调用连接函数的时候，又必须删掉，因为库
-                    # 不认识多余的键值对
-                    "device_type": device_info["device_type"],
-                    "host": device_info["host"],
-                    "username": device_info["username"],
-                    "password": device_info["password"],
-                    "port": 22,
+                    "device_name": device_name,  # 保持原有键，兼容后续逻辑
+                    "device_type": netmiko_extras.get("device_type", "hp_comware"),  # 从netmiko配置取设备类型
+                    "host": device_info.get("hostname", ""),  # 顶层取IP/主机名
+                    "username": device_info.get("username", ""),  # 顶层取用户名
+                    "password": device_info.get("password", ""),  # 顶层取密码
+                    "port": netmiko_extras.get("port", 22),  # 从netmiko配置取端口，默认22
                 }
-                device_list.append(device)
+                # 过滤空设备（防止清单有无效配置）
+                if device["host"] and device["username"] and device["password"]:
+                    device_list.append(device)
+        logger.info(f"从Nornir清单读取设备成功，共{len(device_list)}台")
         return device_list
     except Exception as e:
-        logger.error(f"错误：未成功读取设备文件 - {e}")
+        logger.error(f"错误：未成功读取Nornir设备文件 - {e}")
         return device_list
 
 
@@ -342,6 +349,7 @@ def check_system_health():
 @app.route("/api/cloud/resources")
 def get_cloud_resources():
     """获取云资源（可切换模拟/真实模式）"""
+
     mode = request.args.get("simulated", "real")
     if mode == "real":
         ALIYUN_AK = os.getenv("ALIYUN_AK")
@@ -606,7 +614,7 @@ def set_cloud_mode():
         # 1.def __init__(self, cloud_mode="simulated"):也就是说只有初始化的时候才会执行这个，如果只改参数的话是不执行这个的
         # 资源还是原来的旧资源，所以这里要重新初始化，新实例之前还是用旧的
         hybrid_manager = HybridResourceManager(cloud_mode=mode)
-        logger.info(f'正在进入{mode}模式.......')
+        logger.info(f"正在进入{mode}模式.......")
         logger.info(f"模式切换成功,当前模式{mode}")
         return (
             jsonify(
@@ -630,11 +638,14 @@ def set_cloud_mode():
             ),
             500,
         )
+
+
 # 第十六个API接口：混合仪表盘页面
-@app.route('/hybrid')
+@app.route("/hybrid")
 def hybrid_dashboard():
     """混合仪表盘页面"""
-    return render_template('hybrid_dashboard.html')
+    return render_template("hybrid_dashboard.html")
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)

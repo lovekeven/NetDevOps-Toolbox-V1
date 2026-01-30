@@ -257,6 +257,29 @@
         .table tbody tr:hover {
             background-color: rgba(79, 70, 229, 0.2);
         }
+
+        /* 通知动画 */
+        @keyframes slideDownFromTop {
+            from {
+                opacity: 0;
+                transform: translateY(-100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideUpToTop {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-100%);
+            }
+        }
     </style>
 </head>
 <body>
@@ -311,7 +334,7 @@
                             <div class="input-group">
                                 <input type="text" class="form-control" id="resourceIdInput" placeholder="输入资源ID">
                                 <button class="btn btn-primary" type="button" onclick="searchById()">
-                                    <i class="fas fa-search"></i>
+                                    <i class="fas fa-search me-1"></i>查询
                                 </button>
                             </div>
                         </div>
@@ -404,8 +427,8 @@
                         updateResourceDisplay(data);
                         // 添加刷新完成的提醒
                         const notification = document.createElement('div');
-                        notification.className = 'alert alert-success alert-dismissible fade show position-fixed top-20 right-20 z-50';
-                        notification.style = 'top: 100px; right: 20px; max-width: 300px;';
+                        notification.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 left-0 right-0 z-50';
+                        notification.style = 'top: 0; left: 0; right: 0; max-width: 400px; margin: 20px auto; animation: slideDownFromTop 0.5s ease-out;';
                         notification.innerHTML = `
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-check-circle me-2"></i>
@@ -414,8 +437,11 @@
                         `;
                         document.body.appendChild(notification);
                         setTimeout(() => {
-                            notification.remove();
-                        }, 3000);
+                            notification.style.animation = 'slideUpToTop 0.3s ease-in';
+                            setTimeout(() => {
+                                notification.remove();
+                            }, 300);
+                        }, 2000);
                     } else {
                         resourceList.innerHTML = `<div class="col-12 text-center text-danger py-5"><i class="fas fa-exclamation-triangle fa-3x mb-3"></i><p>加载失败: ${data.message}</p></div>`;
                     }

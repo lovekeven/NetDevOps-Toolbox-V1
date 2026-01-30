@@ -42,7 +42,7 @@ except ImportError as e:
 
 # 定于一个混合资源管理器类
 class HybridResourceManager:
-    def __init__(self, cloud_mode="simulated"):
+    def __init__(self, cloud_mode):
         self.cloud_model = cloud_mode
         self.physical_devices = []
         self.cloud_resources = []  # 这个不是模拟真实的都有只能有一个，看你选啥’
