@@ -17,6 +17,9 @@ logger = setup_logger("modelsS", "models.log")
 # 导入阿里云服务端异常，方便精准捕获
 from aliyunsdkcore.acs_exception.exceptions import ServerException
 
+# 导入数据库(实例)
+from db.database import db_manager
+
 
 # 定义一个父类
 class NetworkResource:
@@ -102,6 +105,7 @@ class PhysicalDevice(NetworkResource):
             }
         )
         return base_dict
+
     def update(self, check_results):
         """
         用设备健康检查结果更新档案卡属性
@@ -122,6 +126,32 @@ class PhysicalDevice(NetworkResource):
         self.down_interface = check_results.get("down_interface", 0)  # 已修正笔误
         self.total_interfaces = check_results.get("total_interface", 0)
         logger.info(f"设备[{self.name}]档案卡已更新为最新检查结果")
+        update_dict = self.to_dict()  # 这里已经拿到的是最新的了
+        db_manager.update_physical_card(update_dict)
+        logger.info(f"已成功更新数据里的{self.name}数据")
+
+    @classmethod
+    # 定义一个类的方法，不用实例化直接可以用
+    def dict_to_PhysicalDevice(cls, card_dict):
+        # cls可以自定义，
+        # cls()类的实例化
+        return cls(
+            device_id=card_dict.get("device_id"),
+            name=card_dict.get("name"),
+            ip_address=card_dict.get("ip_address"),
+            vendor=card_dict.get("vendor", "未知厂商"),
+            check_status=card_dict.get("check_status", "未知"),
+            up_interfaces=card_dict.get("up_interfaces", "未知"),
+            dowan_interface=card_dict.get("down_interface", "未知"),  # 保留你原来的笔误，避免报错
+            total_interfaces=card_dict.get("total_interfaces", "未知"),
+            cpu_usage=card_dict.get("cpu_usage", "N/A"),
+            memory_usage=card_dict.get("memory_usage", "N/A"),
+            reachable=card_dict.get("reachable", "未检测"),
+            version=card_dict.get("version", "未知"),
+            create_time=card_dict.get("create_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+            last_check_time=card_dict.get("last_check_time", "未检查"),
+            status=card_dict.get("status", "unknown"),
+        )
 
 
 class CloudVPC(NetworkResource):
@@ -230,7 +260,7 @@ def load_physical_devices(config_path_physical):
                 cpu_usage="N/A",
                 memory_usage="N/A",
                 reachable="未检测",
-                version = '未知'
+                version="未知",
             )
             device_cards.append(dev_card)
             logger.info(f"生成物理设备档案卡：{dev_card.get_details()}")
@@ -422,8 +452,23 @@ def get_global_physical_cards():
     # 声明他是一个全局变量接下来在这个函数里要操作的 GLOBAL_PHYSICAL_DEVICE_CARDS，不是我函数自己的局部变量，而是「公共客厅」里那个
     # 模块级的全局变量，我要改的是它的内容！
     if GLOBAL_PHYSICAL_DEVICE_CARDS is None:
-        GLOBAL_PHYSICAL_DEVICE_CARDS = load_physical_devices(config_path_physical)
+        # 并不是调用一次这个方法就入库一次，但是服务器重启必会入库一次
+        # 因为这里判断了他是None的情况下才会入库
+        crad_list = db_manager.get_all_physical_cards()
+        if crad_list:  # 现在这是一个列表元素是字典
+            GLOBAL_PHYSICAL_DEVICE_CARDS = [PhysicalDevice.dict_to_PhysicalDevice(crad) for crad in crad_list]
+            logger.info("服务器并不是首次启动，档案卡仍然是上次检查的设备状态")
+            logger.info("服务器启动：从数据库提取档案卡（全局变量）成功！")
+            # 现在这个也是个列表元素是对象
+        else:
+            GLOBAL_PHYSICAL_DEVICE_CARDS = load_physical_devices(config_path_physical)
+            GLOBAL_PHYSICAL_DEVICE_CARDS_DICTS = [card.to_dict() for card in GLOBAL_PHYSICAL_DEVICE_CARDS]
+            db_manager.batch_add_physical_cards(GLOBAL_PHYSICAL_DEVICE_CARDS_DICTS)
+            logger.info("服务器首次启动：成功将档案卡插入数据库中")
     return GLOBAL_PHYSICAL_DEVICE_CARDS
+
+
+# 全局变量GLOBAL_PHYSICAL_DEVICE_CARDS留着，因为匹配要用
 
 
 if __name__ == "__main__":

@@ -650,26 +650,23 @@ def hybrid_dashboard():
     return render_template("hybrid_dashboard.html")
 
 
-# 第十七个API接口：档案卡的页面
+# 第十七个API接口：档案卡的页面，从数据库读取
 @app.route("/api/device_cards")
 def check_physical_device_cards():
-    physical_device_cards = get_global_physical_cards()
+    # physical_device_cards = get_global_physical_cards()这是从全局变量读取卡片
+    get_global_physical_cards()
+    physical_device_cards = db_manager.get_all_physical_cards()
     check_cards_type = request.args.get("device", "all")
     try:
         if check_cards_type == "all":
-            logger.info("正在查看所有的物理设备的档案卡片.....")
-            all_cards = []
-            for cards in physical_device_cards:
-                result = cards.to_dict()
-                all_cards.append(result)
             logger.info("查看所有物理设备的健康档案卡片成功！")
-            return jsonify(all_cards), 200
+            return jsonify(physical_device_cards), 200
         else:
             for cards in physical_device_cards:
-                if cards.name == check_cards_type:
-                    logger.info(f"正在查看{cards.name}设备的健康档案卡片...")
-                    result = cards.to_dict()
-                    logger.info(f"查看{cards.name}设备的健康档案卡片成功！")
+                if cards["name"] == check_cards_type:
+                    logger.info(f"正在查看{cards['name']}设备的健康档案卡片...")
+                    result = cards
+                    logger.info(f"查看{cards['name']}设备的健康档案卡片成功！")
                     return jsonify(result), 200
             # 遍历完所有设备后，如果都不匹配，才返回不存在的错误
             logger.info(f"{check_cards_type}设备的健康档案卡片不存在！")
@@ -677,13 +674,16 @@ def check_physical_device_cards():
     except Exception as e:
         error_msg = str(e)
         logger.error(f"查看健康档案卡片失败：{error_msg}")
-        return jsonify(
-            {
-                "message": "查看物理设备健康档案卡片失败！",
-                "error": error_msg[:200],
-                "status": "failed",
-            }
-        ),500
+        return (
+            jsonify(
+                {
+                    "message": "查看物理设备健康档案卡片失败！",
+                    "error": error_msg[:200],
+                    "status": "failed",
+                }
+            ),
+            500,
+        )
 
 
 if __name__ == "__main__":

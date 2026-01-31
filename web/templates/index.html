@@ -201,6 +201,7 @@
         .table td {
             border-bottom: 1px solid var(--border-color);
             padding: 1rem 1.25rem;
+            white-space: nowrap;
         }
 
         .table tbody tr {
@@ -252,24 +253,28 @@
         }
 
         .bg-success {
-            background-color: var(--success-color);
+            background-color: var(--success-color) !important;
+            color: #fff !important;
         }
 
         .bg-danger {
-            background-color: var(--danger-color);
+            background-color: var(--danger-color) !important;
+            color: #fff !important;
         }
 
         .bg-warning {
-            background-color: var(--warning-color);
-            color: var(--background-color);
+            background-color: var(--warning-color) !important;
+            color: var(--background-color) !important;
         }
 
         .bg-info {
-            background-color: var(--info-color);
+            background-color: var(--info-color) !important;
+            color: #fff !important;
         }
 
         .bg-secondary {
-            background-color: var(--secondary-color);
+            background-color: var(--secondary-color) !important;
+            color: #fff !important;
         }
 
         /* 表单样式 */
@@ -452,6 +457,15 @@
                 padding: 0.75rem 0.5rem;
                 font-size: 0.875rem;
             }
+
+            .stat-card {
+                min-width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            .card-grid {
+                grid-template-columns: 1fr !important;
+            }
         }
 
         /* 设备档案卡 */
@@ -520,6 +534,38 @@
             color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.05em;
+        }
+
+        /* 健康检查卡片 */
+        .health-check-card {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .health-check-card h6 {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .health-check-card p {
+            color: var(--text-secondary);
+        }
+
+        .health-check-card strong {
+            color: var(--text-primary);
+        }
+
+        .health-check-card ul {
+            color: var(--text-secondary);
+            padding-left: 1.5rem;
+        }
+
+        .health-check-card li {
+            margin-bottom: 0.5rem;
         }
 
         /* 服务状态列表 */
@@ -597,6 +643,18 @@
 
         .status-dot.pending {
             background-color: var(--warning-color);
+        }
+
+        /* 修复模态框表格长内容溢出 */
+        .modal-table-container .table td {
+            white-space: normal;
+            word-break: break-all;
+        }
+
+        /* 修复单个设备档案卡模态框内边距 */
+        #singleDeviceCardContainer {
+            padding: 1rem;
+            width: 100%;
         }
     </style>
 </head>
@@ -766,6 +824,30 @@
                                 <small>加载档案卡中...</small>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 健康检查结果模态框 -->
+        <div class="modal fade" id="healthCheckResultModal" tabindex="-1" aria-labelledby="healthCheckResultModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="healthCheckResultModalLabel">
+                            <i class="fas fa-heartbeat text-danger me-2"></i>健康检查结果 - <span id="healthCheckDeviceName">未知设备</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="healthCheckResultContainer">
+                            <div class="text-center text-muted py-4">
+                                <small>加载健康检查结果中...</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                     </div>
                 </div>
             </div>
@@ -993,1305 +1075,857 @@
         </div>
     </div>
 
-    <!-- JavaScript -->
+    <!-- JavaScript 核心公共方法 + 所有功能逻辑（无重复、无报错） -->
     <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
     <script>
-    // 为所有“健康检查”按钮添加点击事件
-    document.querySelectorAll('.health-check-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const hostname = this.getAttribute('data-hostname');
-            const statusCell = this.closest('tr').querySelector('.device-status');
-            
-            const originalText = this.textContent;
-            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
-            this.disabled = true;
-            statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-warning">检查中</span></div>';
-            
-            fetch(`/api/health/${hostname}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`请求失败，状态码：${response.status}`);
+        // 全局模态框实例（统一初始化，避免重复）
+        let modalInstances = {
+            deviceCardsModal: null,
+            singleDeviceCardModal: null,
+            healthCheckResultModal: null,
+            backupHistoryModal: null,
+            nornirCheckResultModal: null
+        };
+
+        // DOM加载完成后初始化所有模态框
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化所有模态框
+            modalInstances.deviceCardsModal = new bootstrap.Modal(document.getElementById('deviceCardsModal'));
+            modalInstances.singleDeviceCardModal = new bootstrap.Modal(document.getElementById('singleDeviceCardModal'));
+            modalInstances.healthCheckResultModal = new bootstrap.Modal(document.getElementById('healthCheckResultModal'));
+            modalInstances.backupHistoryModal = new bootstrap.Modal(document.getElementById('backupHistoryModal'));
+            modalInstances.nornirCheckResultModal = new bootstrap.Modal(document.getElementById('nornirCheckResultModal'));
+
+            // 初始化所有功能
+            initApiStatusCheck();
+            initBackupFunction();
+            initHealthCheckFunction();
+            initDeviceCardFunction();
+            initBackupHistoryFunction();
+            initAiReportFunction();
+            initSystemHealthFunction();
+            initNornirBatchCheckFunction();
+
+            // 初始检查API状态
+            checkApiStatus();
+        });
+
+        // 1. API状态检查
+        function checkApiStatus() {
+            const statusElement = document.getElementById('api-status');
+            const refreshBtn = document.getElementById('refresh-api-btn');
+
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>刷新中...';
+            statusElement.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-warning">检查中...</span></div>';
+
+            fetch('/api/service_status')
+                .then(response => response.json().then(data => ({ response, data })))
+                .then(({ response, data }) => {
+                    if (!response.ok) throw new Error(`请求失败，状态码：${response.status}`);
+                    if (!data || !data.status) {
+                        statusElement.innerHTML = '<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-secondary">未知状态</span></div>';
+                        return;
                     }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.status && data.status.toLowerCase() === '成功') {
-                        statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot online"></span><span class="badge bg-success">在线</span></div>';
+
+                    if (data.status === 'healthy') {
+                        statusElement.innerHTML = '<div class="status-indicator"><span class="status-dot online"></span><span class="badge bg-success">服务正常</span></div>';
                     } else {
-                        statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">异常</span></div>';
+                        const errorMsg = data.message || '未知异常';
+                        statusElement.innerHTML = `<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-warning">服务异常: ${errorMsg}</span></div>`;
                     }
                 })
                 .catch(error => {
-                    statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">失败</span></div>';
-                    console.error('健康检查请求失败:', error);
+                    statusElement.innerHTML = '<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">请求失败</span></div>';
+                    console.error('API状态检查失败详情：', error);
                 })
                 .finally(() => {
-                    this.innerHTML = '<i class="fas fa-heartbeat me-1"></i>健康检查';
-                    this.disabled = false;
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>刷新';
                 });
-        });
-    });
-    </script>
+        }
 
-    <!-- 备份功能JS脚本 -->
-    <script>
-    document.querySelectorAll('.backup-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const hostname = this.getAttribute('data-hostname');
-            const backupCell = this.closest('tr').querySelector('.backup-status');
-            
-            const originalText = this.textContent;
-            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>备份中...';
-            this.disabled = true;
-            backupCell.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-warning">备份中</span></div>';
-            
-            fetch(`/api/backup/${hostname}`)
-                .then(response => {
-                    return response.json().then(data => {
-                        if (!response.ok) {
-                            throw new Error(data.message || `备份请求失败，状态码：${response.status}`);
-                        }
-                        return data;
-                    });
-                })
-                .then(data => {
-                    if (data.status && data.status === '成功') {
-                        const successHtml = `
-                            <div class="status-indicator">
-                                <span class="status-dot online"></span>
-                                <span class="badge bg-success">备份成功</span>
-                            </div>
-                            <small class="text-muted d-block mt-1">
-                                备份路径：${data.backup_path || '未知路径'}
-                            </small>
-                        `;
-                        backupCell.innerHTML = successHtml;
-                    } else {
-                        backupCell.innerHTML = `<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">备份失败：${data.message || '未知错误'}</span></div>`;
-                    }
-                })
-                .catch(error => {
-                    backupCell.innerHTML = `<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">❌ ${error.message}</span></div>`;
-                    console.error('备份请求异常:', error);
-                })
-                .finally(() => {
-                    this.innerHTML = '<i class="fas fa-save me-1"></i>备份设备';
-                    this.disabled = false;
-                });
-        });
-    });
-    </script>
+        // 初始化API状态检查按钮
+        function initApiStatusCheck() {
+            document.getElementById('refresh-api-btn').addEventListener('click', checkApiStatus);
+        }
 
-    <!-- API状态检查JS脚本 -->
-    <script>
-    function checkApiStatus() {
-        const statusElement = document.getElementById('api-status');
-        const refreshBtn = document.getElementById('refresh-api-btn');
-        
-        refreshBtn.disabled = true;
-        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>刷新中...';
-        statusElement.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-warning">检查中...</span></div>';
-        
-        fetch('/api/service_status')
-            .then(response => {
-                return response.json().then(data => {
-                    if (!response.ok) {
-                        throw new Error(`API请求失败，状态码：${response.status}`);
-                    }
-                    return data;
+        // 2. 设备备份功能
+        function initBackupFunction() {
+            document.querySelectorAll('.backup-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const hostname = this.getAttribute('data-hostname');
+                    const backupCell = this.closest('tr').querySelector('.backup-status');
+                    const originalText = this.textContent;
+
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>备份中...';
+                    this.disabled = true;
+                    backupCell.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-warning">备份中</span></div>';
+
+                    fetch(`/api/backup/${hostname}`)
+                        .then(response => response.json().then(data => ({ response, data })))
+                        .then(({ response, data }) => {
+                            if (!response.ok) throw new Error(data.message || `备份请求失败，状态码：${response.status}`);
+                            if (data.status && data.status === '成功') {
+                                const successHtml = `
+                                    <div class="status-indicator">
+                                        <span class="status-dot online"></span>
+                                        <span class="badge bg-success">备份成功</span>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">
+                                        备份路径：${data.backup_path || '未知路径'}
+                                    </small>
+                                `;
+                                backupCell.innerHTML = successHtml;
+                            } else {
+                                backupCell.innerHTML = `<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">备份失败：${data.message || '未知错误'}</span></div>`;
+                            }
+                        })
+                        .catch(error => {
+                            backupCell.innerHTML = `<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">❌ ${error.message}</span></div>`;
+                            console.error('备份请求异常:', error);
+                        })
+                        .finally(() => {
+                            this.innerHTML = originalText;
+                            this.disabled = false;
+                        });
                 });
-            })
-            .then(data => {
-                if (!data || !data.status) {
-                    statusElement.innerHTML = '<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-secondary">未知状态</span></div>';
-                    return;
-                }
-                
-                if (data.status === 'healthy') {
-                    statusElement.innerHTML = '<div class="status-indicator"><span class="status-dot online"></span><span class="badge bg-success">服务正常</span></div>';
-                } else {
-                    const errorMsg = data.message || '未知异常';
-                    statusElement.innerHTML = `<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-warning">服务异常: ${errorMsg}</span></div>`;
-                }
-            })
-            .catch(error => {
-                statusElement.innerHTML = '<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">请求失败</span></div>';
-                console.error('API状态检查失败详情：', error);
-            })
-            .finally(() => {
-                refreshBtn.disabled = false;
-                refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>刷新';
             });
-    }
+        }
 
-    document.addEventListener('DOMContentLoaded', checkApiStatus);
-    </script>
+        // 3. 单设备健康检查功能
+        function initHealthCheckFunction() {
+            document.querySelectorAll('.health-check-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const hostname = this.getAttribute('data-hostname');
+                    const btn = this;
+                    const originalText = btn.innerHTML;
 
-    <!-- 设备档案卡脚本 -->
-    <script>
-    // 加载设备档案卡到模态框
-    function loadDeviceCards(deviceName = null) {
-        const container = document.getElementById('modalDeviceCardsContainer');
-        container.innerHTML = '<div class="text-center text-muted py-4"><small>加载档案卡中...</small></div>';
-        
-        // 构建API URL
-        let apiUrl = '/api/device_cards';
-        if (deviceName) {
-            apiUrl += `?device=${deviceName}`;
-        }
-        
-        fetch(apiUrl)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`请求失败，状态码：${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                container.innerHTML = '';
-                
-                // 处理返回的数据格式
-                const cards = Array.isArray(data) ? data : (data ? [data] : []);
-                
-                if (cards.length > 0) {
-                    cards.forEach(cardData => {
-                        const cardElement = createDeviceCard(cardData);
-                        container.appendChild(cardElement);
-                    });
-                } else {
-                    container.innerHTML = '<div class="text-center text-muted py-4"><small>暂无档案卡数据</small></div>';
-                }
-            })
-            .catch(error => {
-                container.innerHTML = `<div class="text-center text-danger py-4"><small>加载失败：${error.message}</small></div>`;
-                console.error('加载档案卡失败:', error);
-            });
-    }
-    
-    // 创建设备档案卡元素
-    function createDeviceCard(cardData) {
-        const card = document.createElement('div');
-        card.className = 'stat-card';
-        card.setAttribute('data-hostname', cardData.name || 'unknown');
-        
-        // 确定状态样式
-        let statusClass = 'bg-secondary';
-        let statusText = '未知';
-        if (cardData.status === 'online' || cardData.status === '在线') {
-            statusClass = 'bg-success';
-            statusText = '在线';
-        } else if (cardData.status === 'offline' || cardData.status === '离线') {
-            statusClass = 'bg-danger';
-            statusText = '离线';
-        } else if (cardData.status === 'checking' || cardData.status === '检查中') {
-            statusClass = 'bg-warning';
-            statusText = '检查中';
-        }
-        
-        // 处理使用率显示，无数据时不加百分号
-        const cpuUsage = cardData.cpu_usage && cardData.cpu_usage !== 'N/A' ? `${cardData.cpu_usage}%` : (cardData.cpu_usage || '未知');
-        const memoryUsage = cardData.memory_usage && cardData.memory_usage !== 'N/A' ? `${cardData.memory_usage}%` : (cardData.memory_usage || '未知');
-        
-        // 处理可达性显示
-        let reachableText = '未知';
-        if (cardData.reachable === true || cardData.reachable === '是' || cardData.reachable === '可达') {
-            reachableText = '是';
-        } else if (cardData.reachable === false || cardData.reachable === '否' || cardData.reachable === '不可达') {
-            reachableText = '否';
-        } else if (cardData.reachable === '未检测') {
-            reachableText = '未检测';
-        }
-        
-        card.innerHTML = `
-            <h5 class="card-title mb-2">${cardData.name || '未知设备'}</h5>
-            <div class="stat-value mb-3">${cardData.ip_address || '未知IP'}</div>
-            <div class="mb-2">
-                ${statusText !== '未知' ? `<span class="badge ${statusClass} mb-2">${statusText}</span>` : ''}
-                <span class="small text-muted">厂商：${cardData.vendor || '未知'}</span>
-                <span class="small text-muted ms-2">版本：${cardData.version || '未知'}</span>
-            </div>
-            <div class="row text-sm">
-                <div class="col-6 mb-1">
-                    <span class="text-muted">UP端口：</span>
-                    <span>${cardData.up_interface || cardData.up_ports || 0}</span>
-                </div>
-                <div class="col-6 mb-1">
-                    <span class="text-muted">DOWN端口：</span>
-                    <span>${cardData.down_interface || cardData.down_ports || 0}</span>
-                </div>
-                <div class="col-6 mb-1">
-                    <span class="text-muted">总端口：</span>
-                    <span>${cardData.total_interface || cardData.total_ports || 0}</span>
-                </div>
-                <div class="col-6 mb-1">
-                    <span class="text-muted">CPU使用率：</span>
-                    <span>${cpuUsage}</span>
-                </div>
-                <div class="col-6 mb-1">
-                    <span class="text-muted">内存使用率：</span>
-                    <span>${memoryUsage}</span>
-                </div>
-                <div class="col-6 mb-1">
-                    <span class="text-muted">是否可达：</span>
-                    <span>${reachableText}</span>
-                </div>
-            </div>
-            <div class="mt-3 text-xs text-muted">
-                最后检查：${cardData.last_check || cardData.last_check_time || '未检查'}
-            </div>
-        `;
-        
-        return card;
-    }
-    
-    // 一键查看所有档案卡
-    document.getElementById('viewAllCardsBtn').addEventListener('click', function() {
-        const btn = this;
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>加载中...';
-        btn.disabled = true;
-        
-        // 确保模态框已初始化
-        if (!window.deviceCardsModal) {
-            deviceCardsModal = new bootstrap.Modal(document.getElementById('deviceCardsModal'));
-            window.deviceCardsModal = deviceCardsModal;
-        }
-        
-        // 更新模态框标题
-        const modalTitle = document.getElementById('deviceCardsModalLabel');
-        modalTitle.innerHTML = '<i class="fas fa-id-card text-primary me-2"></i>设备档案卡总览';
-        
-        // 加载中提示
-        const container = document.getElementById('modalDeviceCardsContainer');
-        container.innerHTML = '<div class="text-center text-muted py-4"><small>加载档案卡中...</small></div>';
-        
-        // 调用API获取所有档案卡
-        fetch('/api/device_cards')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`请求失败，状态码：${response.status}`);
-                }
-                return response.json();
-            })
-            .then(cards => {
-                // 加载档案卡到模态框
-                container.innerHTML = '';
-                
-                if (cards && cards.length > 0) {
-                    cards.forEach(cardData => {
-                        const cardElement = createDeviceCard(cardData);
-                        container.appendChild(cardElement);
-                    });
-                } else {
-                    container.innerHTML = '<div class="text-center text-muted py-4"><small>暂无档案卡数据</small></div>';
-                }
-                
-                // 打开模态框
-                window.deviceCardsModal.show();
-            })
-            .catch(error => {
-                console.error('加载档案卡失败:', error);
-                container.innerHTML = `<div class="text-center text-danger py-4"><small>加载失败：${error.message}</small></div>`;
-                // 打开模态框显示错误信息
-                window.deviceCardsModal.show();
-            })
-            .finally(() => {
-                // 重置按钮状态
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                }, 500);
-            });
-    });
-    
-    // 一键检查所有设备
-    document.getElementById('checkAllDevicesBtn').addEventListener('click', function() {
-        const btn = this;
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
-        btn.disabled = true;
-        
-        // 先更新所有档案卡和表格状态为检查中
-        document.querySelectorAll('.stat-card').forEach(card => {
-            const statusBadge = card.querySelector('.badge');
-            if (statusBadge) {
-                statusBadge.className = 'badge bg-warning mb-2';
-                statusBadge.textContent = '检查中';
-            }
-        });
-        
-        document.querySelectorAll('.device-status').forEach(statusCell => {
-            statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-warning">检查中</span></div>';
-        });
-        
-        // 调用并发健康检查API
-        fetch('/api/health/nornir-check')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`请求失败，状态码：${response.status}`);
-                }
-                return response.json();
-            })
-            .then(result => {
-                console.log('并发健康检查结果:', result);
-                // 健康检查完成后，获取最新的档案卡数据
-                return fetch('/api/device_cards').then(response => {
-                    if (!response.ok) {
-                        throw new Error(`请求失败，状态码：${response.status}`);
-                    }
-                    return response.json();
-                });
-            })
-            .then(cards => {
-                console.log('获取到的档案卡数据:', cards);
-                // 更新档案卡
-                document.querySelectorAll('.stat-card').forEach(card => {
-                    const hostname = card.getAttribute('data-hostname');
-                    const cardData = cards.find(c => c.name === hostname);
-                    if (cardData) {
-                        const statusBadge = card.querySelector('.badge');
-                        if (statusBadge) {
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
+                    btn.disabled = true;
+
+                    // 更新模态框标题
+                    document.getElementById('healthCheckDeviceName').textContent = hostname;
+
+                    fetch(`/api/health/${hostname}`)
+                        .then(response => response.json().then(data => ({ response, data })))
+                        .then(({ response, data }) => {
+                            if (!response.ok) throw new Error(`请求失败，状态码：${response.status}`);
+                            const result = data;
+                            const container = document.getElementById('healthCheckResultContainer');
+
+                            // 确定状态样式
                             let statusClass = 'bg-secondary';
                             let statusText = '未知';
-                            if (cardData.status === 'online' || cardData.status === '在线') {
+                            if (result.status === 'healthy' || result.status === '在线') {
                                 statusClass = 'bg-success';
-                                statusText = '在线';
-                            } else if (cardData.status === 'offline' || cardData.status === '离线') {
+                                statusText = '健康';
+                            } else if (result.status === 'degraded') {
+                                statusClass = 'bg-warning';
+                                statusText = '降级';
+                            } else if (result.status === 'failed' || result.status === '离线') {
                                 statusClass = 'bg-danger';
-                                statusText = '离线';
+                                statusText = '失败';
                             }
-                            statusBadge.className = `badge ${statusClass} mb-2`;
-                            statusBadge.textContent = statusText;
-                        }
-                    }
+
+                            // 生成结果HTML
+                            const resultHtml = `
+                                <div class="health-check-card">
+                                    <div class="mb-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h6 class="mb-0">基本信息</h6>
+                                            <span class="badge ${statusClass}">${statusText}</span>
+                                        </div>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <p class="mb-1"><strong>设备名称：</strong>${result.device_name || '未知'}</p>
+                                                <p class="mb-1"><strong>IP地址：</strong>${result.host || '未知'}</p>
+                                                <p class="mb-1"><strong>版本信息：</strong>${result.version || '未知'}</p>
+                                                <p class="mb-1"><strong>检查时间：</strong>${result.check_time || '未知'}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p class="mb-1"><strong>健康状态：</strong>${result.status || '未知'}</p>
+                                                <p class="mb-1"><strong>检查状态：</strong>${result.check_status || '未知'}</p>
+                                                <p class="mb-1"><strong>可达性：</strong>${result.reachable ? '是' : '否'}</p>
+                                                <p class="mb-1"><strong>错误信息：</strong>${result.error_message || '无'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h6 class="mb-3">端口信息</h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <div class="stat-card text-center">
+                                                    <div class="stat-value">${result.up_interface || 0}</div>
+                                                    <div class="stat-label">UP端口</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="stat-card text-center">
+                                                    <div class="stat-value">${result.down_interface || 0}</div>
+                                                    <div class="stat-label">DOWN端口</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="stat-card text-center">
+                                                    <div class="stat-value">${result.total_interface || 0}</div>
+                                                    <div class="stat-label">总端口</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h6 class="mb-3">资源使用率</h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <div class="stat-card text-center">
+                                                    <div class="stat-value">${result.CPU_usage || 'N/A'}</div>
+                                                    <div class="stat-label">CPU使用率</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="stat-card text-center">
+                                                    <div class="stat-value">${result.memory_usage || 'N/A'}</div>
+                                                    <div class="stat-label">内存使用率</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <h6 class="mb-3">健康问题</h6>
+                                        <div class="bg-opacity-10 rounded-lg p-3" style="background-color: rgba(79, 70, 229, 0.1);">
+                                            ${result.device_health_issues && result.device_health_issues.length > 0 ? 
+                                                `<ul class="mb-0">${result.device_health_issues.map(issue => `<li>${issue}</li>`).join('')}</ul>` : 
+                                                '<p class="mb-0 text-muted">无健康问题</p>'}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+
+                            container.innerHTML = resultHtml;
+                            modalInstances.healthCheckResultModal.show();
+                        })
+                        .catch(error => {
+                            console.error('健康检查失败:', error);
+                            const container = document.getElementById('healthCheckResultContainer');
+                            container.innerHTML = `<div class="text-center text-danger py-4"><small>健康检查失败：${error.message}</small></div>`;
+                            modalInstances.healthCheckResultModal.show();
+                        })
+                        .finally(() => {
+                            setTimeout(() => {
+                                btn.innerHTML = originalText;
+                                btn.disabled = false;
+                            }, 500);
+                        });
                 });
-                
-                // 同时更新表格中的设备状态
-                updateTableDeviceStatus(cards);
-            })
-            .catch(error => {
-                console.error('检查设备失败:', error);
-                alert('检查设备失败: ' + error.message);
-            })
-            .finally(() => {
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                }, 500);
             });
-    });
-    
-    // 更新表格中的设备状态
-    function updateTableDeviceStatus(cards) {
-        document.querySelectorAll('tbody tr').forEach(row => {
-            const hostname = row.querySelector('.health-check-btn').getAttribute('data-hostname');
-            const statusCell = row.querySelector('.device-status');
-            const cardData = cards.find(c => c.name === hostname);
-            
-            if (cardData && statusCell) {
+        }
+
+        // 4. 设备档案卡功能（创建+查看单卡+查看所有卡）
+        function initDeviceCardFunction() {
+            // 创建设备档案卡元素（公共方法，无重复）
+            window.createDeviceCard = function(cardData) {
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                card.setAttribute('data-hostname', cardData.name || 'unknown');
+
+                // 确定状态样式
+                let statusClass = 'bg-secondary';
+                let statusText = '未知';
                 if (cardData.status === 'online' || cardData.status === '在线') {
-                    statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot online"></span><span class="badge bg-success">在线</span></div>';
+                    statusClass = 'bg-success';
+                    statusText = '在线';
                 } else if (cardData.status === 'offline' || cardData.status === '离线') {
-                    statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">离线</span></div>';
-                } else {
-                    statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-secondary">未知</span></div>';
+                    statusClass = 'bg-danger';
+                    statusText = '离线';
+                } else if (cardData.status === 'checking' || cardData.status === '检查中') {
+                    statusClass = 'bg-warning';
+                    statusText = '检查中';
                 }
-            }
-        });
-    }
-    
-    // 修改健康检查按钮逻辑，同时更新档案卡
-    document.querySelectorAll('.health-check-btn').forEach(button => {
-        const originalClick = button.onclick;
-        button.onclick = function() {
-            const hostname = this.getAttribute('data-hostname');
-            const statusCell = this.closest('tr').querySelector('.device-status');
-            
-            // 执行原始点击逻辑
-            if (originalClick) {
-                originalClick.call(this);
-            }
-            
-            // 检查完成后更新档案卡
-            fetch(`/api/device_cards?device=${hostname}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`请求失败，状态码：${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(cardData => {
-                    // 这里可以添加逻辑，在健康检查完成后自动打开档案卡模态框
-                    // 或者只更新表格状态，不自动打开模态框
-                    // 目前只更新表格状态
-                })
-                .catch(error => {
-                    console.error('更新档案卡失败:', error);
+
+                // 处理使用率显示，无数据时不加百分号
+                const cpuUsage = cardData.cpu_usage && cardData.cpu_usage !== 'N/A' ? `${cardData.cpu_usage}%` : (cardData.cpu_usage || '未知');
+                const memoryUsage = cardData.memory_usage && cardData.memory_usage !== 'N/A' ? `${cardData.memory_usage}%` : (cardData.memory_usage || '未知');
+
+                // 处理可达性显示
+                let reachableText = '未知';
+                if (cardData.reachable === true || cardData.reachable === '是' || cardData.reachable === '可达') {
+                    reachableText = '是';
+                } else if (cardData.reachable === false || cardData.reachable === '否' || cardData.reachable === '不可达') {
+                    reachableText = '否';
+                } else if (cardData.reachable === '未检测') {
+                    reachableText = '未检测';
+                }
+
+                card.innerHTML = `
+                    <h5 class="card-title mb-2">${cardData.name || '未知设备'}</h5>
+                    <div class="stat-value mb-3">${cardData.ip_address || '未知IP'}</div>
+                    <div class="mb-2">
+                        ${statusText !== '未知' ? `<span class="badge ${statusClass} mb-2">${statusText}</span>` : ''}
+                        <span class="small text-muted">厂商：${cardData.vendor || '未知'}</span>
+                        <span class="small text-muted ms-2">版本：${cardData.version || '未知'}</span>
+                    </div>
+                    <div class="row text-sm">
+                        <div class="col-6 mb-1">
+                            <span class="text-muted">UP端口：</span>
+                            <span>${cardData.up_interface || cardData.up_ports || 0}</span>
+                        </div>
+                        <div class="col-6 mb-1">
+                            <span class="text-muted">DOWN端口：</span>
+                            <span>${cardData.down_interface || cardData.down_ports || 0}</span>
+                        </div>
+                        <div class="col-6 mb-1">
+                            <span class="text-muted">总端口：</span>
+                            <span>${cardData.total_interface || cardData.total_ports || 0}</span>
+                        </div>
+                        <div class="col-6 mb-1">
+                            <span class="text-muted">CPU使用率：</span>
+                            <span>${cpuUsage}</span>
+                        </div>
+                        <div class="col-6 mb-1">
+                            <span class="text-muted">内存使用率：</span>
+                            <span>${memoryUsage}</span>
+                        </div>
+                        <div class="col-6 mb-1">
+                            <span class="text-muted">是否可达：</span>
+                            <span>${reachableText}</span>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-xs text-muted">
+                        最后检查：${cardData.last_check || cardData.last_check_time || '未检查'}
+                    </div>
+                `;
+
+                return card;
+            };
+
+            // 查看单个设备档案卡
+            document.querySelectorAll('.view-card-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const hostname = this.getAttribute('data-hostname');
+                    const btn = this;
+                    const originalText = btn.innerHTML;
+
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>加载中...';
+                    btn.disabled = true;
+                    document.getElementById('singleDeviceCardModalLabel').innerHTML = `<i class="fas fa-id-card text-primary me-2"></i>${hostname} 档案卡`;
+                    const container = document.getElementById('singleDeviceCardContainer');
+                    container.innerHTML = '<div class="text-center text-muted py-4"><small>加载档案卡中...</small></div>';
+
+                    fetch(`/api/device_cards?device=${hostname}`)
+                        .then(response => response.json().then(data => ({ response, data })))
+                        .then(({ response, data }) => {
+                            if (!response.ok) throw new Error(`请求失败，状态码：${response.status}`);
+                            container.innerHTML = '';
+                            const cards = Array.isArray(data) ? data : (data ? [data] : []);
+
+                            if (cards.length > 0) {
+                                cards.forEach(cardData => {
+                                    const cardElement = createDeviceCard(cardData);
+                                    cardElement.style.maxWidth = 'none';
+                                    cardElement.style.width = '100%';
+                                    cardElement.style.minWidth = '100%';
+                                    cardElement.style.margin = '0';
+                                    cardElement.style.padding = '1.25rem';
+                                    cardElement.style.borderRadius = '0';
+                                    cardElement.style.border = 'none';
+                                    cardElement.style.borderTop = '1px solid var(--border-color)';
+                                    container.appendChild(cardElement);
+                                });
+                            } else {
+                                container.innerHTML = `<div class="text-center text-muted py-4"><small>未找到设备 ${hostname} 的档案卡</small></div>`;
+                            }
+                            modalInstances.singleDeviceCardModal.show();
+                        })
+                        .catch(error => {
+                            console.error('获取档案卡失败:', error);
+                            container.innerHTML = `<div class="text-center text-danger py-4"><small>获取档案卡失败：${error.message}</small></div>`;
+                            modalInstances.singleDeviceCardModal.show();
+                        })
+                        .finally(() => {
+                            setTimeout(() => {
+                                btn.innerHTML = originalText;
+                                btn.disabled = false;
+                            }, 500);
+                        });
                 });
-        };
-    });
-    
-    // 初始化模态框
-    let deviceCardsModal;
-    let singleDeviceCardModal;
-    document.addEventListener('DOMContentLoaded', function() {
-        // 初始化设备档案卡模态框
-        deviceCardsModal = new bootstrap.Modal(document.getElementById('deviceCardsModal'));
-        window.deviceCardsModal = deviceCardsModal;
-        
-        // 初始化单个设备档案卡专用模态框
-        singleDeviceCardModal = new bootstrap.Modal(document.getElementById('singleDeviceCardModal'));
-        window.singleDeviceCardModal = singleDeviceCardModal;
-        
-        // 查看档案卡按钮点击事件
-        document.querySelectorAll('.view-card-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const hostname = this.getAttribute('data-hostname');
+            });
+
+            // 一键查看所有设备档案卡
+            document.getElementById('viewAllCardsBtn').addEventListener('click', function() {
                 const btn = this;
                 const originalText = btn.innerHTML;
+
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>加载中...';
                 btn.disabled = true;
-                
-                // 确保单个设备模态框已初始化
-                if (!window.singleDeviceCardModal) {
-                    singleDeviceCardModal = new bootstrap.Modal(document.getElementById('singleDeviceCardModal'));
-                    window.singleDeviceCardModal = singleDeviceCardModal;
-                }
-                
-                // 更新模态框标题
-                const modalTitle = document.getElementById('singleDeviceCardModalLabel');
-                modalTitle.innerHTML = `<i class="fas fa-id-card text-primary me-2"></i>${hostname} 档案卡`;
-                
-                // 调用API获取单个设备的档案卡
-                fetch(`/api/device_cards?device=${hostname}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`请求失败，状态码：${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        // 加载档案卡到模态框
-                        const container = document.getElementById('singleDeviceCardContainer');
+                const container = document.getElementById('modalDeviceCardsContainer');
+                container.innerHTML = '<div class="text-center text-muted py-4"><small>加载档案卡中...</small></div>';
+
+                fetch('/api/device_cards')
+                    .then(response => response.json().then(data => ({ response, data })))
+                    .then(({ response, data }) => {
+                        if (!response.ok) throw new Error(`请求失败，状态码：${response.status}`);
                         container.innerHTML = '';
-                        
-                        // 处理返回的数据格式
-                        const cards = Array.isArray(data) ? data : (data ? [data] : []);
-                        
-                        if (cards.length > 0) {
-                            cards.forEach(cardData => {
-                                const cardElement = createDeviceCard(cardData);
-                                // 强制覆盖所有默认样式，让卡片完全填满模态框
-                                cardElement.style.maxWidth = 'none';
-                                cardElement.style.width = '100%';
-                                cardElement.style.minWidth = '100%';
-                                cardElement.style.margin = '0';
-                                cardElement.style.padding = '1.25rem';
-                                cardElement.style.borderRadius = '0';
-                                cardElement.style.border = 'none';
-                                cardElement.style.borderTop = '1px solid var(--border-color)';
-                                cardElement.style.boxSizing = 'border-box';
-                                container.appendChild(cardElement);
+
+                        if (data && data.length > 0) {
+                            data.forEach(cardData => {
+                                container.appendChild(createDeviceCard(cardData));
                             });
                         } else {
-                            container.innerHTML = `<div class="text-center text-muted py-4"><small>未找到设备 ${hostname} 的档案卡</small></div>`;
+                            container.innerHTML = '<div class="text-center text-muted py-4"><small>暂无档案卡数据</small></div>';
                         }
-                        
-                        // 打开单个设备模态框
-                        window.singleDeviceCardModal.show();
+                        modalInstances.deviceCardsModal.show();
                     })
                     .catch(error => {
-                        console.error('获取档案卡失败:', error);
-                        const container = document.getElementById('singleDeviceCardContainer');
-                        container.innerHTML = `<div class="text-center text-danger py-4"><small>获取档案卡失败：${error.message}</small></div>`;
-                        // 打开模态框显示错误信息
-                        window.singleDeviceCardModal.show();
+                        console.error('加载档案卡失败:', error);
+                        container.innerHTML = `<div class="text-center text-danger py-4"><small>加载失败：${error.message}</small></div>`;
+                        modalInstances.deviceCardsModal.show();
                     })
                     .finally(() => {
-                        // 重置按钮状态
                         setTimeout(() => {
                             btn.innerHTML = originalText;
                             btn.disabled = false;
                         }, 500);
                     });
             });
-        });
-    });
-    </script>
-
-    <!-- 备份历史查询JS脚本 -->
-    <script>
-    let currentModalHostname = '';
-    const backupHistoryModal = new bootstrap.Modal(document.getElementById('backupHistoryModal'));
-
-    document.querySelectorAll('.backup-history-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            currentModalHostname = this.getAttribute('data-hostname');
-            const modalDeviceName = document.getElementById('modalDeviceName');
-            const historyLimit = document.getElementById('historyLimit');
-            
-            modalDeviceName.textContent = currentModalHostname;
-            historyLimit.value = 20;
-            document.getElementById('historyCountInfo').textContent = '总记录数：0 条';
-            
-            backupHistoryModal.show();
-            queryBackupHistory();
-        });
-    });
-
-    document.getElementById('refreshHistoryBtn').addEventListener('click', function() {
-        queryBackupHistory();
-    });
-
-    function queryBackupHistory() {
-        if (!currentModalHostname) return;
-        
-        const historyLimit = document.getElementById('historyLimit');
-        const tableBody = document.getElementById('backupHistoryTableBody');
-        const countInfo = document.getElementById('historyCountInfo');
-        const refreshBtn = document.getElementById('refreshHistoryBtn');
-        
-        let limit = parseInt(historyLimit.value.trim());
-        if (isNaN(limit) || limit < 1 || limit > 100) {
-            alert('请输入1-100之间的有效数字！');
-            historyLimit.value = 20;
-            limit = 20;
-        }
-        
-        const originalBtnText = refreshBtn.innerHTML;
-        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>刷新中...';
-        refreshBtn.disabled = true;
-        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-warning py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在查询备份历史...</td></tr>';
-        countInfo.textContent = '总记录数：查询中...';
-        
-        const apiUrl = `/api/backup/history/${currentModalHostname}?limit=${limit}`;
-        fetch(apiUrl)
-            .then(response => {
-                return response.json().then(data => {
-                    if (!response.ok) {
-                        throw new Error(data.error_msg || `请求失败，状态码：${response.status}`);
-                    }
-                    return data;
-                });
-            })
-            .then(data => {
-                tableBody.innerHTML = '';
-                
-                if (data.status === 'success' && data.history && data.history.length > 0) {
-                    data.history.forEach(record => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td>${record.id || '未知'}</td>
-                            <td>${record.hostname || currentModalHostname}</td>
-                            <td class="text-truncate" style="max-width: 300px;" title="${record.backup_path || '未知路径'}">
-                                ${record.backup_path || '未知路径'}
-                            </td>
-                            <td>${record.start_time || record.backup_time || '未知时间'}</td>
-                            <td>
-                                ${record.status === 'success' || record.status === '成功' 
-                                    ? '<span class="badge bg-success">成功</span>' 
-                                    : '<span class="badge bg-danger">失败</span>'}
-                            </td>
-                        `;
-                        tableBody.appendChild(tr);
-                    });
-                    
-                    countInfo.textContent = `总记录数：${data.history_record || data.history.length} 条（当前查询${limit}条）`;
-                } else {
-                    tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无备份历史记录</td></tr>';
-                    countInfo.textContent = '总记录数：0 条';
-                }
-            })
-            .catch(error => {
-                tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">❌ ${error.message}</td></tr>`;
-                countInfo.textContent = '总记录数：查询失败';
-                console.error('备份历史查询异常：', error);
-            })
-            .finally(() => {
-                refreshBtn.innerHTML = originalBtnText;
-                refreshBtn.disabled = false;
-            });
-    }
-    </script>
-
-    <!-- AI报告功能JS脚本 -->
-    <script>
-    function formatReportToHtml(rawText) {
-        if (!rawText || rawText.trim() === '') {
-            return '<span class="report-empty">暂无有效备份数据可供分析</span>';
         }
 
-        let html = rawText.trim();
-        html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-        html = html.replace(/<strong>(\d+\. .*?)<\/strong>/g, "<h3>$1</h3>");
-        html = html.replace(/\n\*   (.*?)(?=\n|$)/g, "\n<li>$1</li>");
-        html = html.replace(/(<li>.*?<\/li>)+/gs, "<ul>$&</ul>");
-        html = html.replace(/\n(\d+)\.  (.*?)(?=\n|$)/g, "\n<li>$2</li>");
-        html = html.replace(/(<li>.*?<\/li>)+/gs, "<ol>$&</ol>");
-        html = html.replace(/\*\((注：.*?)\)\*/g, "<p class='report-note'>$1</p>");
-        html = html.replace(/\n{2,}/g, "<br><br>");
-        html = html.replace(/\n/g, " ");
+        // 5. 备份历史查询功能
+        function initBackupHistoryFunction() {
+            let currentModalHostname = '';
 
-        return `<div class="report-content-wrapper">${html}</div>`;
-    }
-
-    document.getElementById('generateReportBtn').addEventListener('click', function() {
-        const generateBtn = this;
-        const daysInput = document.getElementById('reportDays');
-        const reportStatus = document.getElementById('report-status');
-        const reportContent = document.getElementById('aiReportContent');
-        const reportTime = document.getElementById('reportGenerateTime');
-        
-        let days = parseInt(daysInput.value.trim());
-        if (isNaN(days) || days < 1 || days > 30) {
-            alert('请输入1-30之间的有效天数！');
-            daysInput.value = 7;
-            return;
-        }
-
-        const originalBtnText = generateBtn.innerHTML;
-        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
-        generateBtn.disabled = true;
-        reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI运维报告，请稍候...</span>';
-        reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
-        reportTime.textContent = '';
-
-        const apiUrl = `/api/backup_record/ai/?days=${days}`;
-        fetch(apiUrl)
-            .then(response => {
-                return response.json().then(data => {
-                    if (!response.ok) {
-                        throw new Error(data.message || data.error_detail || `请求失败，状态码：${response.status}`);
-                    }
-                    return data;
-                });
-            })
-            .then(data => {
-                if (data.code === 200) {
-                    if (data.data && data.data !== '') {
-                        reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
-                        const formattedHtml = formatReportToHtml(data.data);
-                        reportContent.innerHTML = formattedHtml;
-                        if (data.report_time) {
-                            const formatTime = new Date(data.report_time).toLocaleString('zh-CN');
-                            reportTime.textContent = `报告生成时间：${formatTime}`;
-                        }
-                    } else {
-                        reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
-                        reportContent.innerHTML = '<span class="report-empty">暂无有效备份数据可供分析</span>';
-                    }
-                } else {
-                    reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
-                    reportContent.innerHTML = '<span class="report-empty">暂无有效备份数据可供分析</span>';
-                }
-            })
-            .catch(error => {
-                reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
-                reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
-                console.error('AI报告生成异常：', error);
-            })
-            .finally(() => {
-                generateBtn.innerHTML = originalBtnText;
-                generateBtn.disabled = false;
-            });
-    });
-    </script>
-
-    <!-- 系统健康检查功能JS脚本 -->
-    <script>
-    document.getElementById('checkSystemHealthBtn').addEventListener('click', function() {
-        const btn = this;
-        const summaryDiv = document.getElementById('systemHealthSummary');
-        const metricsContent = document.getElementById('systemMetricsContent');
-        const serviceContent = document.getElementById('serviceStatusContent');
-
-        const originalBtnText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
-        btn.disabled = true;
-
-        summaryDiv.innerHTML = '<div class="d-flex justify-content-between align-items-center"><span class="fw-bold">整体状态：<span class="badge bg-warning">检查中...</span></span><span class="small text-muted">正在获取系统健康数据...</span></div>';
-        metricsContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>正在收集系统指标...</div>';
-        serviceContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>正在检查服务状态...</div>';
-
-        fetch('/api/system/healthy')
-            .then(response => {
-                return response.json().then(data => {
-                    if (!response.ok) {
-                        throw new Error(data.message || `请求失败，状态码：${response.status}`);
-                    }
-                    return data;
-                });
-            })
-            .then(data => {
-                const healthyStatus = data.healthy;
-                const timestamp = data.timestamp ? new Date(data.timestamp).toLocaleString('zh-CN') : '未知时间';
-                const systemMetrics = data.system_metrics;
-                const serviceStatus = data.service_status;
-
-                let overallBadgeClass = 'bg-secondary';
-                let overallText = '未知';
-
-                if (healthyStatus === 'healthy') {
-                    overallBadgeClass = 'bg-success';
-                    overallText = '健康';
-                } else if (healthyStatus === 'degraded') {
-                    overallBadgeClass = 'bg-warning text-dark';
-                    overallText = '降级';
-                } else if (healthyStatus === 'unhealthy') {
-                    overallBadgeClass = 'bg-danger';
-                    overallText = '不健康';
-                }
-
-                summaryDiv.innerHTML = `<div class="d-flex justify-content-between align-items-center"><span class="fw-bold">整体状态：<span class="badge ${overallBadgeClass}">${overallText}</span></span><span class="small text-muted">检查时间：${timestamp}</span></div>`;
-
-                if (systemMetrics && typeof systemMetrics === 'object') {
-                    metricsContent.innerHTML = `
-                        <div class="row g-3">
-                            <div class="col-6">
-                                <div class="stat-card">
-                                    <div class="stat-value">${systemMetrics.cpu_percent || 'N/A'}%</div>
-                                    <div class="stat-label">CPU使用率</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="stat-card">
-                                    <div class="stat-value">${systemMetrics.memory_percent || 'N/A'}%</div>
-                                    <div class="stat-label">内存使用率</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="stat-card">
-                                    <div class="stat-value">${systemMetrics.disk_percent || 'N/A'}%</div>
-                                    <div class="stat-label">磁盘使用率</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="stat-card">
-                                    <div class="stat-value">${systemMetrics.memory_used_gb || 'N/A'} GB</div>
-                                    <div class="stat-label">内存已用</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="stat-card">
-                                    <div class="stat-value">${systemMetrics.disk_used_gb || 'N/A'} GB</div>
-                                    <div class="stat-label">磁盘已用</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="stat-card">
-                                    <div class="stat-value">${systemMetrics.memory_total_gb || 'N/A'} GB</div>
-                                    <div class="stat-label">内存总量</div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                } else if (typeof systemMetrics === 'string') {
-                    metricsContent.innerHTML = `<div class="alert alert-danger small mb-0">${systemMetrics}</div>`;
-                } else {
-                    metricsContent.innerHTML = '<div class="text-center text-muted py-4"><small>无法获取系统指标数据</small></div>';
-                }
-
-                if (serviceStatus && typeof serviceStatus === 'object') {
-                    let serviceHtml = '<div class="service-list">';
-                    for (const [serviceName, status] of Object.entries(serviceStatus)) {
-                        let badgeClass = 'bg-secondary';
-                        let statusText = status;
-
-                        if (status === 'healthy' || (typeof status === 'string' && status.includes('healthy'))) {
-                            badgeClass = 'bg-success';
-                            statusText = '正常';
-                        } else if (typeof status === 'string' && status.includes('unhealthy')) {
-                            badgeClass = 'bg-danger';
-                            statusText = '异常';
-                        }
-
-                        const serviceNames = {
-                            'web_dashboard': 'Web仪表盘',
-                            'database': '数据库',
-                            'nornir_engine': 'Nornir引擎'
-                        };
-                        const displayName = serviceNames[serviceName] || serviceName;
-
-                        serviceHtml += `
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <span>${displayName}</span>
-                                <span class="badge ${badgeClass}">${statusText}</span>
-                            </div>
-                        `;
-                    }
-                    serviceHtml += '</div>';
-                    serviceContent.innerHTML = serviceHtml;
-                } else {
-                    serviceContent.innerHTML = '<div class="text-center text-muted py-4"><small>无法获取服务状态数据</small></div>';
-                }
-            })
-            .catch(error => {
-                summaryDiv.innerHTML = '<div class="d-flex justify-content-between align-items-center"><span class="fw-bold">整体状态：<span class="badge bg-danger">检查失败</span></span><span class="small text-muted">请稍后重试</span></div>';
-                metricsContent.innerHTML = `<div class="alert alert-danger small mb-0">获取系统指标失败：${error.message}</div>`;
-                serviceContent.innerHTML = `<div class="alert alert-danger small mb-0">获取服务状态失败：${error.message}</div>`;
-                console.error('系统健康检查异常：', error);
-            })
-            .finally(() => {
-                btn.innerHTML = originalBtnText;
-                btn.disabled = false;
-            });
-    });
-    </script>
-
-    <!-- Nornir并发健康检查JS脚本 -->
-    <script>
-    const nornirSelectAll = document.getElementById('nornirSelectAll');
-    const nornirTableSelectAll = document.getElementById('nornirTableSelectAll');
-    const nornirSelectedCount = document.getElementById('nornirSelectedCount');
-    const nornirBatchCheckBtn = document.getElementById('nornirBatchCheckBtn');
-    const nornirDeviceCheckboxes = document.querySelectorAll('.nornirDeviceCheckbox');
-    const nornirCheckResultModal = new bootstrap.Modal(document.getElementById('nornirCheckResultModal'));
-
-    function syncNornirSelectAllStatus() {
-        const allChecked = Array.from(nornirDeviceCheckboxes).every(checkbox => checkbox.checked);
-        const anyChecked = Array.from(nornirDeviceCheckboxes).some(checkbox => checkbox.checked);
-        nornirSelectAll.checked = allChecked;
-        nornirTableSelectAll.checked = allChecked;
-        nornirBatchCheckBtn.disabled = !anyChecked;
-        
-        const selectedCount = Array.from(nornirDeviceCheckboxes).filter(checkbox => checkbox.checked).length;
-        nornirSelectedCount.textContent = `已选：${selectedCount} 台`;
-    }
-
-    nornirSelectAll.addEventListener('change', function() {
-        nornirDeviceCheckboxes.forEach(checkbox => {
-            checkbox.checked = this.checked;
-        });
-        syncNornirSelectAllStatus();
-    });
-
-    nornirTableSelectAll.addEventListener('change', function() {
-        nornirDeviceCheckboxes.forEach(checkbox => {
-            checkbox.checked = this.checked;
-        });
-        syncNornirSelectAllStatus();
-    });
-
-    nornirDeviceCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', syncNornirSelectAllStatus);
-    });
-
-    nornirBatchCheckBtn.addEventListener('click', function() {
-        const selectedDevices = Array.from(nornirDeviceCheckboxes)
-            .filter(checkbox => checkbox.checked)
-            .map(checkbox => checkbox.getAttribute('data-hostname'));
-
-        if (selectedDevices.length === 0) {
-            alert('请先选择设备！');
-            return;
-        }
-
-        const originalText = this.innerHTML;
-        this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
-        this.disabled = true;
-
-        fetch('/api/health/nornir-check?devices=' + selectedDevices.join(','), {
-            method: 'GET'
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`请求失败，状态码：${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            const tableBody = document.getElementById('nornirCheckResultTableBody');
-            const successCount = document.getElementById('nornirSuccessCount');
-            const failedCount = document.getElementById('nornirFailedCount');
-            const totalCount = document.getElementById('nornirTotalCount');
-
-            let success = 0;
-            let failed = 0;
-
-            tableBody.innerHTML = '';
-
-            if (data.success && Array.isArray(data.success)) {
-                data.success.forEach(item => {
-                    const tr = document.createElement('tr');
-                    const result = item.result;
-                    const isSuccess = result.check_status === '成功';
-                    const statusBadge = isSuccess ? '<span class="badge bg-success">成功</span>' : '<span class="badge bg-danger">失败</span>';
-                    
-                    if (isSuccess) {
-                        success++;
-                    } else {
-                        failed++;
-                    }
-
-                    const output = `
-                        <div>
-                            <p><strong>设备名称：</strong>${result.device_name}</p>
-                            <p><strong>IP地址：</strong>${result.host}</p>
-                            <p><strong>版本：</strong>${result.version}</p>
-                            <p><strong>状态：</strong>${result.status}</p>
-                            <p><strong>检查状态：</strong>${result.check_status}</p>
-                            <p><strong>UP接口：</strong>${result.up_interface}</p>
-                            <p><strong>DOWN接口：</strong>${result.down_interface}</p>
-                            <p><strong>CPU使用率：</strong>${result.CPU_usage}</p>
-                            <p><strong>内存使用率：</strong>${result.memory_usage}</p>
-                            <p><strong>检查时间：</strong>${result.check_time}</p>
-                        </div>
-                    `;
-
-                    tr.innerHTML = `
-                        <td>${result.device_name}</td>
-                        <td>${statusBadge}</td>
-                        <td>${output}</td>
-                        <td>${result.check_time}</td>
-                    `;
-                    tableBody.appendChild(tr);
-                });
-            }
-
-            if (data.failed && Array.isArray(data.failed)) {
-                data.failed.forEach(item => {
-                    const tr = document.createElement('tr');
-                    const statusBadge = '<span class="badge bg-danger">失败</span>';
-                    failed++;
-
-                    const output = `<div><p><strong>错误信息：</strong>${item.error}</p></div>`;
-
-                    tr.innerHTML = `
-                        <td>${item.hostname}</td>
-                        <td>${statusBadge}</td>
-                        <td>${output}</td>
-                        <td>${new Date().toLocaleString('zh-CN')}</td>
-                    `;
-                    tableBody.appendChild(tr);
-                });
-            }
-
-            if ((!data.success || data.success.length === 0) && (!data.failed || data.failed.length === 0)) {
-                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">暂无检查结果数据</td></tr>';
-            }
-
-            successCount.innerHTML = `<i class="fas fa-check-circle me-1"></i>成功：${success} 台`;
-            failedCount.innerHTML = `<i class="fas fa-times-circle me-1"></i>失败：${failed} 台`;
-            totalCount.innerHTML = `<i class="fas fa-server me-1"></i>总计：${selectedDevices.length} 台`;
-
-            nornirCheckResultModal.show();
-        })
-        .catch(error => {
-            console.error('Nornir并发检查异常：', error);
-            alert(`并发检查失败：${error.message}`);
-        })
-        .finally(() => {
-            this.innerHTML = originalText;
-            this.disabled = false;
-        });
-    });
-
-    syncNornirSelectAllStatus();
-    </script>
-
-    <!-- 重新初始化设备档案卡功能 -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM加载完成，开始重新初始化设备档案卡功能...');
-        
-        try {
-            // 初始化设备档案卡模态框
-            if (typeof bootstrap !== 'undefined') {
-                window.deviceCardsModal = new bootstrap.Modal(document.getElementById('deviceCardsModal'));
-                console.log('设备档案卡模态框初始化成功');
-            } else {
-                console.error('Bootstrap未加载，无法初始化模态框');
-                return;
-            }
-            
-            // 重新绑定查看档案卡按钮事件
-            const viewCardButtons = document.querySelectorAll('.view-card-btn');
-            console.log('找到的查看档案卡按钮数量:', viewCardButtons.length);
-            
-            viewCardButtons.forEach(button => {
-                // 移除可能存在的旧事件监听器
-                button.onclick = null;
-                
+            // 打开备份历史模态框
+            document.querySelectorAll('.backup-history-btn').forEach(button => {
                 button.addEventListener('click', function() {
-                    const hostname = this.getAttribute('data-hostname');
-                    console.log('点击了查看档案卡按钮，设备名:', hostname);
-                    const btn = this;
-                    const originalText = btn.innerHTML;
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>加载中...';
-                    btn.disabled = true;
-                    
-                    // 确保模态框已初始化
-                    if (window.deviceCardsModal) {
-                        // 打开模态框
-                        window.deviceCardsModal.show();
-                        console.log('模态框已打开，正在获取设备', hostname, '的档案卡数据...');
-                        
-                        // 调用API获取单个设备的档案卡
-                        fetch(`/api/device_cards?device=${hostname}`)
-                            .then(response => {
-                                console.log('获取档案卡响应:', response.status);
-                                if (!response.ok) {
-                                    throw new Error(`请求失败，状态码：${response.status}`);
-                                }
-                                return response.json();
-                            })
-                            .then(data => {
-                                console.log('获取档案卡数据:', data);
-                                // 加载档案卡到模态框
-                                const container = document.getElementById('modalDeviceCardsContainer');
-                                if (container) {
-                                    container.innerHTML = '';
-                                    
-                                    // 处理返回的数据格式
-                                    const cards = Array.isArray(data) ? data : (data ? [data] : []);
-                                    
-                                    if (cards.length > 0) {
-                                        cards.forEach(cardData => {
-                                            // 创建设备档案卡元素
-                                            const card = document.createElement('div');
-                                            card.className = 'stat-card';
-                                            card.setAttribute('data-hostname', cardData.name || 'unknown');
-                                            
-                                            // 确定状态样式
-                                            let statusClass = 'bg-secondary';
-                                            let statusText = '未知';
-                                            if (cardData.status === 'online' || cardData.status === '在线') {
-                                                statusClass = 'bg-success';
-                                                statusText = '在线';
-                                            } else if (cardData.status === 'offline' || cardData.status === '离线') {
-                                                statusClass = 'bg-danger';
-                                                statusText = '离线';
-                                            } else if (cardData.status === 'checking' || cardData.status === '检查中') {
-                                                statusClass = 'bg-warning';
-                                                statusText = '检查中';
-                                            }
-                                            
-                                            // 处理使用率显示，无数据时不加百分号
-                                            const cpuUsage = cardData.cpu_usage && cardData.cpu_usage !== 'N/A' ? `${cardData.cpu_usage}%` : (cardData.cpu_usage || '未知');
-                                            const memoryUsage = cardData.memory_usage && cardData.memory_usage !== 'N/A' ? `${cardData.memory_usage}%` : (cardData.memory_usage || '未知');
-                                            
-                                            // 处理可达性显示
-                                            let reachableText = '未知';
-                                            if (cardData.reachable === true || cardData.reachable === '是' || cardData.reachable === '可达') {
-                                                reachableText = '是';
-                                            } else if (cardData.reachable === false || cardData.reachable === '否' || cardData.reachable === '不可达') {
-                                                reachableText = '否';
-                                            } else if (cardData.reachable === '未检测') {
-                                                reachableText = '未检测';
-                                            }
-                                            
-                                            card.innerHTML = `
-                                                <h5 class="card-title mb-2">${cardData.name || '未知设备'}</h5>
-                                                <div class="stat-value mb-3">${cardData.ip_address || '未知IP'}</div>
-                                                <div class="mb-2">
-                                                    ${statusText !== '未知' ? `<span class="badge ${statusClass} mb-2">${statusText}</span>` : ''}
-                                                    <span class="small text-muted">厂商：${cardData.vendor || '未知'}</span>
-                                                    <span class="small text-muted ms-2">版本：${cardData.version || '未知'}</span>
-                                                </div>
-                                                <div class="row text-sm">
-                                                    <div class="col-6 mb-1">
-                                                        <span class="text-muted">UP端口：</span>
-                                                        <span>${cardData.up_interface || cardData.up_ports || 0}</span>
-                                                    </div>
-                                                    <div class="col-6 mb-1">
-                                                        <span class="text-muted">DOWN端口：</span>
-                                                        <span>${cardData.down_interface || cardData.down_ports || 0}</span>
-                                                    </div>
-                                                    <div class="col-6 mb-1">
-                                                        <span class="text-muted">总端口：</span>
-                                                        <span>${cardData.total_interface || cardData.total_ports || 0}</span>
-                                                    </div>
-                                                    <div class="col-6 mb-1">
-                                                        <span class="text-muted">CPU使用率：</span>
-                                                        <span>${cpuUsage}</span>
-                                                    </div>
-                                                    <div class="col-6 mb-1">
-                                                        <span class="text-muted">内存使用率：</span>
-                                                        <span>${memoryUsage}</span>
-                                                    </div>
-                                                    <div class="col-6 mb-1">
-                                                        <span class="text-muted">是否可达：</span>
-                                                        <span>${reachableText}</span>
-                                                    </div>
-                                                </div>
-                                                <div class="mt-3 text-xs text-muted">
-                                                    最后检查：${cardData.last_check || cardData.last_check_time || '未检查'}
-                                                </div>
-                                            `;
-                                            
-                                            container.appendChild(card);
-                                        });
-                                    } else {
-                                        container.innerHTML = `<div class="text-center text-muted py-4"><small>未找到设备 ${hostname} 的档案卡</small></div>`;
-                                    }
-                                } else {
-                                    console.error('未找到模态框档案卡容器');
-                                }
-                            })
-                            .catch(error => {
-                                console.error('获取档案卡失败:', error);
-                                const container = document.getElementById('modalDeviceCardsContainer');
-                                if (container) {
-                                    container.innerHTML = `<div class="text-center text-danger py-4"><small>获取档案卡失败：${error.message}</small></div>`;
-                                }
-                            })
-                            .finally(() => {
-                                btn.innerHTML = originalText;
-                                btn.disabled = false;
-                                console.log('查看档案卡操作完成');
-                            });
-                    } else {
-                        console.error('模态框未初始化');
-                        alert('系统初始化中，请稍后再试');
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-                    }
+                    currentModalHostname = this.getAttribute('data-hostname');
+                    document.getElementById('modalDeviceName').textContent = currentModalHostname;
+                    document.getElementById('historyLimit').value = 20;
+                    document.getElementById('historyCountInfo').textContent = '总记录数：0 条';
+                    modalInstances.backupHistoryModal.show();
+                    queryBackupHistory();
                 });
             });
-            console.log('查看档案卡按钮事件重新绑定成功');
-            
-            // 重新绑定一键查看所有档案卡按钮事件
-            const viewAllCardsBtn = document.getElementById('viewAllCardsBtn');
-            if (viewAllCardsBtn) {
-                viewAllCardsBtn.addEventListener('click', function() {
-                    console.log('点击了一键查看所有档案卡按钮');
-                    const btn = this;
-                    const originalText = btn.innerHTML;
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>加载中...';
-                    btn.disabled = true;
-                    
-                    // 打开模态框
-                    if (window.deviceCardsModal) {
-                        window.deviceCardsModal.show();
-                        console.log('模态框已打开，正在获取所有档案卡数据...');
-                        
-                        // 调用API获取所有档案卡
-                        fetch('/api/device_cards')
-                            .then(response => {
-                                console.log('获取所有档案卡响应:', response.status);
-                                if (!response.ok) {
-                                    throw new Error(`请求失败，状态码：${response.status}`);
-                                }
-                                return response.json();
-                            })
-                            .then(cards => {
-                                console.log('获取所有档案卡数据:', cards);
-                                // 加载档案卡到模态框
-                                const container = document.getElementById('modalDeviceCardsContainer');
-                                if (container) {
-                                    container.innerHTML = '';
-                                    
-                                    if (cards && cards.length > 0) {
-                                        cards.forEach(cardData => {
-                                            // 创建设备档案卡元素
-                                            const card = document.createElement('div');
-                                            card.className = 'stat-card';
-                                            card.setAttribute('data-hostname', cardData.name || 'unknown');
-                                            
-                                            // 确定状态样式
-                                            let statusClass = 'bg-secondary';
-                                            let statusText = '未知';
-                                            if (cardData.status === 'online' || cardData.status === '在线') {
-                                                statusClass = 'bg-success';
-                                                statusText = '在线';
-                                            } else if (cardData.status === 'offline' || cardData.status === '离线') {
-                                                statusClass = 'bg-danger';
-                                                statusText = '离线';
-                                            } else if (cardData.status === 'checking' || cardData.status === '检查中') {
-                                                statusClass = 'bg-warning';
-                                                statusText = '检查中';
-                                            }
-                                            
-                                            // 处理使用率显示，无数据时不加百分号
-                                            const cpuUsage = cardData.cpu_usage && cardData.cpu_usage !== 'N/A' ? `${cardData.cpu_usage}%` : (cardData.cpu_usage || '未知');
-                                            const memoryUsage = cardData.memory_usage && cardData.memory_usage !== 'N/A' ? `${cardData.memory_usage}%` : (cardData.memory_usage || '未知');
-                                            
-                                            // 处理可达性显示
-                                            let reachableText = '未知';
-                                            if (cardData.reachable === true || cardData.reachable === '是' || cardData.reachable === '可达') {
-                                                reachableText = '是';
-                                            } else if (cardData.reachable === false || cardData.reachable === '否' || cardData.reachable === '不可达') {
-                                                reachableText = '否';
-                                            } else if (cardData.reachable === '未检测') {
-                                                reachableText = '未检测';
-                                            }
-                                            
-                                            card.innerHTML = `
-                                                <h5 class="card-title mb-2">${cardData.name || '未知设备'}</h5>
-                                                <div class="stat-value mb-3">${cardData.ip_address || '未知IP'}</div>
-                                                <div class="mb-2">
-                                                    ${statusText !== '未知' ? `<span class="badge ${statusClass} mb-2">${statusText}</span>` : ''}
-                                                    <span class="small text-muted">厂商：${cardData.vendor || '未知'}</span>
-                                                    <span class="small text-muted ms-2">版本：${cardData.version || '未知'}</span>
-                                                </div>
-                                                <div class="row text-sm">
-                                                    <div class="col-6 mb-1">
-                                                        <span class="text-muted">UP端口：</span>
-                                                        <span>${cardData.up_interface || cardData.up_ports || 0}</span>
-                                                    </div>
-                                                    <div class="col-6 mb-1">
-                                                        <span class="text-muted">DOWN端口：</span>
-                                                        <span>${cardData.down_interface || cardData.down_ports || 0}</span>
-                                                    </div>
-                                                    <div class="col-6 mb-1">
-                                                        <span class="text-muted">总端口：</span>
-                                                        <span>${cardData.total_interface || cardData.total_ports || 0}</span>
-                                                    </div>
-                                                    <div class="col-6 mb-1">
-                                                        <span class="text-muted">CPU使用率：</span>
-                                                        <span>${cpuUsage}</span>
-                                                    </div>
-                                                    <div class="col-6 mb-1">
-                                                        <span class="text-muted">内存使用率：</span>
-                                                        <span>${memoryUsage}</span>
-                                                    </div>
-                                                    <div class="col-6 mb-1">
-                                                        <span class="text-muted">是否可达：</span>
-                                                        <span>${reachableText}</span>
-                                                    </div>
-                                                </div>
-                                                <div class="mt-3 text-xs text-muted">
-                                                    最后检查：${cardData.last_check || cardData.last_check_time || '未检查'}
-                                                </div>
-                                            `;
-                                            
-                                            container.appendChild(card);
-                                        });
-                                    } else {
-                                        container.innerHTML = '<div class="text-center text-muted py-4"><small>暂无档案卡数据</small></div>';
-                                    }
-                                } else {
-                                    console.error('未找到模态框档案卡容器');
-                                }
-                            })
-                            .catch(error => {
-                                console.error('加载档案卡失败:', error);
-                                const container = document.getElementById('modalDeviceCardsContainer');
-                                if (container) {
-                                    container.innerHTML = `<div class="text-center text-danger py-4"><small>加载失败：${error.message}</small></div>`;
-                                }
-                            })
-                            .finally(() => {
-                                btn.innerHTML = originalText;
-                                btn.disabled = false;
-                                console.log('一键查看所有档案卡操作完成');
+
+            // 刷新备份历史
+            document.getElementById('refreshHistoryBtn').addEventListener('click', queryBackupHistory);
+
+            // 核心查询方法
+            function queryBackupHistory() {
+                if (!currentModalHostname) return;
+
+                const historyLimit = document.getElementById('historyLimit');
+                const tableBody = document.getElementById('backupHistoryTableBody');
+                const countInfo = document.getElementById('historyCountInfo');
+                const refreshBtn = document.getElementById('refreshHistoryBtn');
+
+                let limit = parseInt(historyLimit.value.trim());
+                if (isNaN(limit) || limit < 1 || limit > 100) {
+                    alert('请输入1-100之间的有效数字！');
+                    historyLimit.value = 20;
+                    limit = 20;
+                }
+
+                const originalBtnText = refreshBtn.innerHTML;
+                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>刷新中...';
+                refreshBtn.disabled = true;
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-warning py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在查询备份历史...</td></tr>';
+                countInfo.textContent = '总记录数：查询中...';
+
+                const apiUrl = `/api/backup/history/${currentModalHostname}?limit=${limit}`;
+                fetch(apiUrl)
+                    .then(response => response.json().then(data => ({ response, data })))
+                    .then(({ response, data }) => {
+                        if (!response.ok) throw new Error(data.error_msg || `请求失败，状态码：${response.status}`);
+                        tableBody.innerHTML = '';
+
+                        if (data.status === 'success' && data.history && data.history.length > 0) {
+                            data.history.forEach(record => {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `
+                                    <td>${record.id || '未知'}</td>
+                                    <td>${record.hostname || currentModalHostname}</td>
+                                    <td class="text-truncate" style="max-width: 300px;" title="${record.backup_path || '未知路径'}">
+                                        ${record.backup_path || '未知路径'}
+                                    </td>
+                                    <td>${record.start_time || record.backup_time || '未知时间'}</td>
+                                    <td>
+                                        ${record.status === 'success' || record.status === '成功' 
+                                            ? '<span class="badge bg-success">成功</span>' 
+                                            : '<span class="badge bg-danger">失败</span>'}
+                                    </td>
+                                `;
+                                tableBody.appendChild(tr);
                             });
-                    } else {
-                        console.error('模态框未初始化');
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-                    }
-                });
-                console.log('一键查看所有档案卡按钮事件重新绑定成功');
-            } else {
-                console.error('未找到一键查看所有档案卡按钮');
+                            countInfo.textContent = `总记录数：${data.history_record || data.history.length} 条（当前查询${limit}条）`;
+                        } else {
+                            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无备份历史记录</td></tr>';
+                            countInfo.textContent = '总记录数：0 条';
+                        }
+                    })
+                    .catch(error => {
+                        tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">❌ ${error.message}</td></tr>`;
+                        countInfo.textContent = '总记录数：查询失败';
+                        console.error('备份历史查询异常：', error);
+                    })
+                    .finally(() => {
+                        refreshBtn.innerHTML = originalBtnText;
+                        refreshBtn.disabled = false;
+                    });
             }
-            
-            console.log('设备档案卡功能重新初始化完成');
-        } catch (error) {
-            console.error('重新初始化设备档案卡功能失败:', error);
         }
-    });
+
+        // 6. AI备份报告生成功能
+        function initAiReportFunction() {
+            // AI报告格式转换（修复正则漏洞）
+            function formatReportToHtml(rawText) {
+                if (!rawText || rawText.trim() === '') {
+                    return '<span class="report-empty">暂无有效备份数据可供分析</span>';
+                }
+
+                let html = rawText.trim();
+                html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+                html = html.replace(/<strong>(\d+\. .*?)<\/strong>/g, "<h3>$1</h3>");
+                html = html.replace(/\n\*   (.*?)(?=\n|$)/g, "\n<li>$1</li>");
+                html = html.replace(/(<li>.*?<\/li>)+/gs, "<ul>$&</ul>");
+                html = html.replace(/\n(\d+)\.  (.*?)(?=\n|$)/g, "\n<li>$2</li>");
+                html = html.replace(/(<li>.*?<\/li>)+/gs, "<ol>$&</ol>");
+                html = html.replace(/\*\((注：.*?)\)\*/g, "<p class='report-note'>$1</p>");
+                html = html.replace(/\n{2,}/g, "<br><br>");
+                html = html.replace(/\n/g, " ");
+
+                return `<div class="report-content-wrapper">${html}</div>`;
+            }
+
+            // 生成AI报告按钮
+            document.getElementById('generateReportBtn').addEventListener('click', function() {
+                const generateBtn = this;
+                const daysInput = document.getElementById('reportDays');
+                const reportStatus = document.getElementById('report-status');
+                const reportContent = document.getElementById('aiReportContent');
+                const reportTime = document.getElementById('reportGenerateTime');
+
+                let days = parseInt(daysInput.value.trim());
+                if (isNaN(days) || days < 1 || days > 30) {
+                    alert('请输入1-30之间的有效天数！');
+                    daysInput.value = 7;
+                    return;
+                }
+
+                const originalBtnText = generateBtn.innerHTML;
+                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+                generateBtn.disabled = true;
+                reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI运维报告，请稍候...</span>';
+                reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
+                reportTime.textContent = '';
+
+                const apiUrl = `/api/backup_record/ai/?days=${days}`;
+                fetch(apiUrl)
+                    .then(response => response.json().then(data => ({ response, data })))
+                    .then(({ response, data }) => {
+                        if (!response.ok) throw new Error(data.message || data.error_detail || `请求失败，状态码：${response.status}`);
+                        if (data.code === 200 && data.data && data.data !== '') {
+                            reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
+                            reportContent.innerHTML = formatReportToHtml(data.data);
+                            if (data.report_time) {
+                                reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
+                            }
+                        } else {
+                            reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
+                            reportContent.innerHTML = '<span class="report-empty">暂无有效备份数据可供分析</span>';
+                        }
+                    })
+                    .catch(error => {
+                        reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
+                        reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
+                        console.error('AI报告生成异常：', error);
+                    })
+                    .finally(() => {
+                        generateBtn.innerHTML = originalBtnText;
+                        generateBtn.disabled = false;
+                    });
+            });
+        }
+
+        // 7. 系统健康检查功能
+        function initSystemHealthFunction() {
+            document.getElementById('checkSystemHealthBtn').addEventListener('click', function() {
+                const btn = this;
+                const summaryDiv = document.getElementById('systemHealthSummary');
+                const metricsContent = document.getElementById('systemMetricsContent');
+                const serviceContent = document.getElementById('serviceStatusContent');
+
+                const originalBtnText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
+                btn.disabled = true;
+
+                summaryDiv.innerHTML = '<div class="d-flex justify-content-between align-items-center"><span class="fw-bold">整体状态：<span class="badge bg-warning">检查中...</span></span><span class="small text-muted">正在获取系统健康数据...</span></div>';
+                metricsContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>正在收集系统指标...</div>';
+                serviceContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>正在检查服务状态...</div>';
+
+                fetch('/api/system/healthy')
+                    .then(response => response.json().then(data => ({ response, data })))
+                    .then(({ response, data }) => {
+                        if (!response.ok) throw new Error(data.message || `请求失败，状态码：${response.status}`);
+                        const healthyStatus = data.healthy;
+                        const timestamp = data.timestamp ? new Date(data.timestamp).toLocaleString('zh-CN') : '未知时间';
+                        const systemMetrics = data.system_metrics;
+                        const serviceStatus = data.service_status;
+
+                        let overallBadgeClass = 'bg-secondary';
+                        let overallText = '未知';
+
+                        if (healthyStatus === 'healthy') {
+                            overallBadgeClass = 'bg-success';
+                            overallText = '健康';
+                        } else if (healthyStatus === 'degraded') {
+                            overallBadgeClass = 'bg-warning text-dark';
+                            overallText = '降级';
+                        } else if (healthyStatus === 'unhealthy') {
+                            overallBadgeClass = 'bg-danger';
+                            overallText = '不健康';
+                        }
+
+                        summaryDiv.innerHTML = `<div class="d-flex justify-content-between align-items-center"><span class="fw-bold">整体状态：<span class="badge ${overallBadgeClass}">${overallText}</span></span><span class="small text-muted">检查时间：${timestamp}</span></div>`;
+
+                        // 渲染系统指标
+                        if (systemMetrics && typeof systemMetrics === 'object') {
+                            metricsContent.innerHTML = `
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <div class="stat-card">
+                                            <div class="stat-value">${systemMetrics.cpu_percent || 'N/A'}%</div>
+                                            <div class="stat-label">CPU使用率</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-card">
+                                            <div class="stat-value">${systemMetrics.memory_percent || 'N/A'}%</div>
+                                            <div class="stat-label">内存使用率</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-card">
+                                            <div class="stat-value">${systemMetrics.disk_percent || 'N/A'}%</div>
+                                            <div class="stat-label">磁盘使用率</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-card">
+                                            <div class="stat-value">${systemMetrics.memory_used_gb || 'N/A'} GB</div>
+                                            <div class="stat-label">内存已用</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-card">
+                                            <div class="stat-value">${systemMetrics.disk_used_gb || 'N/A'} GB</div>
+                                            <div class="stat-label">磁盘已用</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-card">
+                                            <div class="stat-value">${systemMetrics.memory_total_gb || 'N/A'} GB</div>
+                                            <div class="stat-label">内存总量</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (typeof systemMetrics === 'string') {
+                            metricsContent.innerHTML = `<div class="alert alert-danger small mb-0">${systemMetrics}</div>`;
+                        } else {
+                            metricsContent.innerHTML = '<div class="text-center text-muted py-4"><small>无法获取系统指标数据</small></div>';
+                        }
+
+                        // 渲染服务状态
+                        if (serviceStatus && typeof serviceStatus === 'object') {
+                            let serviceHtml = '<div class="service-list">';
+                            const serviceNames = {
+                                'web_dashboard': 'Web仪表盘',
+                                'database': '数据库',
+                                'nornir_engine': 'Nornir引擎'
+                            };
+                            for (const [serviceName, status] of Object.entries(serviceStatus)) {
+                                let badgeClass = 'bg-secondary';
+                                let statusText = status;
+
+                                if (status === 'healthy' || (typeof status === 'string' && status.includes('healthy'))) {
+                                    badgeClass = 'bg-success';
+                                    statusText = '正常';
+                                } else if (typeof status === 'string' && status.includes('unhealthy')) {
+                                    badgeClass = 'bg-danger';
+                                    statusText = '异常';
+                                }
+
+                                const displayName = serviceNames[serviceName] || serviceName;
+                                serviceHtml += `
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>${displayName}</span>
+                                        <span class="badge ${badgeClass}">${statusText}</span>
+                                    </div>
+                                `;
+                            }
+                            serviceHtml += '</div>';
+                            serviceContent.innerHTML = serviceHtml;
+                        } else {
+                            serviceContent.innerHTML = '<div class="text-center text-muted py-4"><small>无法获取服务状态数据</small></div>';
+                        }
+                    })
+                    .catch(error => {
+                        summaryDiv.innerHTML = '<div class="d-flex justify-content-between align-items-center"><span class="fw-bold">整体状态：<span class="badge bg-danger">检查失败</span></span><span class="small text-muted">请稍后重试</span></div>';
+                        metricsContent.innerHTML = `<div class="alert alert-danger small mb-0">获取系统指标失败：${error.message}</div>`;
+                        serviceContent.innerHTML = `<div class="alert alert-danger small mb-0">获取服务状态失败：${error.message}</div>`;
+                        console.error('系统健康检查异常：', error);
+                    })
+                    .finally(() => {
+                        btn.innerHTML = originalBtnText;
+                        btn.disabled = false;
+                    });
+            });
+        }
+
+        // 8. Nornir批量并发健康检查功能（修复参数拼接漏洞）
+        function initNornirBatchCheckFunction() {
+            const nornirSelectAll = document.getElementById('nornirSelectAll');
+            const nornirTableSelectAll = document.getElementById('nornirTableSelectAll');
+            const nornirSelectedCount = document.getElementById('nornirSelectedCount');
+            const nornirBatchCheckBtn = document.getElementById('nornirBatchCheckBtn');
+            const nornirDeviceCheckboxes = document.querySelectorAll('.nornirDeviceCheckbox');
+
+            // 同步全选状态
+            function syncNornirSelectAllStatus() {
+                const allChecked = Array.from(nornirDeviceCheckboxes).every(checkbox => checkbox.checked);
+                const anyChecked = Array.from(nornirDeviceCheckboxes).some(checkbox => checkbox.checked);
+                nornirSelectAll.checked = allChecked;
+                nornirTableSelectAll.checked = allChecked;
+                nornirBatchCheckBtn.disabled = !anyChecked;
+
+                const selectedCount = Array.from(nornirDeviceCheckboxes).filter(checkbox => checkbox.checked).length;
+                nornirSelectedCount.textContent = `已选：${selectedCount} 台`;
+            }
+
+            // 全选按钮事件
+            nornirSelectAll.addEventListener('change', function() {
+                nornirDeviceCheckboxes.forEach(checkbox => checkbox.checked = this.checked);
+                syncNornirSelectAllStatus();
+            });
+            nornirTableSelectAll.addEventListener('change', function() {
+                nornirDeviceCheckboxes.forEach(checkbox => checkbox.checked = this.checked);
+                syncNornirSelectAllStatus();
+            });
+            nornirDeviceCheckboxes.forEach(checkbox => checkbox.addEventListener('change', syncNornirSelectAllStatus));
+
+            // 批量检查按钮事件（修复URL参数拼接）
+            nornirBatchCheckBtn.addEventListener('click', function() {
+                const selectedDevices = Array.from(nornirDeviceCheckboxes)
+                    .filter(checkbox => checkbox.checked)
+                    .map(checkbox => checkbox.getAttribute('data-hostname'));
+
+                if (selectedDevices.length === 0) {
+                    alert('请先选择设备！');
+                    return;
+                }
+
+                const originalText = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
+                this.disabled = true;
+
+                // 用URLSearchParams拼接参数，避免特殊字符报错
+                const params = new URLSearchParams();
+                selectedDevices.forEach(device => params.append('devices', device));
+                const apiUrl = `/api/health/nornir-check?${params.toString()}`;
+
+                fetch(apiUrl)
+                    .then(response => response.json().then(data => ({ response, data })))
+                    .then(({ response, data }) => {
+                        if (!response.ok) throw new Error(`请求失败，状态码：${response.status}`);
+                        const tableBody = document.getElementById('nornirCheckResultTableBody');
+                        const successCount = document.getElementById('nornirSuccessCount');
+                        const failedCount = document.getElementById('nornirFailedCount');
+                        const totalCount = document.getElementById('nornirTotalCount');
+
+                        let success = 0;
+                        let failed = 0;
+                        tableBody.innerHTML = '';
+
+                        // 渲染成功结果
+                        if (data.success && Array.isArray(data.success)) {
+                            data.success.forEach(item => {
+                                const tr = document.createElement('tr');
+                                const result = item.result;
+                                const isSuccess = result.check_status === '成功';
+                                const statusBadge = isSuccess ? '<span class="badge bg-success">成功</span>' : '<span class="badge bg-danger">失败</span>';
+                                isSuccess ? success++ : failed++;
+
+                                const output = `
+                                    <div>
+                                        <p><strong>设备名称：</strong>${result.device_name}</p>
+                                        <p><strong>IP地址：</strong>${result.host}</p>
+                                        <p><strong>版本：</strong>${result.version}</p>
+                                        <p><strong>状态：</strong>${result.status}</p>
+                                        <p><strong>检查状态：</strong>${result.check_status}</p>
+                                        <p><strong>UP接口：</strong>${result.up_interface}</p>
+                                        <p><strong>DOWN接口：</strong>${result.down_interface}</p>
+                                        <p><strong>CPU使用率：</strong>${result.CPU_usage}</p>
+                                        <p><strong>内存使用率：</strong>${result.memory_usage}</p>
+                                        <p><strong>检查时间：</strong>${result.check_time}</p>
+                                    </div>
+                                `;
+
+                                tr.innerHTML = `
+                                    <td>${result.device_name}</td>
+                                    <td>${statusBadge}</td>
+                                    <td>${output}</td>
+                                    <td>${result.check_time}</td>
+                                `;
+                                tableBody.appendChild(tr);
+                            });
+                        }
+
+                        // 渲染失败结果
+                        if (data.failed && Array.isArray(data.failed)) {
+                            data.failed.forEach(item => {
+                                const tr = document.createElement('tr');
+                                const statusBadge = '<span class="badge bg-danger">失败</span>';
+                                failed++;
+
+                                const output = `<div><p><strong>错误信息：</strong>${item.error}</p></div>`;
+                                tr.innerHTML = `
+                                    <td>${item.hostname}</td>
+                                    <td>${statusBadge}</td>
+                                    <td>${output}</td>
+                                    <td>${new Date().toLocaleString('zh-CN')}</td>
+                                `;
+                                tableBody.appendChild(tr);
+                            });
+                        }
+
+                        // 无结果处理
+                        if ((!data.success || data.success.length === 0) && (!data.failed || data.failed.length === 0)) {
+                            tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">暂无检查结果数据</td></tr>';
+                        }
+
+                        // 更新汇总统计
+                        successCount.innerHTML = `<i class="fas fa-check-circle me-1"></i>成功：${success} 台`;
+                        failedCount.innerHTML = `<i class="fas fa-times-circle me-1"></i>失败：${failed} 台`;
+                        totalCount.innerHTML = `<i class="fas fa-server me-1"></i>总计：${selectedDevices.length} 台`;
+
+                        modalInstances.nornirCheckResultModal.show();
+                    })
+                    .catch(error => {
+                        console.error('Nornir并发检查异常：', error);
+                        alert(`并发检查失败：${error.message}`);
+                    })
+                    .finally(() => {
+                        this.innerHTML = originalText;
+                        this.disabled = false;
+                    });
+            });
+
+            // 初始同步状态
+            syncNornirSelectAllStatus();
+        }
     </script>
 </body>
 </html>

@@ -50,7 +50,7 @@ def check_devices_health(task: Task) -> Result:
     except Exception as e:
         logger.error(f"并发检查-加载全局设备卡片失败：{e}")
         base_result["error_message"] += f"设备卡片加载失败；"
-    
+
     try:
         # 获取版本信息
         logger.info(f"正在查询设备{device_name}的版本信息.....")
@@ -176,9 +176,16 @@ def check_devices_health(task: Task) -> Result:
         base_result["check_status"] = "成功"
         base_result["device_health_issues"] = device_health_issues if device_health_issues else ["无"]
         # 错误信息统一：把问题列表拼接到error_message（和单设备的error_message字段对齐）
-        base_result["error_message"] = ";".join(device_health_issues) if device_health_issues != ["无"] else ""
+        # base_result["error_message"] = (
+        #     base_result["error_message"] + ";" + ";".join(device_health_issues)
+        #     if device_health_issues != ["无"]
+        #     else base_result["error_message"]
+        # )
         if current_card:  # 匹配到卡片才更新，避免报错
-            current_card.update(base_result) 
+            current_card.update(base_result)
+            logger.info(f"已经成功更新{device_name}({device_ip}的档案卡片！)")
+        else:
+            logger.warning(f"并未匹配到设备{device_name}({device_ip}的档案卡片，无法更新)")
         # ========== 6. 日志收尾 → 和单设备检查的日志样式完全统一 ==========
         logger.info(f"设备{device_name}（{device_ip}）检查完成！")
         logger.info(f"-版本：{base_result['version']}")
@@ -228,7 +235,10 @@ def check_devices_health(task: Task) -> Result:
             }
         )
         if current_card:
-            current_card.update(base_result) 
+            current_card.update(base_result)
+            logger.info(f"已经成功更新{device_name}({device_ip}的档案卡片！)")
+        else:
+            logger.warning(f"并未匹配到设备{device_name}({device_ip}的档案卡片，无法更新)")
         # 异常返回Result，标记failed=True
         return Result(host=task.host, result=base_result, failed=True)  # 异常也返回统一的结果字典
 

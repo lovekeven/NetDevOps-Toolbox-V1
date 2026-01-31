@@ -246,13 +246,19 @@ def check_single_device(device_info):
                 "memory_usage": memory_usage,
                 "version": version_result,
                 "device_health_issues": device_health_issues,  # 补更：健康问题列表
-                "error_message": (
-                    ";".join(device_health_issues) if device_health_issues != ["无"] else ""
-                ),  # 补更：从列表拼接错误信息，和并发一致
+                # "error_message": (
+                #     results["error_message"] + ";" + ";".join(device_health_issues)
+                #     if device_health_issues != ["无"]
+                #     else results["error_message"]
+                # 补更：从列表拼接错误信息，和并发一致
             }
         )
         if current_card:  # 只有匹配到卡片才更新
             current_card.update(results)
+            logger.info(f"已经成功更新{current_card.name}({current_card.ip_address}的档案卡片！)")
+        else:
+            logger.warning(f"并未匹配到设备{results['device_name']}({device_info['host']}的档案卡片，无法更新)")
+            # 这个函数不可以传设备名字的参数，这里肯定是未知设备
 
         logger.info("检查成功！")
         logger.info(f"-设备：{results['device_name']}（{results['host']}）")

@@ -95,6 +95,25 @@ class DatabaseManager:
                 network_packets_recv INTEGER NOT NULL  -- 接收数据包数
             );
             """,
+            """
+            CREATE TABLE IF NOT EXISTS physical_device_cards (
+                device_id TEXT PRIMARY KEY,  -- 主键：设备名SW1/SW2（和你PhysicalDevice的device_id一致）
+                name TEXT NOT NULL,          -- 设备名
+                ip_address TEXT NOT NULL,    -- 设备IP（从YAML的hostname来）
+                vendor TEXT DEFAULT '未知厂商', -- 厂商（HCLCloud/华为）
+                check_status TEXT DEFAULT '未知', -- 检查状态：未知/成功/失败
+                up_interfaces TEXT DEFAULT '未知', -- 启用接口数
+                down_interface TEXT DEFAULT '未知', -- 禁用接口数（保留你原有笔误dowan_interface，避免报错）
+                total_interfaces TEXT DEFAULT '未知', -- 总接口数
+                cpu_usage TEXT DEFAULT 'N/A', -- CPU使用率
+                memory_usage TEXT DEFAULT 'N/A', -- 内存使用率
+                reachable TEXT DEFAULT '未检测', -- 是否可达：未检测/True/False
+                version TEXT DEFAULT '未知', -- 设备版本
+                status TEXT DEFAULT 'unknown', -- 健康状态：unknown/healthy/degraded/failed（父类NetworkResource的status）
+                last_check_time TEXT DEFAULT '未检查', -- 最后检查时间
+                create_time TEXT NOT NULL     -- 档案卡创建时间
+            );
+            """,
         ]
         cursor = self.conn.cursor()
         try:
@@ -159,6 +178,7 @@ class DatabaseManager:
             self.conn.rollback()
             raise
 
+    # 从数据库拿备份历史信息
     def get_recent_backups(self, hostname=None, limit=10):
         sql = """
         SELECT * FROM backup_records 
@@ -184,6 +204,114 @@ class DatabaseManager:
             return records
         except sqlite3.Error as e:
             logger.error(f"查询备份记录失败: {e}")
+            raise
+
+    # 往空白表里填单条档案卡数据
+    def add_physical_card(self, card_dict):
+        """
+        单张物理设备档案卡写入数据库
+        :param card_dict: PhysicalDevice对象转的字典（含所有字段）
+        """
+        sql = """
+        INSERT OR REPLACE INTO physical_device_cards 
+        (device_id, name, ip_address, vendor, check_status, up_interfaces, down_interface, 
+         total_interfaces, cpu_usage, memory_usage, reachable, version, status, 
+         last_check_time, create_time)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        # 按表字段顺序取值，和PhysicalDevice属性严格对齐
+        params = (
+            card_dict["id"],
+            card_dict["name"],
+            card_dict["ip_address"],
+            card_dict.get("vendor", "未知厂商"),
+            card_dict.get("check_status", "未知"),
+            card_dict.get("up_interfaces", "未知"),
+            card_dict.get("down_interface", "未知"),
+            card_dict.get("total_interfaces", "未知"),
+            card_dict.get("cpu_usage", "N/A"),
+            card_dict.get("memory_usage", "N/A"),
+            card_dict.get("reachable", "未检测"),
+            card_dict.get("version", "未知"),
+            card_dict.get("status", "unknown"),
+            card_dict.get("last_check", "未检查"),
+            card_dict["create_time"],
+        )
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            self.conn.commit()
+            logger.info(f"档案卡写入数据库成功：设备[{card_dict['name']}]")
+        except sqlite3.Error as e:
+            error_msg = str(e)
+            logger.error(f"档案卡写入数据库失败 {card_dict['name']}：{error_msg[:100]}")
+            self.conn.rollback()
+            raise
+
+    def batch_add_physical_cards(self, card_list):
+        """
+        批量写入物理设备档案卡（适配你从YAML加载的档案卡列表）
+        :param card_list: PhysicalDevice对象转的字典列表
+        """
+        if not card_list:
+            logger.warning("无档案卡可批量写入数据库")
+            return
+        for card in card_list:  # card是字典，card_list是列表元素是字典,原来的档案卡列表元素是对象
+            self.add_physical_card(card)
+        logger.info(f"批量写入数据库完成！共{len(card_list)}张物理设备档案卡存入数据库")
+
+    def get_all_physical_cards(self):
+        """
+        从数据库读取所有物理设备档案卡
+        :return: 字典列表（后续可直接转PhysicalDevice对象）
+        """
+        sql = "SELECT * FROM physical_device_cards ORDER BY device_id"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql)
+            results = cursor.fetchall()
+            # 转成字典列表，方便后续实例化PhysicalDevice
+            card_list = [dict(card) for card in results]
+            logger.info(f"从数据库读取{len(card_list)}张物理设备档案卡")
+            return card_list
+        except sqlite3.Error as e:
+            logger.error(f"读取档案卡失败：{str(e)[:100]}")
+            self.conn.rollback()
+            raise
+
+    def update_physical_card(self, card_dict):
+        """
+        更新数据库中的物理设备档案卡（健康检查后调用，实现持久化）
+        :param card_dict: 更新后的PhysicalDevice对象转的字典
+        """
+        sql = """
+        UPDATE physical_device_cards 
+        SET check_status=?, up_interfaces=?, down_interface=?, total_interfaces=?, 
+            cpu_usage=?, memory_usage=?, reachable=?, version=?, status=?, last_check_time=?
+        WHERE device_id = ?
+        """
+        params = (
+            card_dict.get("check_status", "未知"),
+            card_dict.get("up_interfaces", "未知"),
+            card_dict.get("down_interface", "未知"),
+            card_dict.get("total_interfaces", "未知"),
+            card_dict.get("cpu_usage", "N/A"),
+            card_dict.get("memory_usage", "N/A"),
+            card_dict.get("reachable", "未检测"),
+            card_dict.get("version", "未知"),
+            card_dict.get("status", "unknown"),
+            card_dict.get("last_check", "未检查"),
+            card_dict["id"],  # 更新条件：主键device_id（SW1/SW2）
+        )
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            self.conn.commit()
+            logger.info(f"档案卡更新成功：设备[{card_dict['name']}]")
+        except sqlite3.Error as e:
+            error_msg = str(e)
+            logger.error(f"档案卡更新失败 {card_dict['name']}：{error_msg[:100]}")
+            self.conn.rollback()
             raise
 
     def close(self):
