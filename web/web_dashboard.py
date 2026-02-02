@@ -15,6 +15,8 @@ from flask import jsonify, Flask, render_template, request
 from core.health_check.health_checker import check_single_device
 from core.backup.backup_handler import backup_single_device
 import yaml
+
+# 引入AI这个全局实例
 from core.AI.report_generator import deepseek_assistant
 from core.nornir.nornir_tasks import run_concurrent_health_check
 from utils.log_setup import setup_logger
@@ -210,9 +212,11 @@ def api_service_status():
 @app.route("/api/backup/history/")
 @app.route("/api/backup/history/<device_name>")
 def backup_history(device_name=None):
+    # 点击查询所有历史记录的时候，URL让他拼接成days = 0,limit = 0,
     try:
+        days = request.args.get("days", default=7, type=int)
         limit = request.args.get("limit", default=20, type=int)
-        recoard = db_manager.get_recent_backups(hostname=device_name, limit=limit)
+        recoard = db_manager.get_recent_backups(hostname=device_name, limit=limit, days=days)
         return jsonify({"status": "success", "history_record": len(recoard), "history": recoard})
     except Exception as e:
         error_msg = str(e)
@@ -686,6 +690,121 @@ def check_physical_device_cards():
         )
 
 
+# 第十八个API接口：获取设备的健康状态历史记录
+@app.route("/api/health/history/")
+@app.route("/api/health/history/<device_name>")
+def get_device_health_history(device_name=None):
+    try:
+        limit = request.args.get("limit", default=20, type=int)
+        days = request.args.get("days", default=7, type=int)
+        recoard = db_manager.get_health_check_history(device_name=device_name, limit=limit, days=days)
+        return jsonify({"status": "success", "history_record": len(recoard), "history": recoard})
+    except Exception as e:
+        error_msg = str(e)
+        return (
+            jsonify(
+                {
+                    "status": "failed",
+                    "error_msg": error_msg[:100],
+                    "history_record": 0,
+                }
+            ),
+            500,
+        )
+#第十九个API接口：用AI分析单个设备健康检查结果
+@app.route("/api/health/ai/")
+def ai_report_about_health():
+    if deepseek_assistant is None:
+        logger.error("AI报告接口调用失败：deepseek_assistant 未初始化（API Key错误）")
+        return (
+            jsonify({"code": 500, "message": "Deepseek调用失败,请查看API key", "data": None, "deepseek_status": "N/A"}),
+            500,
+        )
+    try:
+        days = request.args.get("days", default=7, type=int)
+        device_name = request.args.get("device_name", default=None, type=str)
+        if device_name is None:
+            return (
+                jsonify(
+                    {
+                        "code": 400,
+                        "message": "请指定要分析的设备名称",
+                        "data": None,
+                        "deepseek_status": "N/A",
+                    }
+                ),
+                400,
+            )
+        device_name = device_name.strip().upper() if device_name else None
+        report = deepseek_assistant.get_deepseek_to_device_health(days=days, device_name=device_name)
+        logger.info("AI报告接口调用成功，报告生成完成")
+        # 3. 成功返回（统一格式）
+        return (
+            jsonify(
+                {
+                    "code": 200,
+                    "message": "报告生成成功",
+                    "data": report,
+                    "deepseek_status": "normal",
+                    "report_time": datetime.now().isoformat(),
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        error_msg = str(e)[:100]
+        logger.error(f"AI报告接口调用失败：{error_msg}")
+        # 4. 失败返回（统一格式）
+        return (
+            jsonify(
+                {"code": 500, "message": "Deepseek调用失败", "data": None, "error_detail": "服务端处理异常，请稍后重试"}
+            ),
+            500,
+        )
+#第二十个API接口，让AI分析所有的设备的健康状态
+@app.route("/api/health/ai/all/")
+def ai_health_weekly_report():
+    # 复用单设备接口的前置校验逻辑
+    if deepseek_assistant is None:
+        logger.error("全网健康AI报告接口调用失败：deepseek_assistant 未初始化（API Key错误）")
+        return (
+            jsonify({"code": 500, "message": "Deepseek调用失败,请查看API key", "data": None, "deepseek_status": "N/A"}),
+            500,
+        )
+    try:
+        days = request.args.get("days", default=7, type=int)
+        # 调用全设备周报AI分析方法
+        health_report = deepseek_assistant.get_deepseek_all_device_health_weekly(days=days)
+        logger.info(f"全网设备近{days}天健康AI报告接口调用成功，报告生成完成")
+        # 统一返回格式（和单设备一致，含report_time）
+        return (
+            jsonify(
+                {
+                    "code": 200,
+                    "message": "全网健康AI报告生成成功",
+                    "data": health_report,
+                    "deepseek_status": "normal",
+                    "report_time": datetime.now().isoformat(),
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        error_msg = str(e)[:100]
+        logger.error(f"全网健康AI报告接口调用失败：{error_msg}")
+        # 统一500返回格式，补全所有字段
+        return (
+            jsonify(
+                {
+                    "code": 500,
+                    "message": "Deepseek调用失败",
+                    "data": None,
+                    "deepseek_status": "error",
+                    "error_detail": "服务端处理异常，请稍后重试"
+                }
+            ),
+            500,
+        )
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)
     # host参数，本质上要求传入一个「字符串（str）类型」的值，用来指定 Flask 服务绑定的 IP 地址。0.0.0.0是一个 IP 地址格式的字符串

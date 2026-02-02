@@ -182,6 +182,115 @@
             color: white;
         }
 
+
+        .dropdown {
+            position: relative;
+            z-index: 9999 !important;
+        }
+
+        .dropdown-menu {
+            background-color: var(--card-background) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 8px !important;
+            box-shadow: var(--shadow-xl) !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            z-index: 10000 !important;
+            position: absolute !important;
+            top: 100% !important;
+            left: 0 !important;
+            margin-top: 0.25rem !important;
+            min-width: 180px !important;
+            max-width: 200px !important;
+            overflow: hidden !important;
+            display: block !important;
+            pointer-events: auto !important;
+        }
+
+        .dropdown-menu-dark {
+            background-color: var(--card-background) !important;
+            border-color: var(--border-color) !important;
+        }
+
+        .dropdown-item {
+            color: var(--text-primary) !important;
+            padding: 0.75rem 1rem !important;
+            transition: var(--transition) !important;
+            position: relative !important;
+            z-index: 10001 !important;
+            display: block !important;
+            width: 100% !important;
+            text-align: left !important;
+            background: transparent !important;
+            border: 0 !important;
+            pointer-events: auto !important;
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--card-hover) !important;
+            color: var(--text-primary) !important;
+        }
+
+        .dropdown-item:active {
+            background-color: var(--primary-color) !important;
+            color: white !important;
+        }
+
+        .dropdown-toggle {
+            position: relative;
+            z-index: 10002;
+        }
+
+        /* 确保表格行在下拉菜单打开时不会影响显示 */
+        .table tbody tr {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 确保下拉菜单打开时完全遮住其他内容 */
+        .dropdown-menu {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            background-attachment: local !important;
+        }
+
+        /* 防止下拉菜单与其他元素重叠时的事件穿透 */
+        .dropdown-menu * {
+            pointer-events: auto !important;
+        }
+
+        /* 确保下拉菜单在所有元素之上 */
+        .dropdown-menu.show {
+            z-index: 10000 !important;
+            position: absolute !important;
+            display: block !important;
+            transform: none !important;
+            top: 100% !important;
+            left: 0 !important;
+            margin: 0.125rem 0 0 !important;
+        }
+
+        /* 健康管理下拉菜单特殊样式 */
+        .health-dropdown-menu {
+            background-color: var(--card-background) !important;
+            opacity: 1 !important;
+            z-index: 10000 !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 8px !important;
+            box-shadow: var(--shadow-xl) !important;
+        }
+
+        .health-dropdown-menu .dropdown-item {
+            opacity: 1 !important;
+            color: var(--text-primary) !important;
+        }
+
+        .health-dropdown-menu .dropdown-item:hover {
+            opacity: 1 !important;
+            background-color: var(--card-hover) !important;
+            color: var(--text-primary) !important;
+        }
+
         /* 表格样式 */
         .table {
             color: var(--text-primary);
@@ -473,11 +582,40 @@
             background-color: var(--card-background);
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            padding: 1.25rem;
+            padding: 1rem;
             transition: var(--transition);
-            min-width: 400px;
-            max-width: 500px;
+            min-width: 100%;
+            max-width: 100%;
             margin: 0 auto;
+        }
+        
+        /* 端口信息卡片（修复拥挤问题） */
+        .port-info-card {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem;
+            text-align: center;
+            transition: var(--transition);
+        }
+        
+        .port-info-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        
+        .port-info-card .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 0.25rem;
+        }
+        
+        .port-info-card .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .stat-card:hover {
@@ -701,10 +839,17 @@
             <div class="col-md-6 col-lg-8">
                 <div class="card h-100">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-chart-line text-primary me-2"></i>AI备份运维报告</h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-chart-line text-primary me-2"></i>AI分析报告</h5>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-primary active" id="backupReportBtn">备份分析</button>
+                                <button type="button" class="btn btn-outline-primary" id="healthReportBtn">健康分析</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="card-body">
-                        <div class="row align-items-center mb-3">
+                        <!-- 备份分析选项 -->
+                        <div id="backupReportOptions" class="row align-items-center mb-3">
                             <div class="col-md-8">
                                 <label for="reportDays" class="form-label">查询近N天备份（1-30天）</label>
                                 <input type="number" class="form-control" id="reportDays" value="7" min="1" max="30">
@@ -712,6 +857,30 @@
                             <div class="col-md-4 d-flex align-items-end">
                                 <button id="generateReportBtn" class="btn btn-primary w-100">
                                     <i class="fas fa-robot me-1"></i>生成AI报告
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 健康分析选项 -->
+                        <div id="healthReportOptions" class="row align-items-center mb-3" style="display: none;">
+                            <div class="col-md-12 mb-2">
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-secondary active" id="singleDeviceBtn">单个设备</button>
+                                    <button type="button" class="btn btn-outline-secondary" id="allDevicesBtn">所有设备</button>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="singleDeviceInput">
+                                <label for="healthReportDevice" class="form-label">设备名称</label>
+                                <input type="text" class="form-control" id="healthReportDevice" placeholder="请输入设备名称">
+                                <small class="text-muted">只支持单个设备</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="healthReportDays" class="form-label">查询近N天健康记录（1-30天）</label>
+                                <input type="number" class="form-control" id="healthReportDays" value="7" min="1" max="30">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button id="generateHealthReportBtn" class="btn btn-primary w-100">
+                                    <i class="fas fa-robot me-1"></i>生成报告
                                 </button>
                             </div>
                         </div>
@@ -853,6 +1022,51 @@
             </div>
         </div>
 
+        <!-- 健康检查历史模态框 -->
+        <div class="modal fade" id="healthCheckHistoryModal" tabindex="-1" aria-labelledby="healthCheckHistoryModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="healthCheckHistoryModalLabel">
+                            <i class="fas fa-history text-warning me-2"></i>健康检查历史 - <span id="healthCheckHistoryDeviceName">未知设备</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- 历史记录查询条件 -->
+                        <div class="row mb-3 align-items-center">
+                            <div class="col-md-4">
+                                <label for="healthHistoryLimit" class="form-label">查询记录数（1-100）</label>
+                                <input type="number" class="form-control" id="healthHistoryLimit" value="10" min="1" max="100">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="healthHistoryDays" class="form-label">查询天数（1-30）</label>
+                                <input type="number" class="form-control" id="healthHistoryDays" value="7" min="1" max="30">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end justify-content-md-end gap-2">
+                                <button id="queryAllHealthHistoryBtn" class="btn btn-outline-info">
+                                    <i class="fas fa-list me-1"></i>查询所有历史
+                                </button>
+                                <button id="refreshHealthHistoryBtn" class="btn btn-warning">
+                                    <i class="fas fa-sync-alt me-1"></i>刷新历史记录
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 健康检查历史记录容器 -->
+                        <div id="healthCheckHistoryContainer">
+                            <div class="text-center text-muted py-4">
+                                <small>加载健康检查历史记录中...</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 设备列表卡片 -->
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -930,6 +1144,10 @@
                                         <button class="btn btn-sm btn-outline-primary health-check-btn" data-hostname="{{ device.device_name }}">
                                             <i class="fas fa-heartbeat me-1"></i>健康检查
                                         </button>
+                                        <!-- 健康检查历史按钮 -->
+                                        <button class="btn btn-sm btn-outline-warning health-check-history-btn" data-hostname="{{ device.device_name }}">
+                                            <i class="fas fa-history me-1"></i>健康历史
+                                        </button>
                                         <!-- 备份按钮 -->
                                         <button class="btn btn-sm btn-outline-secondary backup-btn" data-hostname="{{ device.device_name }}">
                                             <i class="fas fa-save me-1"></i>备份设备
@@ -981,11 +1199,18 @@
                 <div class="modal-body">
                     <!-- 备份历史查询条件 -->
                     <div class="row mb-3 align-items-center">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="historyLimit" class="form-label">查询记录数（1-100）</label>
                             <input type="number" class="form-control" id="historyLimit" value="20" min="1" max="100">
                         </div>
-                        <div class="col-md-8 d-flex align-items-end justify-content-md-end">
+                        <div class="col-md-3">
+                            <label for="historyDays" class="form-label">查询天数（1-30）</label>
+                            <input type="number" class="form-control" id="historyDays" value="7" min="1" max="30">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end justify-content-md-end gap-2">
+                            <button id="queryAllHistoryBtn" class="btn btn-outline-info">
+                                <i class="fas fa-list me-1"></i>查询所有历史
+                            </button>
                             <button id="refreshHistoryBtn" class="btn btn-info">
                                 <i class="fas fa-sync-alt me-1"></i>刷新备份历史
                             </button>
@@ -1083,9 +1308,30 @@
             deviceCardsModal: null,
             singleDeviceCardModal: null,
             healthCheckResultModal: null,
+            healthCheckHistoryModal: null,
             backupHistoryModal: null,
             nornirCheckResultModal: null
         };
+
+        // AI报告格式转换（修复正则漏洞）
+        function formatReportToHtml(rawText) {
+            if (!rawText || rawText.trim() === '') {
+                return '<span class="report-empty">暂无有效数据可供分析</span>';
+            }
+
+            let html = rawText.trim();
+            html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+            html = html.replace(/<strong>(\d+\. .*?)<\/strong>/g, "<h3>$1</h3>");
+            html = html.replace(/\n\*   (.*?)(?=\n|$)/g, "\n<li>$1</li>");
+            html = html.replace(/(<li>.*?<\/li>)+/gs, "<ul>$&</ul>");
+            html = html.replace(/\n(\d+)\.  (.*?)(?=\n|$)/g, "\n<li>$2</li>");
+            html = html.replace(/(<li>.*?<\/li>)+/gs, "<ol>$&</ol>");
+            html = html.replace(/\*\((注：.*?)\)\*/g, "<p class='report-note'>$1</p>");
+            html = html.replace(/\n{2,}/g, "<br><br>");
+            html = html.replace(/\n/g, " ");
+
+            return `<div class="report-content-wrapper">${html}</div>`;
+        }
 
         // DOM加载完成后初始化所有模态框
         document.addEventListener('DOMContentLoaded', function() {
@@ -1093,6 +1339,7 @@
             modalInstances.deviceCardsModal = new bootstrap.Modal(document.getElementById('deviceCardsModal'));
             modalInstances.singleDeviceCardModal = new bootstrap.Modal(document.getElementById('singleDeviceCardModal'));
             modalInstances.healthCheckResultModal = new bootstrap.Modal(document.getElementById('healthCheckResultModal'));
+            modalInstances.healthCheckHistoryModal = new bootstrap.Modal(document.getElementById('healthCheckHistoryModal'));
             modalInstances.backupHistoryModal = new bootstrap.Modal(document.getElementById('backupHistoryModal'));
             modalInstances.nornirCheckResultModal = new bootstrap.Modal(document.getElementById('nornirCheckResultModal'));
 
@@ -1100,14 +1347,142 @@
             initApiStatusCheck();
             initBackupFunction();
             initHealthCheckFunction();
+            initHealthCheckHistoryFunction();
             initDeviceCardFunction();
             initBackupHistoryFunction();
             initAiReportFunction();
+            initAiHealthReportFunction();
             initSystemHealthFunction();
             initNornirBatchCheckFunction();
 
             // 初始检查API状态
             checkApiStatus();
+
+            // 单个设备/所有设备切换按钮
+            document.getElementById('singleDeviceBtn').addEventListener('click', function() {
+                document.getElementById('singleDeviceBtn').classList.add('active');
+                document.getElementById('allDevicesBtn').classList.remove('active');
+                document.getElementById('singleDeviceInput').style.display = 'block';
+                // 重置报告状态和内容
+                const reportStatus = document.getElementById('report-status');
+                const reportContent = document.getElementById('aiReportContent');
+                const reportTime = document.getElementById('reportGenerateTime');
+                reportStatus.innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
+                reportContent.innerHTML = '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成报告」按钮获取AI健康分析报告</div>';
+                reportTime.textContent = '';
+            });
+
+            document.getElementById('allDevicesBtn').addEventListener('click', function() {
+                document.getElementById('allDevicesBtn').classList.add('active');
+                document.getElementById('singleDeviceBtn').classList.remove('active');
+                document.getElementById('singleDeviceInput').style.display = 'none';
+                // 重置报告状态和内容
+                const reportStatus = document.getElementById('report-status');
+                const reportContent = document.getElementById('aiReportContent');
+                const reportTime = document.getElementById('reportGenerateTime');
+                reportStatus.innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
+                reportContent.innerHTML = '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成报告」按钮获取AI健康分析报告</div>';
+                reportTime.textContent = '';
+            });
+
+            // 重新绑定生成健康分析AI报告按钮事件
+            document.getElementById('generateHealthReportBtn').addEventListener('click', function() {
+                const generateBtn = this;
+                const deviceInput = document.getElementById('healthReportDevice');
+                const daysInput = document.getElementById('healthReportDays');
+                const reportStatus = document.getElementById('report-status');
+                const reportContent = document.getElementById('aiReportContent');
+                const reportTime = document.getElementById('reportGenerateTime');
+
+                let days = parseInt(daysInput.value.trim());
+                let apiUrl = '';
+
+                if (isNaN(days) || days < 1 || days > 30) {
+                    alert('请输入1-30之间的有效天数！');
+                    daysInput.value = 7;
+                    return;
+                }
+
+                // 检查是单个设备还是所有设备
+                const isSingleDevice = document.getElementById('singleDeviceBtn').classList.contains('active');
+
+                if (isSingleDevice) {
+                    const device = deviceInput.value.trim();
+                    if (!device) {
+                        alert('请输入设备名称！');
+                        return;
+                    }
+                    apiUrl = `/api/health/ai/?device_name=${device}&days=${days}`;
+                } else {
+                    apiUrl = `/api/health/ai/all/?days=${days}`;
+                }
+
+                const originalBtnText = generateBtn.innerHTML;
+                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+                generateBtn.disabled = true;
+                reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI健康分析报告，请稍候...</span>';
+                reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
+                reportTime.textContent = '';
+
+                fetch(apiUrl)
+                    .then(response => response.json().then(data => ({ response, data })))
+                    .then(({ response, data }) => {
+                        if (!response.ok) throw new Error(data.message || data.error_detail || `请求失败，状态码：${response.status}`);
+                        if (data.code === 200 && data.data && data.data !== '') {
+                            // 简单的HTML格式化
+                            let html = data.data.trim();
+                            html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+                            html = html.replace(/<strong>(\d+\. .*?)<\/strong>/g, "<h3>$1</h3>");
+                            html = html.replace(/\n\*   (.*?)(?=\n|$)/g, "\n<li>$1</li>");
+                            html = html.replace(/(<li>.*?<\/li>)+/gs, "<ul>$&</ul>");
+                            html = html.replace(/\n(\d+)\.  (.*?)(?=\n|$)/g, "\n<li>$2</li>");
+                            html = html.replace(/(<li>.*?<\/li>)+/gs, "<ol>$&</ol>");
+                            html = html.replace(/\*\((注：.*?)\)\*/g, "<p class='report-note'>$1</p>");
+                            html = html.replace(/\n{2,}/g, "<br><br>");
+                            html = html.replace(/\n/g, " ");
+                            
+                            reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
+                            reportContent.innerHTML = `<div class="report-content-wrapper">${html}</div>`;
+                            if (data.report_time) {
+                                reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
+                            }
+                        } else {
+                            reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
+                            reportContent.innerHTML = '<span class="report-empty">暂无有效健康数据可供分析</span>';
+                        }
+                    })
+                    .catch(error => {
+                        reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
+                        reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
+                        console.error('AI健康分析报告生成异常：', error);
+                    })
+                    .finally(() => {
+                        generateBtn.innerHTML = originalBtnText;
+                        generateBtn.disabled = false;
+                    });
+            });
+        });
+
+        // 处理健康历史记录详情按钮点击事件
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.toggle-details')) {
+                const button = e.target.closest('.toggle-details');
+                const targetId = button.getAttribute('data-target');
+                const targetElement = document.getElementById(targetId);
+                
+                if (targetElement) {
+                    // 切换折叠状态
+                    if (targetElement.classList.contains('show')) {
+                        // 关闭
+                        targetElement.classList.remove('show');
+                        button.innerHTML = '<i class="fas fa-chevron-down"></i> 详情';
+                    } else {
+                        // 打开
+                        targetElement.classList.add('show');
+                        button.innerHTML = '<i class="fas fa-chevron-up"></i> 收起';
+                    }
+                }
+            }
         });
 
         // 1. API状态检查
@@ -1143,6 +1518,228 @@
                     refreshBtn.disabled = false;
                     refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>刷新';
                 });
+
+            // 切换按钮事件监听器
+            document.getElementById('backupReportBtn').addEventListener('click', function() {
+                document.getElementById('backupReportBtn').classList.add('active');
+                document.getElementById('healthReportBtn').classList.remove('active');
+                document.getElementById('backupReportOptions').style.display = 'block';
+                document.getElementById('healthReportOptions').style.display = 'none';
+                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>';
+            });
+
+            document.getElementById('healthReportBtn').addEventListener('click', function() {
+                document.getElementById('healthReportBtn').classList.add('active');
+                document.getElementById('backupReportBtn').classList.remove('active');
+                document.getElementById('backupReportOptions').style.display = 'none';
+                document.getElementById('healthReportOptions').style.display = 'block';
+                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
+            });
+
+            // 生成健康分析AI报告按钮
+            document.getElementById('generateHealthReportBtn').addEventListener('click', function() {
+                const generateBtn = this;
+                const deviceInput = document.getElementById('healthReportDevice');
+                const daysInput = document.getElementById('healthReportDays');
+                const reportStatus = document.getElementById('report-status');
+                const reportContent = document.getElementById('aiReportContent');
+                const reportTime = document.getElementById('reportGenerateTime');
+
+                const device = deviceInput.value.trim();
+                let days = parseInt(daysInput.value.trim());
+
+                if (!device) {
+                    alert('请输入设备名称！');
+                    return;
+                }
+
+                if (isNaN(days) || days < 1 || days > 30) {
+                    alert('请输入1-30之间的有效天数！');
+                    daysInput.value = 7;
+                    return;
+                }
+
+                const originalBtnText = generateBtn.innerHTML;
+                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+                generateBtn.disabled = true;
+                reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI健康分析报告，请稍候...</span>';
+                reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
+                reportTime.textContent = '';
+
+                const apiUrl = `/api/health/ai/?device_name=${device}&days=${days}`;
+                fetch(apiUrl)
+                    .then(response => response.json().then(data => ({ response, data })))
+                    .then(({ response, data }) => {
+                        if (!response.ok) throw new Error(data.message || data.error_detail || `请求失败，状态码：${response.status}`);
+                        if (data.code === 200 && data.data && data.data !== '') {
+                            reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
+                            reportContent.innerHTML = formatReportToHtml(data.data);
+                            if (data.report_time) {
+                                reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
+                            }
+                        } else {
+                            reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
+                            reportContent.innerHTML = '<span class="report-empty">暂无有效健康数据可供分析</span>';
+                        }
+                    })
+                    .catch(error => {
+                        reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
+                        reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
+                        console.error('AI健康分析报告生成异常：', error);
+                    })
+                    .finally(() => {
+                        generateBtn.innerHTML = originalBtnText;
+                        generateBtn.disabled = false;
+                    });
+
+            // 切换按钮事件监听器
+            document.getElementById('backupReportBtn').addEventListener('click', function() {
+                document.getElementById('backupReportBtn').classList.add('active');
+                document.getElementById('healthReportBtn').classList.remove('active');
+                document.getElementById('backupReportOptions').style.display = 'block';
+                document.getElementById('healthReportOptions').style.display = 'none';
+                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>';
+            });
+
+            document.getElementById('healthReportBtn').addEventListener('click', function() {
+                document.getElementById('healthReportBtn').classList.add('active');
+                document.getElementById('backupReportBtn').classList.remove('active');
+                document.getElementById('backupReportOptions').style.display = 'none';
+                document.getElementById('healthReportOptions').style.display = 'block';
+                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
+            });
+
+            // 生成健康分析AI报告按钮
+            document.getElementById('generateHealthReportBtn').addEventListener('click', function() {
+                const generateBtn = this;
+                const deviceInput = document.getElementById('healthReportDevice');
+                const daysInput = document.getElementById('healthReportDays');
+                const reportStatus = document.getElementById('report-status');
+                const reportContent = document.getElementById('aiReportContent');
+                const reportTime = document.getElementById('reportGenerateTime');
+
+                const device = deviceInput.value.trim();
+                let days = parseInt(daysInput.value.trim());
+
+                if (!device) {
+                    alert('请输入设备名称！');
+                    return;
+                }
+
+                if (isNaN(days) || days < 1 || days > 30) {
+                    alert('请输入1-30之间的有效天数！');
+                    daysInput.value = 7;
+                    return;
+                }
+
+                const originalBtnText = generateBtn.innerHTML;
+                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+                generateBtn.disabled = true;
+                reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI健康分析报告，请稍候...</span>';
+                reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
+                reportTime.textContent = '';
+
+                const apiUrl = `/api/health/ai/?device_name=${device}&days=${days}`;
+                fetch(apiUrl)
+                    .then(response => response.json().then(data => ({ response, data })))
+                    .then(({ response, data }) => {
+                        if (!response.ok) throw new Error(data.message || data.error_detail || `请求失败，状态码：${response.status}`);
+                        if (data.code === 200 && data.data && data.data !== '') {
+                            reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
+                            reportContent.innerHTML = formatReportToHtml(data.data);
+                            if (data.report_time) {
+                                reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
+                            }
+                        } else {
+                            reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
+                            reportContent.innerHTML = '<span class="report-empty">暂无有效健康数据可供分析</span>';
+                        }
+                    })
+                    .catch(error => {
+                        reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
+                        reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
+                        console.error('AI健康分析报告生成异常：', error);
+                    })
+                    .finally(() => {
+                        generateBtn.innerHTML = originalBtnText;
+                        generateBtn.disabled = false;
+                    });
+
+            // 切换按钮事件监听器
+            document.getElementById('backupReportBtn').addEventListener('click', function() {
+                document.getElementById('backupReportBtn').classList.add('active');
+                document.getElementById('healthReportBtn').classList.remove('active');
+                document.getElementById('backupReportOptions').style.display = 'block';
+                document.getElementById('healthReportOptions').style.display = 'none';
+                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>';
+            });
+
+            document.getElementById('healthReportBtn').addEventListener('click', function() {
+                document.getElementById('healthReportBtn').classList.add('active');
+                document.getElementById('backupReportBtn').classList.remove('active');
+                document.getElementById('backupReportOptions').style.display = 'none';
+                document.getElementById('healthReportOptions').style.display = 'block';
+                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
+            });
+
+            // 生成健康分析AI报告按钮
+            document.getElementById('generateHealthReportBtn').addEventListener('click', function() {
+                const generateBtn = this;
+                const deviceInput = document.getElementById('healthReportDevice');
+                const daysInput = document.getElementById('healthReportDays');
+                const reportStatus = document.getElementById('report-status');
+                const reportContent = document.getElementById('aiReportContent');
+                const reportTime = document.getElementById('reportGenerateTime');
+
+                const device = deviceInput.value.trim();
+                let days = parseInt(daysInput.value.trim());
+
+                if (!device) {
+                    alert('请输入设备名称！');
+                    return;
+                }
+
+                if (isNaN(days) || days < 1 || days > 30) {
+                    alert('请输入1-30之间的有效天数！');
+                    daysInput.value = 7;
+                    return;
+                }
+
+                const originalBtnText = generateBtn.innerHTML;
+                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+                generateBtn.disabled = true;
+                reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI健康分析报告，请稍候...</span>';
+                reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
+                reportTime.textContent = '';
+
+                const apiUrl = `/api/health/ai/?device_name=${device}&days=${days}`;
+                fetch(apiUrl)
+                    .then(response => response.json().then(data => ({ response, data })))
+                    .then(({ response, data }) => {
+                        if (!response.ok) throw new Error(data.message || data.error_detail || `请求失败，状态码：${response.status}`);
+                        if (data.code === 200 && data.data && data.data !== '') {
+                            reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
+                            reportContent.innerHTML = formatReportToHtml(data.data);
+                            if (data.report_time) {
+                                reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
+                            }
+                        } else {
+                            reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
+                            reportContent.innerHTML = '<span class="report-empty">暂无有效健康数据可供分析</span>';
+                        }
+                    })
+                    .catch(error => {
+                        reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
+                        reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
+                        console.error('AI健康分析报告生成异常：', error);
+                    })
+                    .finally(() => {
+                        generateBtn.innerHTML = originalBtnText;
+                        generateBtn.disabled = false;
+                    });
+            });
+        });
+        });
         }
 
         // 初始化API状态检查按钮
@@ -1200,9 +1797,16 @@
                     const hostname = this.getAttribute('data-hostname');
                     const btn = this;
                     const originalText = btn.innerHTML;
+                    const deviceRow = this.closest('tr');
+                    const statusCell = deviceRow.querySelector('.device-status');
+                    const originalStatusHtml = statusCell.innerHTML;
 
+                    // 更新按钮状态
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
                     btn.disabled = true;
+
+                    // 更新设备状态为检查中
+                    statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-warning">检查中</span></div>';
 
                     // 更新模态框标题
                     document.getElementById('healthCheckDeviceName').textContent = hostname;
@@ -1217,16 +1821,28 @@
                             // 确定状态样式
                             let statusClass = 'bg-secondary';
                             let statusText = '未知';
+                            let deviceStatusClass = 'bg-secondary';
+                            let deviceStatusText = '未知';
+                            
                             if (result.status === 'healthy' || result.status === '在线') {
                                 statusClass = 'bg-success';
                                 statusText = '健康';
+                                deviceStatusClass = 'bg-success';
+                                deviceStatusText = '在线';
                             } else if (result.status === 'degraded') {
                                 statusClass = 'bg-warning';
                                 statusText = '降级';
+                                deviceStatusClass = 'bg-warning';
+                                deviceStatusText = '降级';
                             } else if (result.status === 'failed' || result.status === '离线') {
                                 statusClass = 'bg-danger';
                                 statusText = '失败';
+                                deviceStatusClass = 'bg-danger';
+                                deviceStatusText = '离线';
                             }
+
+                            // 更新设备状态
+                            statusCell.innerHTML = `<div class="status-indicator"><span class="status-dot ${result.status === 'healthy' || result.status === '在线' ? 'online' : result.status === 'failed' || result.status === '离线' ? 'offline' : 'pending'}"></span><span class="badge ${deviceStatusClass}">${deviceStatusText}</span></div>`;
 
                             // 生成结果HTML
                             const resultHtml = `
@@ -1256,19 +1872,19 @@
                                         <h6 class="mb-3">端口信息</h6>
                                         <div class="row g-3">
                                             <div class="col-md-4">
-                                                <div class="stat-card text-center">
+                                                <div class="port-info-card">
                                                     <div class="stat-value">${result.up_interface || 0}</div>
                                                     <div class="stat-label">UP端口</div>
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
-                                                <div class="stat-card text-center">
+                                                <div class="port-info-card">
                                                     <div class="stat-value">${result.down_interface || 0}</div>
                                                     <div class="stat-label">DOWN端口</div>
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
-                                                <div class="stat-card text-center">
+                                                <div class="port-info-card">
                                                     <div class="stat-value">${result.total_interface || 0}</div>
                                                     <div class="stat-label">总端口</div>
                                                 </div>
@@ -1313,6 +1929,8 @@
                             const container = document.getElementById('healthCheckResultContainer');
                             container.innerHTML = `<div class="text-center text-danger py-4"><small>健康检查失败：${error.message}</small></div>`;
                             modalInstances.healthCheckResultModal.show();
+                            // 恢复设备状态
+                            statusCell.innerHTML = originalStatusHtml;
                         })
                         .finally(() => {
                             setTimeout(() => {
@@ -1324,7 +1942,332 @@
             });
         }
 
-        // 4. 设备档案卡功能（创建+查看单卡+查看所有卡）
+        // 4. 健康检查历史功能
+        function initHealthCheckHistoryFunction() {
+            // 处理健康检查历史按钮点击
+            document.querySelectorAll('.health-check-history-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const hostname = this.getAttribute('data-hostname');
+                    const btn = this;
+                    const originalText = btn.innerHTML;
+
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>加载中...';
+                    btn.disabled = true;
+
+                    // 更新模态框标题
+                    document.getElementById('healthCheckHistoryDeviceName').textContent = hostname;
+
+                    // 默认查询10条记录
+                    const limit = 10;
+                    fetch(`/api/health/history/${hostname}?limit=${limit}`)
+                        .then(response => response.json().then(data => ({ response, data })))
+                        .then(({ response, data }) => {
+                            if (!response.ok) throw new Error(`请求失败，状态码：${response.status}`);
+                            if (data.status !== 'success') throw new Error(data.error_msg || '获取历史记录失败');
+                            
+                            const historyRecords = data.history || [];
+                            const container = document.getElementById('healthCheckHistoryContainer');
+
+                            if (historyRecords.length === 0) {
+                                container.innerHTML = `<div class="text-center text-muted py-4"><small>暂无健康检查历史记录</small></div>`;
+                            } else {
+                                // 生成历史记录HTML
+                                let historyHtml = '';
+                                historyRecords.forEach((record, index) => {
+                                    // 确定状态样式
+                                    let statusClass = 'bg-secondary';
+                                    let statusText = '未知';
+                                    if (record.status === 'healthy' || record.status === '在线') {
+                                        statusClass = 'bg-success';
+                                        statusText = '健康';
+                                    } else if (record.status === 'degraded') {
+                                        statusClass = 'bg-warning';
+                                        statusText = '降级';
+                                    } else if (record.status === 'failed' || record.status === '离线') {
+                                        statusClass = 'bg-danger';
+                                        statusText = '失败';
+                                    }
+
+                                    // 解析健康问题（如果是分号分隔的字符串）
+                                    let healthIssues = [];
+                                    if (record.device_health_issues) {
+                                        if (typeof record.device_health_issues === 'string') {
+                                            healthIssues = record.device_health_issues.split(';').filter(issue => issue.trim() !== '');
+                                        } else if (Array.isArray(record.device_health_issues)) {
+                                            healthIssues = record.device_health_issues;
+                                        }
+                                    }
+
+                                    // 生成单条记录HTML
+                                    const recordHtml = `
+                                        <div class="health-check-card mb-4">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <div>
+                                                    <h6 class="mb-0">检查记录 ${index + 1}</h6>
+                                                    <small class="text-muted">${record.check_time || '未知时间'}</small>
+                                                </div>
+                                                <span class="badge ${statusClass}">${statusText}</span>
+                                            </div>
+                                            
+                                            <div class="mb-4">
+                                                <h6 class="mb-3">基本信息</h6>
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <p class="mb-1"><strong>设备名称：</strong>${record.device_name || '未知'}</p>
+                                                        <p class="mb-1"><strong>IP地址：</strong>${record.host || '未知'}</p>
+                                                        <p class="mb-1"><strong>版本信息：</strong>${record.version || '未知'}</p>
+                                                        <p class="mb-1"><strong>检查时间：</strong>${record.check_time || '未知'}</p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <p class="mb-1"><strong>健康状态：</strong>${record.status || '未知'}</p>
+                                                        <p class="mb-1"><strong>检查状态：</strong>${record.check_status || '未知'}</p>
+                                                        <p class="mb-1"><strong>可达性：</strong>${record.reachable || '未知'}</p>
+                                                        <p class="mb-1"><strong>错误信息：</strong>${record.error_message || '无'}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mb-4">
+                                            <h6 class="mb-3">端口信息</h6>
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <div class="port-info-card">
+                                                        <div class="stat-value">${record.up_interface || 0}</div>
+                                                        <div class="stat-label">UP端口</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="port-info-card">
+                                                        <div class="stat-value">${record.down_interface || 0}</div>
+                                                        <div class="stat-label">DOWN端口</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="port-info-card">
+                                                        <div class="stat-value">${record.total_interface || 0}</div>
+                                                        <div class="stat-label">总端口</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                            
+                                            <div class="mb-4">
+                                                <h6 class="mb-3">资源使用率</h6>
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <div class="stat-card text-center">
+                                                            <div class="stat-value">${record.CPU_usage || 'N/A'}</div>
+                                                            <div class="stat-label">CPU使用率</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="stat-card text-center">
+                                                            <div class="stat-value">${record.memory_usage || 'N/A'}</div>
+                                                            <div class="stat-label">内存使用率</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div>
+                                                <h6 class="mb-3">健康问题</h6>
+                                                <div class="bg-opacity-10 rounded-lg p-3" style="background-color: rgba(79, 70, 229, 0.1);">
+                                                    ${healthIssues.length > 0 ? 
+                                                        `<ul class="mb-0">${healthIssues.map(issue => `<li>${issue}</li>`).join('')}</ul>` : 
+                                                        '<p class="mb-0 text-muted">无健康问题</p>'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                    
+                                    historyHtml += recordHtml;
+                                });
+                                
+                                container.innerHTML = historyHtml;
+                            }
+                            
+                            modalInstances.healthCheckHistoryModal.show();
+                        })
+                        .catch(error => {
+                            console.error('获取健康检查历史失败:', error);
+                            const container = document.getElementById('healthCheckHistoryContainer');
+                            container.innerHTML = `<div class="text-center text-danger py-4"><small>获取历史记录失败：${error.message}</small></div>`;
+                            modalInstances.healthCheckHistoryModal.show();
+                        })
+                        .finally(() => {
+                            setTimeout(() => {
+                                btn.innerHTML = originalText;
+                                btn.disabled = false;
+                            }, 500);
+                        });
+                });
+            });
+
+            // 刷新历史记录按钮
+            document.getElementById('refreshHealthHistoryBtn').addEventListener('click', function() {
+                queryHealthHistory(false);
+            });
+
+            // 查询所有历史
+            document.getElementById('queryAllHealthHistoryBtn').addEventListener('click', function() {
+                queryHealthHistory(true);
+            });
+
+            // 核心查询方法
+            function queryHealthHistory(isQueryAll = false) {
+                const hostname = document.getElementById('healthCheckHistoryDeviceName').textContent;
+                const limit = isQueryAll ? 0 : parseInt(document.getElementById('healthHistoryLimit').value) || 10;
+                const days = isQueryAll ? 0 : parseInt(document.getElementById('healthHistoryDays').value) || 7;
+                const btn = isQueryAll ? document.getElementById('queryAllHealthHistoryBtn') : document.getElementById('refreshHealthHistoryBtn');
+                const originalText = btn.innerHTML;
+
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>查询中...';
+                btn.disabled = true;
+
+                // 构建API URL
+                const params = new URLSearchParams();
+                params.append('limit', limit);
+                params.append('days', days);
+                fetch(`/api/health/history/${hostname}?${params.toString()}`)
+                    .then(response => response.json().then(data => ({ response, data })))
+                    .then(({ response, data }) => {
+                        if (!response.ok) throw new Error(`请求失败，状态码：${response.status}`);
+                        if (data.status !== 'success') throw new Error(data.error_msg || '获取历史记录失败');
+                        
+                        const historyRecords = data.history || [];
+                        const container = document.getElementById('healthCheckHistoryContainer');
+
+                        if (historyRecords.length === 0) {
+                            container.innerHTML = `<div class="text-center text-muted py-4"><small>暂无健康检查历史记录</small></div>`;
+                        } else {
+                            // 生成历史记录HTML
+                            let historyHtml = '';
+                            historyRecords.forEach((record, index) => {
+                                // 确定状态样式
+                                let statusClass = 'bg-secondary';
+                                let statusText = '未知';
+                                if (record.status === 'healthy' || record.status === '在线') {
+                                    statusClass = 'bg-success';
+                                    statusText = '健康';
+                                } else if (record.status === 'degraded') {
+                                    statusClass = 'bg-warning';
+                                    statusText = '降级';
+                                } else if (record.status === 'failed' || record.status === '离线') {
+                                    statusClass = 'bg-danger';
+                                    statusText = '失败';
+                                }
+
+                                // 解析健康问题（如果是分号分隔的字符串）
+                                let healthIssues = [];
+                                if (record.device_health_issues) {
+                                    if (typeof record.device_health_issues === 'string') {
+                                        healthIssues = record.device_health_issues.split(';').filter(issue => issue.trim() !== '');
+                                    } else if (Array.isArray(record.device_health_issues)) {
+                                        healthIssues = record.device_health_issues;
+                                    }
+                                }
+
+                                // 生成单条记录HTML
+                                const recordHtml = `
+                                    <div class="health-check-card mb-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <h6 class="mb-0">检查记录 ${index + 1}</h6>
+                                                <small class="text-muted">${record.check_time || '未知时间'}</small>
+                                            </div>
+                                            <span class="badge ${statusClass}">${statusText}</span>
+                                        </div>
+                                        
+                                        <div class="mb-4">
+                                            <h6 class="mb-3">基本信息</h6>
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <p class="mb-1"><strong>设备名称：</strong>${record.device_name || '未知'}</p>
+                                                    <p class="mb-1"><strong>IP地址：</strong>${record.host || '未知'}</p>
+                                                    <p class="mb-1"><strong>版本信息：</strong>${record.version || '未知'}</p>
+                                                    <p class="mb-1"><strong>检查时间：</strong>${record.check_time || '未知'}</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <p class="mb-1"><strong>健康状态：</strong>${record.status || '未知'}</p>
+                                                    <p class="mb-1"><strong>检查状态：</strong>${record.check_status || '未知'}</p>
+                                                    <p class="mb-1"><strong>可达性：</strong>${record.reachable || '未知'}</p>
+                                                    <p class="mb-1"><strong>错误信息：</strong>${record.error_message || '无'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-4">
+                                            <h6 class="mb-3">端口信息</h6>
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <div class="port-info-card">
+                                                        <div class="stat-value">${record.up_interface || 0}</div>
+                                                        <div class="stat-label">UP端口</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="port-info-card">
+                                                        <div class="stat-value">${record.down_interface || 0}</div>
+                                                        <div class="stat-label">DOWN端口</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="port-info-card">
+                                                        <div class="stat-value">${record.total_interface || 0}</div>
+                                                        <div class="stat-label">总端口</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-4">
+                                            <h6 class="mb-3">资源使用率</h6>
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <div class="stat-card text-center">
+                                                        <div class="stat-value">${record.CPU_usage || 'N/A'}</div>
+                                                        <div class="stat-label">CPU使用率</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="stat-card text-center">
+                                                        <div class="stat-value">${record.memory_usage || 'N/A'}</div>
+                                                        <div class="stat-label">内存使用率</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div>
+                                            <h6 class="mb-3">健康问题</h6>
+                                            <div class="bg-opacity-10 rounded-lg p-3" style="background-color: rgba(79, 70, 229, 0.1);">
+                                                ${healthIssues.length > 0 ? 
+                                                    `<ul class="mb-0">${healthIssues.map(issue => `<li>${issue}</li>`).join('')}</ul>` : 
+                                                    '<p class="mb-0 text-muted">无健康问题</p>'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                                
+                                historyHtml += recordHtml;
+                            });
+                            
+                            container.innerHTML = historyHtml;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('刷新健康检查历史失败:', error);
+                        const container = document.getElementById('healthCheckHistoryContainer');
+                        container.innerHTML = `<div class="text-center text-danger py-4"><small>刷新历史记录失败：${error.message}</small></div>`;
+                    })
+                    .finally(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    });
+            }
+        }
+
+        // 5. 设备档案卡功能（创建+查看单卡+查看所有卡）
         function initDeviceCardFunction() {
             // 创建设备档案卡元素（公共方法，无重复）
             window.createDeviceCard = function(cardData) {
@@ -1510,31 +2453,50 @@
             });
 
             // 刷新备份历史
-            document.getElementById('refreshHistoryBtn').addEventListener('click', queryBackupHistory);
+            document.getElementById('refreshHistoryBtn').addEventListener('click', function() {
+                queryBackupHistory(false);
+            });
+
+            // 查询所有历史
+            document.getElementById('queryAllHistoryBtn').addEventListener('click', function() {
+                queryBackupHistory(true);
+            });
 
             // 核心查询方法
-            function queryBackupHistory() {
+            function queryBackupHistory(isQueryAll = false) {
                 if (!currentModalHostname) return;
 
                 const historyLimit = document.getElementById('historyLimit');
+                const historyDays = document.getElementById('historyDays');
                 const tableBody = document.getElementById('backupHistoryTableBody');
                 const countInfo = document.getElementById('historyCountInfo');
-                const refreshBtn = document.getElementById('refreshHistoryBtn');
+                const btn = isQueryAll ? document.getElementById('queryAllHistoryBtn') : document.getElementById('refreshHistoryBtn');
 
-                let limit = parseInt(historyLimit.value.trim());
-                if (isNaN(limit) || limit < 1 || limit > 100) {
+                let limit = isQueryAll ? 0 : parseInt(historyLimit.value.trim());
+                if (!isQueryAll && (isNaN(limit) || limit < 1 || limit > 100)) {
                     alert('请输入1-100之间的有效数字！');
                     historyLimit.value = 20;
                     limit = 20;
                 }
 
-                const originalBtnText = refreshBtn.innerHTML;
-                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>刷新中...';
-                refreshBtn.disabled = true;
+                let days = isQueryAll ? 0 : parseInt(historyDays.value.trim());
+                if (!isQueryAll && (isNaN(days) || days < 1 || days > 30)) {
+                    alert('请输入1-30之间的有效天数！');
+                    historyDays.value = 7;
+                    days = 7;
+                }
+
+                const originalBtnText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>查询中...';
+                btn.disabled = true;
                 tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-warning py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在查询备份历史...</td></tr>';
                 countInfo.textContent = '总记录数：查询中...';
 
-                const apiUrl = `/api/backup/history/${currentModalHostname}?limit=${limit}`;
+                // 构建API URL
+                const params = new URLSearchParams();
+                params.append('limit', limit);
+                params.append('days', days);
+                const apiUrl = `/api/backup/history/${currentModalHostname}?${params.toString()}`;
                 fetch(apiUrl)
                     .then(response => response.json().then(data => ({ response, data })))
                     .then(({ response, data }) => {
@@ -1559,7 +2521,7 @@
                                 `;
                                 tableBody.appendChild(tr);
                             });
-                            countInfo.textContent = `总记录数：${data.history_record || data.history.length} 条（当前查询${limit}条）`;
+                            countInfo.textContent = `总记录数：${data.history_record || data.history.length} 条（当前查询${isQueryAll ? '全部' : limit}条）`;
                         } else {
                             tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无备份历史记录</td></tr>';
                             countInfo.textContent = '总记录数：0 条';
@@ -1571,34 +2533,14 @@
                         console.error('备份历史查询异常：', error);
                     })
                     .finally(() => {
-                        refreshBtn.innerHTML = originalBtnText;
-                        refreshBtn.disabled = false;
+                        btn.innerHTML = originalBtnText;
+                        btn.disabled = false;
                     });
             }
         }
 
         // 6. AI备份报告生成功能
         function initAiReportFunction() {
-            // AI报告格式转换（修复正则漏洞）
-            function formatReportToHtml(rawText) {
-                if (!rawText || rawText.trim() === '') {
-                    return '<span class="report-empty">暂无有效备份数据可供分析</span>';
-                }
-
-                let html = rawText.trim();
-                html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-                html = html.replace(/<strong>(\d+\. .*?)<\/strong>/g, "<h3>$1</h3>");
-                html = html.replace(/\n\*   (.*?)(?=\n|$)/g, "\n<li>$1</li>");
-                html = html.replace(/(<li>.*?<\/li>)+/gs, "<ul>$&</ul>");
-                html = html.replace(/\n(\d+)\.  (.*?)(?=\n|$)/g, "\n<li>$2</li>");
-                html = html.replace(/(<li>.*?<\/li>)+/gs, "<ol>$&</ol>");
-                html = html.replace(/\*\((注：.*?)\)\*/g, "<p class='report-note'>$1</p>");
-                html = html.replace(/\n{2,}/g, "<br><br>");
-                html = html.replace(/\n/g, " ");
-
-                return `<div class="report-content-wrapper">${html}</div>`;
-            }
-
             // 生成AI报告按钮
             document.getElementById('generateReportBtn').addEventListener('click', function() {
                 const generateBtn = this;
@@ -1925,6 +2867,95 @@
 
             // 初始同步状态
             syncNornirSelectAllStatus();
+        }
+
+        // 初始化AI健康分析报告功能
+        function initAiHealthReportFunction() {
+            // 切换按钮事件监听器
+            document.getElementById('backupReportBtn').addEventListener('click', function() {
+                document.getElementById('backupReportBtn').classList.add('active');
+                document.getElementById('healthReportBtn').classList.remove('active');
+                document.getElementById('backupReportOptions').style.display = 'block';
+                document.getElementById('healthReportOptions').style.display = 'none';
+                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>';
+            });
+
+            document.getElementById('healthReportBtn').addEventListener('click', function() {
+                document.getElementById('healthReportBtn').classList.add('active');
+                document.getElementById('backupReportBtn').classList.remove('active');
+                document.getElementById('backupReportOptions').style.display = 'none';
+                document.getElementById('healthReportOptions').style.display = 'block';
+                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
+            });
+
+            // 生成健康分析AI报告按钮
+            document.getElementById('generateHealthReportBtn').addEventListener('click', function() {
+                const generateBtn = this;
+                const deviceInput = document.getElementById('healthReportDevice');
+                const daysInput = document.getElementById('healthReportDays');
+                const reportStatus = document.getElementById('report-status');
+                const reportContent = document.getElementById('aiReportContent');
+                const reportTime = document.getElementById('reportGenerateTime');
+
+                const device = deviceInput.value.trim();
+                let days = parseInt(daysInput.value.trim());
+
+                if (!device) {
+                    alert('请输入设备名称！');
+                    return;
+                }
+
+                if (isNaN(days) || days < 1 || days > 30) {
+                    alert('请输入1-30之间的有效天数！');
+                    daysInput.value = 7;
+                    return;
+                }
+
+                const originalBtnText = generateBtn.innerHTML;
+                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+                generateBtn.disabled = true;
+                reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI健康分析报告，请稍候...</span>';
+                reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
+                reportTime.textContent = '';
+
+                const apiUrl = `/api/health/ai/?device_name=${device}&days=${days}`;
+                fetch(apiUrl)
+                    .then(response => response.json().then(data => ({ response, data })))
+                    .then(({ response, data }) => {
+                        if (!response.ok) throw new Error(data.message || data.error_detail || `请求失败，状态码：${response.status}`);
+                        if (data.code === 200 && data.data && data.data !== '') {
+                            // 简单的HTML格式化
+                            let html = data.data.trim();
+                            html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+                            html = html.replace(/<strong>(\d+\. .*?)<\/strong>/g, "<h3>$1</h3>");
+                            html = html.replace(/\n\*   (.*?)(?=\n|$)/g, "\n<li>$1</li>");
+                            html = html.replace(/(<li>.*?<\/li>)+/gs, "<ul>$&</ul>");
+                            html = html.replace(/\n(\d+)\.  (.*?)(?=\n|$)/g, "\n<li>$2</li>");
+                            html = html.replace(/(<li>.*?<\/li>)+/gs, "<ol>$&</ol>");
+                            html = html.replace(/\*\((注：.*?)\)\*/g, "<p class='report-note'>$1</p>");
+                            html = html.replace(/\n{2,}/g, "<br><br>");
+                            html = html.replace(/\n/g, " ");
+                            
+                            reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
+                            reportContent.innerHTML = `<div class="report-content-wrapper">${html}</div>`;
+                            if (data.report_time) {
+                                reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
+                            }
+                        } else {
+                            reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
+                            reportContent.innerHTML = '<span class="report-empty">暂无有效健康数据可供分析</span>';
+                        }
+                    })
+                    .catch(error => {
+                        reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
+                        reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
+                        console.error('AI健康分析报告生成异常：', error);
+                    })
+                    .finally(() => {
+                        generateBtn.innerHTML = originalBtnText;
+                        generateBtn.disabled = false;
+                    });
+            });
         }
     </script>
 </body>

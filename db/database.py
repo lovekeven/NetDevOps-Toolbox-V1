@@ -10,6 +10,9 @@ import sqlite3
 import logging
 import json
 
+# 导入时间datetime模块，使记录可以按天数查询
+from datetime import timedelta
+
 DB_PATH = os.path.join(ROOT_DIR, "netdevops.db")
 logger = setup_logger("database.py", "database.log")
 
@@ -68,13 +71,24 @@ class DatabaseManager:
             # 健康检查记录表
             """
             CREATE TABLE IF NOT EXISTS health_check_records (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                hostname TEXT NOT NULL,
-                check_type TEXT NOT NULL,           -- 检查类型: ping/ssh/cpu/memory
-                result_json TEXT NOT NULL,          -- 检查结果（JSON格式）
-                status TEXT NOT NULL,               -- 状态: passed/failed
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (hostname) REFERENCES devices (hostname)
+            id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 数据库自增主键，唯一标识每条记录
+            -- 1:1对应base_result基础字段
+            host TEXT NOT NULL,                    -- 设备IP，对应base_result["host"]
+            device_name TEXT NOT NULL,             -- 设备名，对应base_result["device_name"]
+            version TEXT DEFAULT '未知',            -- 设备版本，对应base_result["version"]
+            check_time TEXT NOT NULL,              -- 检查时间，对应base_result["check_time"]（用你统一的字符串格式）
+            status TEXT DEFAULT 'unknown',         -- 健康状态，对应base_result["status"]（healthy/degraded/failed）
+            check_status TEXT DEFAULT '成功',      -- 检查执行状态，对应base_result["check_status"]（成功/失败）
+            -- 1:1对应base_result端口/性能字段
+            up_interface INTEGER DEFAULT 0,        -- UP端口数，对应base_result["up_interface"]（数字类型，适配计数）
+            down_interface INTEGER DEFAULT 0,      -- DOWN端口数，对应base_result["down_interface"]（数字类型）
+            total_interface INTEGER DEFAULT 0,     -- 总端口数，对应base_result["total_interface"]（数字类型）
+            CPU_usage TEXT DEFAULT 'N/A',          -- CPU使用率，对应base_result["CPU_usage"]（文本，兼容N/A/%值）
+            memory_usage TEXT DEFAULT 'N/A',       -- 内存使用率，对应base_result["memory_usage"]（文本）
+            -- 1:1对应base_result错误/问题/可达性字段（2个数据库适配调整）
+            error_message TEXT DEFAULT '',         -- 错误信息，对应base_result["error_message"]
+            device_health_issues TEXT DEFAULT '',  -- 健康问题列表（适配：列表转分号分隔字符串，如"端口down;CPU过高"）
+            reachable TEXT DEFAULT '可达'          -- 设备可达性（适配：布尔转文本，可达/不可达，对应base_result["reachable"]）
             );
             """,
             # 新增：系统指标表
@@ -179,7 +193,7 @@ class DatabaseManager:
             raise
 
     # 从数据库拿备份历史信息
-    def get_recent_backups(self, hostname=None, limit=10):
+    def get_recent_backups(self, hostname=None, limit=None, days=None):
         sql = """
         SELECT * FROM backup_records 
         WHERE 1=1
@@ -188,8 +202,14 @@ class DatabaseManager:
         if hostname:
             sql += " AND hostname = ?"
             params.append(hostname)
-        sql += " ORDER BY start_time DESC LIMIT ?"
-        params.append(limit)
+        if days and days > 0:
+            start_time = datetime.now() - timedelta(days=days)
+            sql += " AND start_time >= ?"
+            params.append(start_time.isoformat())
+        sql += " ORDER BY start_time DESC"
+        if limit and limit > 0:
+            sql += " LIMIT ?"
+            params.append(limit)
         cursor = self.conn.cursor()
         try:
             cursor.execute(sql, params)
@@ -204,6 +224,87 @@ class DatabaseManager:
             return records
         except sqlite3.Error as e:
             logger.error(f"查询备份记录失败: {e}")
+            raise
+
+    # 向健康检查表格填入数据
+    def log_check_device(self, adapted_result):
+        sql = """
+        INSERT INTO health_check_records 
+        (host, device_name, version, check_time, status, check_status,
+        up_interface, down_interface, total_interface, CPU_usage, memory_usage,
+        error_message, device_health_issues, reachable)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        # 对应SQL的字段值（顺序和SQL里的字段完全一致！）
+        values = (
+            adapted_result["host"],
+            adapted_result["device_name"],
+            adapted_result["version"],
+            adapted_result["check_time"],
+            adapted_result["status"],
+            adapted_result["check_status"],
+            adapted_result["up_interface"],
+            adapted_result["down_interface"],
+            adapted_result["total_interface"],
+            adapted_result["CPU_usage"],
+            adapted_result["memory_usage"],
+            adapted_result["error_message"],
+            adapted_result["device_health_issues"],
+            adapted_result["reachable"],
+        )
+        cursor = self.conn.cursor()
+        try:
+            # 连接数据库（SQLite自动创建连接，增删改查后必须提交+关闭）
+
+            cursor.execute(sql, values)
+            self.conn.commit()  # 提交事务（关键！不提交数据不会真正写入）
+            logger.info(f"设备[{adapted_result['device_name']}]健康检查历史数据入库成功！")
+            return True
+        except Exception as e:
+            logger.error(f"设备[{adapted_result['device_name']}]历史数据入库失败：{str(e)}")
+            self.conn.rollback()
+            return False
+
+    # 从数据库拿历史健康检查状态信息
+    def get_health_check_history(self, device_name=None, limit=None, days=None):
+        """
+        查询健康检查历史记录，适配健康检查历史表health_check_records
+        :param device_name: 设备名（可选，不传查所有设备，传则精准查单设备）
+        :param limit: 返回最新的N条记录，默认10条
+        :return: 健康检查历史记录列表（字典格式）
+        """
+        # 基础SQL，WHERE 1=1方便拼接条件
+        sql = """
+        SELECT * FROM health_check_records 
+        WHERE 1=1
+        """
+        params = []
+        # 拼接设备名条件（精准查单设备，适配档案卡单独的历史按钮）
+        if device_name:
+            sql += " AND device_name = ?"
+            params.append(device_name)
+        if days and days > 0:
+            start_time = datetime.now() - timedelta(days=days)
+            sql += " AND check_time >= ?"
+            params.append(start_time.isoformat())
+        # 按检查时间倒序，限制返回条数（最新的在最前面）
+        sql += " ORDER BY check_time DESC"
+        if limit and limit > 0:
+            sql += " LIMIT ?"
+            params.append(limit)
+        cursor = self.conn.cursor()
+        try:
+            # 执行查询，参数化防SQL注入
+            cursor.execute(sql, params)
+            results = cursor.fetchall()
+            # 把查询结果转成字典（和备份历史一致的格式）
+            records = [dict(record) for record in results]
+            # 日志打印查询结果数
+            logger.debug(f"成功查询到{len(records)}条健康检查历史记录")
+            return records
+        except sqlite3.Error as e:
+            # 异常日志+抛错，和备份历史的异常处理一致
+            logger.error(f"查询健康检查历史记录失败: {e}")
             raise
 
     # 往空白表里填单条档案卡数据

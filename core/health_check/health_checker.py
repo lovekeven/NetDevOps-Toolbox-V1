@@ -14,6 +14,9 @@ logger = setup_logger("netdevops_health_check", "health_check.log")
 from datetime import datetime
 from utils.models import get_global_physical_cards
 
+# 引入数据库
+from db.database import db_manager
+
 
 # 第一步：定义可以读取yml文件的函数
 def read_devices_yml(filename=CONFIG_PATH, yaml_connect=None):
@@ -128,6 +131,27 @@ def check_device_version(connections):
 
 # 第五步对单个设备进行检查（改造后：绑定全局卡片+统一样式，对齐并发框架）
 def check_single_device(device_info):
+    # 新增1：定义适配函数（放在函数最上方，成功/失败分支均可调用）
+    def adapt_db_data(original_result):
+        """健康检查结果适配：列表→字符串，布尔→文本，适配数据库TEXT/INTEGER字段"""
+        adapted_result = original_result.copy()
+        # 1. 健康问题列表→分号分隔字符串（适配device_health_issues TEXT字段）
+        if isinstance(adapted_result.get("device_health_issues"), list):
+            adapted_result["device_health_issues"] = ";".join(adapted_result["device_health_issues"])
+        if not adapted_result.get("device_health_issues"):
+            adapted_result["device_health_issues"] = "无"
+        # 2. 可达性布尔→文本（适配reachable TEXT字段：可达/不可达）
+        if isinstance(adapted_result.get("reachable"), bool):
+            adapted_result["reachable"] = "可达" if adapted_result["reachable"] else "不可达"
+        # 3. 数字字段兜底（防止传非int，适配up/down/total_interface INTEGER字段）
+        for key in ["up_interface", "down_interface", "total_interface"]:
+            if adapted_result.get(key) is not None:
+                try:
+                    adapted_result[key] = int(adapted_result[key])
+                except (ValueError, TypeError):
+                    adapted_result[key] = 0
+        return adapted_result
+
     logger.info(f"正在连接设备{device_info['host']}......")
     connections = None
     # 1. 初始化结果字典：补check_time（并发框架必带），字段和并发完全对齐，保留你的原有字段
@@ -253,6 +277,8 @@ def check_single_device(device_info):
                 # 补更：从列表拼接错误信息，和并发一致
             }
         )
+        # 检查结果插入数据库
+        db_manager.log_check_device(results)
         if current_card:  # 只有匹配到卡片才更新
             current_card.update(results)
             logger.info(f"已经成功更新{current_card.name}({current_card.ip_address}的档案卡片！)")
@@ -302,6 +328,9 @@ def check_single_device(device_info):
                 "error_message": err_detail,
             }
         )
+        logger.error("准备执行健康检查失败记录入库...")
+        db_manager.log_check_device(results)
+        logger.error("健康检查失败记录入库执行完成，准备更新卡片...")
         if current_card:  # 只有匹配到卡片才更新
             current_card.update(results)
             logger.info(f"已经更新{current_card.name}的健康档案卡片")

@@ -9,6 +9,9 @@ from nornir_netmiko import netmiko_send_command
 from datetime import datetime
 from utils.models import get_global_physical_cards
 
+# 导入数据库
+from db.database import db_manager
+
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(ROOT_DIR)
@@ -19,6 +22,25 @@ logger = setup_logger("nornir_tasks", "nornir_tasks.log")
 
 # 第二步：定义一个检查健康的主任务，分两个子任务,对一个设备进行检查
 def check_devices_health(task: Task) -> Result:
+    def adapt_db_data(original_result):
+        """健康检查结果适配：列表→字符串，布尔→文本，适配数据库TEXT/INTEGER字段"""
+        adapted_result = original_result.copy()
+        # 1. 健康问题列表→分号分隔字符串（适配device_health_issues TEXT字段）
+        if isinstance(adapted_result.get("device_health_issues"), list):
+            adapted_result["device_health_issues"] = ";".join(adapted_result["device_health_issues"])
+        if not adapted_result.get("device_health_issues"):
+            adapted_result["device_health_issues"] = "无"
+        # 2. 可达性布尔→文本（适配reachable TEXT字段：可达/不可达）
+        if isinstance(adapted_result.get("reachable"), bool):
+            adapted_result["reachable"] = "可达" if adapted_result["reachable"] else "不可达"
+        # 3. 数字字段兜底（防止传非int，适配up/down/total_interface INTEGER字段）
+        for key in ["up_interface", "down_interface", "total_interface"]:
+            if adapted_result.get(key) is not None:
+                try:
+                    adapted_result[key] = int(adapted_result[key])
+                except (ValueError, TypeError):
+                    adapted_result[key] = 0
+        return adapted_result
     device_name = task.host.name  # 这个助手已经拿到档案卡片了，控制台已经把host实例绑定到助手上面了
     device_ip = task.host.hostname  # 从host实例中提取IP地址
     logger.info(f"正在检查设备{device_name}   ({device_ip})的健康状态.....")
@@ -181,6 +203,9 @@ def check_devices_health(task: Task) -> Result:
         #     if device_health_issues != ["无"]
         #     else base_result["error_message"]
         # )
+        # 5. 数据库日志记录（适配数据库字段类型）
+        base_result = adapt_db_data(base_result)
+        db_manager.log_check_device(base_result)
         if current_card:  # 匹配到卡片才更新，避免报错
             current_card.update(base_result)
             logger.info(f"已经成功更新{device_name}({device_ip}的档案卡片！)")
@@ -234,6 +259,9 @@ def check_devices_health(task: Task) -> Result:
                 "device_health_issues": ["无"],
             }
         )
+        # 5. 数据库日志记录（适配数据库字段类型）
+        base_result = adapt_db_data(base_result)
+        db_manager.log_check_device(base_result)
         if current_card:
             current_card.update(base_result)
             logger.info(f"已经成功更新{device_name}({device_ip}的档案卡片！)")
