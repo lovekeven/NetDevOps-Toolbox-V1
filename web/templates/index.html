@@ -460,17 +460,70 @@
         }
 
         .ai-report-container {
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
             background-color: var(--background-color);
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            padding: 1rem;
+            padding: 1.5rem;
             transition: var(--transition);
+            box-shadow: var(--shadow-sm);
         }
 
         .ai-report-container:hover {
             border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+        }
+
+        .report-content-wrapper {
+            line-height: 1.6;
+        }
+
+        .report-content-wrapper h3 {
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .report-content-wrapper ul,
+        .report-content-wrapper ol {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .report-content-wrapper li {
+            margin-bottom: 0.5rem;
+        }
+
+        .report-note {
+            background-color: rgba(79, 70, 229, 0.1);
+            border-left: 4px solid var(--primary-color);
+            padding: 0.75rem 1rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+        }
+
+        .report-empty {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .email-send-success {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* AI报告样式 */
@@ -891,6 +944,18 @@
                         
                         <div class="ai-report-container" id="aiReportContent">
                             <span class="text-muted text-center d-block py-4">暂无报告内容，请先生成</span>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button id="sendEmailBtn" class="btn btn-sm btn-outline-primary me-2" disabled>
+                                <i class="fas fa-envelope me-1"></i>发送到邮箱
+                            </button>
+                            <div id="reportReminders" class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>AI报告有效期：30分钟
+                                    <span id="autoSendReminder" class="ms-3"></span>
+                                </small>
+                            </div>
                         </div>
                         
                         <div class="mt-2 small text-muted" id="reportGenerateTime"></div>
@@ -1367,9 +1432,13 @@
                 const reportStatus = document.getElementById('report-status');
                 const reportContent = document.getElementById('aiReportContent');
                 const reportTime = document.getElementById('reportGenerateTime');
+                const sendEmailBtn = document.getElementById('sendEmailBtn');
                 reportStatus.innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
                 reportContent.innerHTML = '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成报告」按钮获取AI健康分析报告</div>';
                 reportTime.textContent = '';
+                sendEmailBtn.disabled = true;
+                // 清除自动发送提醒
+                document.getElementById('autoSendReminder').innerHTML = '';
             });
 
             document.getElementById('allDevicesBtn').addEventListener('click', function() {
@@ -1380,9 +1449,52 @@
                 const reportStatus = document.getElementById('report-status');
                 const reportContent = document.getElementById('aiReportContent');
                 const reportTime = document.getElementById('reportGenerateTime');
+                const sendEmailBtn = document.getElementById('sendEmailBtn');
                 reportStatus.innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
                 reportContent.innerHTML = '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成报告」按钮获取AI健康分析报告</div>';
                 reportTime.textContent = '';
+                sendEmailBtn.disabled = true;
+                // 添加自动发送提醒
+                document.getElementById('autoSendReminder').innerHTML = '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱';
+            });
+
+            // 备份报告和健康报告切换按钮
+            document.getElementById('backupReportBtn').addEventListener('click', function() {
+                document.getElementById('backupReportBtn').classList.add('active');
+                document.getElementById('healthReportBtn').classList.remove('active');
+                document.getElementById('backupReportOptions').style.display = 'block';
+                document.getElementById('healthReportOptions').style.display = 'none';
+                const reportStatus = document.getElementById('report-status');
+                const reportContent = document.getElementById('aiReportContent');
+                const reportTime = document.getElementById('reportGenerateTime');
+                const sendEmailBtn = document.getElementById('sendEmailBtn');
+                reportStatus.innerHTML = '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>';
+                reportContent.innerHTML = '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成AI报告」按钮获取运维摘要</div>';
+                reportTime.textContent = '';
+                sendEmailBtn.disabled = true;
+                // 添加自动发送提醒
+                document.getElementById('autoSendReminder').innerHTML = '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱';
+            });
+
+            document.getElementById('healthReportBtn').addEventListener('click', function() {
+                document.getElementById('healthReportBtn').classList.add('active');
+                document.getElementById('backupReportBtn').classList.remove('active');
+                document.getElementById('backupReportOptions').style.display = 'none';
+                document.getElementById('healthReportOptions').style.display = 'block';
+                const reportStatus = document.getElementById('report-status');
+                const reportContent = document.getElementById('aiReportContent');
+                const reportTime = document.getElementById('reportGenerateTime');
+                const sendEmailBtn = document.getElementById('sendEmailBtn');
+                reportStatus.innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
+                reportContent.innerHTML = '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成报告」按钮获取健康分析</div>';
+                reportTime.textContent = '';
+                sendEmailBtn.disabled = true;
+                // 根据当前选择的设备类型显示相应的提醒
+                if (document.getElementById('allDevicesBtn').classList.contains('active')) {
+                    document.getElementById('autoSendReminder').innerHTML = '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱';
+                } else {
+                    document.getElementById('autoSendReminder').innerHTML = '';
+                }
             });
 
             // 重新绑定生成健康分析AI报告按钮事件
@@ -1393,9 +1505,12 @@
                 const reportStatus = document.getElementById('report-status');
                 const reportContent = document.getElementById('aiReportContent');
                 const reportTime = document.getElementById('reportGenerateTime');
+                const sendEmailBtn = document.getElementById('sendEmailBtn');
 
                 let days = parseInt(daysInput.value.trim());
                 let apiUrl = '';
+                let device = '';
+                let reportType = '';
 
                 if (isNaN(days) || days < 1 || days > 30) {
                     alert('请输入1-30之间的有效天数！');
@@ -1407,14 +1522,16 @@
                 const isSingleDevice = document.getElementById('singleDeviceBtn').classList.contains('active');
 
                 if (isSingleDevice) {
-                    const device = deviceInput.value.trim();
+                    device = deviceInput.value.trim();
                     if (!device) {
                         alert('请输入设备名称！');
                         return;
                     }
                     apiUrl = `/api/health/ai/?device_name=${device}&days=${days}`;
+                    reportType = 'health_single';
                 } else {
                     apiUrl = `/api/health/ai/all/?days=${days}`;
+                    reportType = 'health_all';
                 }
 
                 const originalBtnText = generateBtn.innerHTML;
@@ -1423,6 +1540,7 @@
                 reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI健康分析报告，请稍候...</span>';
                 reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
                 reportTime.textContent = '';
+                sendEmailBtn.disabled = true;
 
                 fetch(apiUrl)
                     .then(response => response.json().then(data => ({ response, data })))
@@ -1446,19 +1564,79 @@
                             if (data.report_time) {
                                 reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
                             }
+                            sendEmailBtn.disabled = false;
+                            sendEmailBtn.dataset.days = days;
+                            sendEmailBtn.dataset.reportType = reportType;
+                            if (isSingleDevice) {
+                                sendEmailBtn.dataset.deviceName = device;
+                            }
                         } else {
                             reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
                             reportContent.innerHTML = '<span class="report-empty">暂无有效健康数据可供分析</span>';
+                            sendEmailBtn.disabled = true;
                         }
                     })
                     .catch(error => {
                         reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
                         reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
                         console.error('AI健康分析报告生成异常：', error);
+                        sendEmailBtn.disabled = true;
                     })
                     .finally(() => {
                         generateBtn.innerHTML = originalBtnText;
                         generateBtn.disabled = false;
+                    });
+
+            // 发送邮件按钮
+            document.getElementById('sendEmailBtn').addEventListener('click', function() {
+                const sendBtn = this;
+                const reportType = sendBtn.dataset.reportType;
+                const days = sendBtn.dataset.days;
+                const deviceName = sendBtn.dataset.deviceName;
+                const reportStatus = document.getElementById('report-status');
+
+                let apiUrl = '';
+                let requestData = { days: parseInt(days) };
+
+                if (reportType === 'backup') {
+                    apiUrl = '/api/backup_record/ai/email/send';
+                } else if (reportType === 'health_single') {
+                    apiUrl = '/api/health/ai/email/send';
+                    requestData.device_name = deviceName;
+                } else if (reportType === 'health_all') {
+                    apiUrl = '/api/health/ai/all/email/send';
+                }
+
+                const originalBtnText = sendBtn.innerHTML;
+                sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>发送中...';
+                sendBtn.disabled = true;
+
+                fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                })
+                    .then(response => response.json().then(data => ({ response, data })))
+                    .then(({ response, data }) => {
+                        if (!response.ok) throw new Error(data.message || `请求失败，状态码：${response.status}`);
+                        if (data.code === 200 && data.send_status === 'success') {
+                            reportStatus.innerHTML = `<span class="text-success"><i class="fas fa-envelope me-1"></i>邮件发送成功！</span>`;
+                            setTimeout(() => {
+                                reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>报告已发送至指定邮箱</span>';
+                            }, 3000);
+                        } else {
+                            throw new Error(data.message || '邮件发送失败');
+                        }
+                    })
+                    .catch(error => {
+                        reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>邮件发送失败！</span>`;
+                        console.error('邮件发送异常：', error);
+                    })
+                    .finally(() => {
+                        sendBtn.innerHTML = originalBtnText;
+                        sendBtn.disabled = false;
                     });
             });
         });
@@ -1738,8 +1916,6 @@
                         generateBtn.disabled = false;
                     });
             });
-        });
-        });
         }
 
         // 初始化API状态检查按钮
@@ -2548,6 +2724,7 @@
                 const reportStatus = document.getElementById('report-status');
                 const reportContent = document.getElementById('aiReportContent');
                 const reportTime = document.getElementById('reportGenerateTime');
+                const sendEmailBtn = document.getElementById('sendEmailBtn');
 
                 let days = parseInt(daysInput.value.trim());
                 if (isNaN(days) || days < 1 || days > 30) {
@@ -2562,6 +2739,7 @@
                 reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI运维报告，请稍候...</span>';
                 reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
                 reportTime.textContent = '';
+                sendEmailBtn.disabled = true;
 
                 const apiUrl = `/api/backup_record/ai/?days=${days}`;
                 fetch(apiUrl)
@@ -2574,15 +2752,20 @@
                             if (data.report_time) {
                                 reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
                             }
+                            sendEmailBtn.disabled = false;
+                            sendEmailBtn.dataset.days = days;
+                            sendEmailBtn.dataset.reportType = 'backup';
                         } else {
                             reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
                             reportContent.innerHTML = '<span class="report-empty">暂无有效备份数据可供分析</span>';
+                            sendEmailBtn.disabled = true;
                         }
                     })
                     .catch(error => {
                         reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
                         reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
                         console.error('AI报告生成异常：', error);
+                        sendEmailBtn.disabled = true;
                     })
                     .finally(() => {
                         generateBtn.innerHTML = originalBtnText;
@@ -2773,10 +2956,9 @@
                 this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
                 this.disabled = true;
 
-                // 用URLSearchParams拼接参数，避免特殊字符报错
-                const params = new URLSearchParams();
-                selectedDevices.forEach(device => params.append('devices', device));
-                const apiUrl = `/api/health/nornir-check?${params.toString()}`;
+                // 用逗号分隔的字符串发送设备列表，确保后端能正确处理多个设备
+                const devicesParam = selectedDevices.join(',');
+                const apiUrl = `/api/health/nornir-check?devices=${encodeURIComponent(devicesParam)}`;
 
                 fetch(apiUrl)
                     .then(response => response.json().then(data => ({ response, data })))
@@ -2878,6 +3060,7 @@
                 document.getElementById('backupReportOptions').style.display = 'block';
                 document.getElementById('healthReportOptions').style.display = 'none';
                 document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>';
+                document.getElementById('autoSendReminder').innerHTML = '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱';
             });
 
             document.getElementById('healthReportBtn').addEventListener('click', function() {
@@ -2886,6 +3069,21 @@
                 document.getElementById('backupReportOptions').style.display = 'none';
                 document.getElementById('healthReportOptions').style.display = 'block';
                 document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
+            });
+
+            // 单个设备/所有设备切换按钮
+            document.getElementById('singleDeviceBtn').addEventListener('click', function() {
+                document.getElementById('singleDeviceBtn').classList.add('active');
+                document.getElementById('allDevicesBtn').classList.remove('active');
+                document.getElementById('singleDeviceInput').style.display = 'block';
+                document.getElementById('autoSendReminder').innerHTML = '';
+            });
+
+            document.getElementById('allDevicesBtn').addEventListener('click', function() {
+                document.getElementById('allDevicesBtn').classList.add('active');
+                document.getElementById('singleDeviceBtn').classList.remove('active');
+                document.getElementById('singleDeviceInput').style.display = 'none';
+                document.getElementById('autoSendReminder').innerHTML = '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱';
             });
 
             // 生成健康分析AI报告按钮

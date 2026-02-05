@@ -21,16 +21,16 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 
 
-class EmailAIAuto:
-    def __init__(self, smtp_server, smtp_port, smtp_emali, smtp_password):
+class EmailSender:
+    def __init__(self, smtp_server, smtp_port, smtp_email, smtp_password):
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
-        self.smtp_email = smtp_emali
+        self.smtp_email = smtp_email
         self.smtp_password = smtp_password
         logger.info("与邮件服务器连接初始化完成")
 
     # 核心方法
-    def ai_report_to_email(self, ai_report, recipient_emails, report_type="健康"):
+    def ai_report_to_email(self, ai_report, recipient_emails, report_type=None):
         # 尝试封装正文对象建立连接
         try:
             msg = MIMEMultipart("alternative")  # 信封支持多种格式的转换
@@ -57,7 +57,7 @@ class EmailAIAuto:
                 </style>
             </head>
             <body>
-                <h2>📋 设备{report_type}AI分析周报</h2>
+                <h2>📋 设备{report_type}AI分析报告</h2>
                 <p class="generate-time"><strong>生成时间：</strong>{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
                 <hr>
                 <!-- AI生成的报告内容，直接展示，保留所有原有排版 -->
@@ -70,7 +70,7 @@ class EmailAIAuto:
 
             # 3. 生成纯文本格式正文（备用，防止极少数邮箱不支持HTML）
             text_content = f"""
-【设备{report_type}AI周报】
+【设备{report_type}AI分析报告】
 生成时间：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 ——————————————————
 {ai_report}

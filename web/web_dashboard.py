@@ -1,8 +1,8 @@
-from ast import Global
 from datetime import datetime
 import sys
 import os
-from unittest import result
+
+import requests
 
 print(f"当前Python路径：{sys.executable}")
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -37,6 +37,15 @@ from core.hybrid_manager.hybrid_manager import HybridResourceManager
 hybrid_manager = HybridResourceManager(cloud_mode="simulated")
 # 引入全局的物理设备档案卡
 from utils.models import get_global_physical_cards
+
+# 引入邮件发送器（类）
+from utils.email_sender import EmailSender
+
+# 引入发送邮箱的配置文件
+from config import emali_config
+
+# 引入定时发送任务的核心类
+from apscheduler.schedulers.background import BackgroundScheduler
 
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
@@ -233,6 +242,9 @@ def backup_history(device_name=None):
 
 
 # 第五个API接口调用Deepseek大模型
+ALL_BACKUP_REPORT_CACHE = {}
+
+
 @app.route("/api/backup_record/ai/")
 def ai_report_about_backup():
     if deepseek_assistant is None:
@@ -245,6 +257,11 @@ def ai_report_about_backup():
         days = request.args.get("days", default=7, type=int)
         report = deepseek_assistant.get_deepseek_content(days=days)
         logger.info("AI报告接口调用成功，报告生成完成")
+        cache_key = f"days_{days}"
+        ALL_BACKUP_REPORT_CACHE[cache_key] = {
+            "report_content": report,
+            "create_time": datetime.now().timestamp(),
+        }
         # 3. 成功返回（统一格式）
         return (
             jsonify(
@@ -266,6 +283,76 @@ def ai_report_about_backup():
             jsonify(
                 {"code": 500, "message": "Deepseek调用失败", "data": None, "error_detail": "服务端处理异常，请稍后重试"}
             ),
+            500,
+        )
+
+
+@app.route("/api/backup_record/ai/email/send", methods=["POST"])
+def send_backup_email():
+    if deepseek_assistant is None:
+        logger.error("AI报告接口调用失败：deepseek_assistant 未初始化（API Key错误）")
+        return (
+            jsonify({"code": 500, "message": "Deepseek调用失败,请查看API key", "data": None, "deepseek_status": "N/A"}),
+            500,
+        )
+    try:
+        try:
+            datas = request.get_json(force=True, silent=False)
+            logger.info("成功解析请求体的内容！")
+        except Exception as e:
+            logger.error(f"解析请求体失败 {e}")
+            return (
+                jsonify({"code": 400, "message": "请求参数错误，请传入合法的JSON数据", "send_status": "fail"}),
+                400,
+            )
+        days = datas.get("days", request.args.get("days", default=7, type=int))
+        cache_key = f"days_{days}"
+        # 判断缓存字典里面是否有这个参数
+        if cache_key not in ALL_BACKUP_REPORT_CACHE:
+            logger.error(f"发送邮件失败！请先生成近{days}天的AI报告！")
+            return (
+                jsonify(
+                    {"code": 404, "message": f"未找到近{days}天的AI报告，请先生成报告再发送", "send_status": "fail"}
+                ),
+                404,
+            )
+        # 判断是否过期
+        now_timestamp = datetime.now().timestamp()
+        if now_timestamp - ALL_BACKUP_REPORT_CACHE[cache_key]["create_time"] > CACHE_EXPIRE_SECONDS:
+            del ALL_BACKUP_REPORT_CACHE[cache_key]  # 删除缓存内容
+            logger.error(f"发送邮件失败!,已经超过30分钟!请重新获取AI报告内容")
+            return (
+                jsonify(
+                    {"code": 409, "message": f"AI报告已过期（超过30分钟），请重新生成后再发送", "send_status": "fail"}
+                ),
+                409,  # 缓存过期应该用409 冲突
+            )
+        # 满足以上两个条件可以发送邮箱了
+        data = ALL_BACKUP_REPORT_CACHE[cache_key]["report_content"]
+        email_sendor = EmailSender(**emali_config.SMTP_CONFIG)
+        email_sendor.ai_report_to_email(
+            ai_report=data,
+            recipient_emails=emali_config.RECIPIENT_EMAILS,
+            report_type=f"所有设备近{days}的备份情况AI报告",
+        )
+        logger.info(f"全网设备近{days}天备份AI报告发送邮箱成功，收件人：{emali_config.RECIPIENT_EMAILS}")
+        return (
+            jsonify(
+                {
+                    "code": 200,
+                    "message": "全网备份AI报告已成功发送至指定邮箱",
+                    "send_status": "success",
+                    "report_days": days,
+                    "recipient_count": len(emali_config.RECIPIENT_EMAILS),
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        error_msg = str(e)[:200]
+        logger.error(f"全网备份AI报告发送邮箱失败：{error_msg}")
+        return (
+            jsonify({"code": 500, "message": "AI报告发送邮箱失败", "send_status": "fail", "error_detail": error_msg}),
             500,
         )
 
@@ -711,7 +798,13 @@ def get_device_health_history(device_name=None):
             ),
             500,
         )
-#第十九个API接口：用AI分析单个设备健康检查结果
+
+
+# 第十九个API接口：用AI分析单个设备健康检查结果
+ALONE_HEALTH_REPORT_CACHE = {}
+
+
+# CACHE_EXPIRE_SECONDS = 1800 这个是全局变量不用重复定义
 @app.route("/api/health/ai/")
 def ai_report_about_health():
     if deepseek_assistant is None:
@@ -738,6 +831,12 @@ def ai_report_about_health():
         device_name = device_name.strip().upper() if device_name else None
         report = deepseek_assistant.get_deepseek_to_device_health(days=days, device_name=device_name)
         logger.info("AI报告接口调用成功，报告生成完成")
+        cache_key = f"device_{device_name}"
+        ALONE_HEALTH_REPORT_CACHE[cache_key] = {
+            "report_content": report,
+            "create_time": datetime.now().timestamp(),  # 时间戳：方便判断是否过期
+            "days": days,
+        }
         # 3. 成功返回（统一格式）
         return (
             jsonify(
@@ -761,7 +860,100 @@ def ai_report_about_health():
             ),
             500,
         )
-#第二十个API接口，让AI分析所有的设备的健康状态
+
+
+@app.route("/api/health/ai/email/send", methods=["POST"])
+def send_single_device_to_email():
+    if deepseek_assistant is None:
+        logger.error("AI报告接口调用失败：deepseek_assistant 未初始化（API Key错误）")
+        return (
+            jsonify({"code": 500, "message": "Deepseek调用失败,请查看API key", "data": None, "deepseek_status": "N/A"}),
+            500,
+        )
+    try:
+        # 先获取参数
+        try:  # 前端把存好的天数，当作请求体发送给后端
+            datas = request.get_json(force=True, silent=False)
+            logger.info("已经成功解析请求体数据！")
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"解析前端请求体数据失败{error_msg[:100]}")
+            return (
+                jsonify({"code": 400, "message": "请求参数错误，请传入合法的JSON数据", "send_status": "fail"}),
+                400,
+            )
+        days = datas.get("days", request.args.get("days", default=7, type=int))
+        device_name_way = request.args.get("device_name", default="", type=str)
+        device_name = datas.get("device_name", device_name_way.strip().upper())
+        cache_key = f"device_{device_name}"
+        # 判断缓存字典里有没有这个设备的AI报告
+        if cache_key not in ALONE_HEALTH_REPORT_CACHE:
+            logger.error(f"发送邮件失败！请先生成{device_name}的AI报告！")
+            return (
+                jsonify(
+                    {"code": 404, "message": f"未找到{device_name}的AI报告，请先生成报告再发送", "send_status": "fail"}
+                ),
+                404,
+            )
+        # 判断生成AI报告的设备天数，和该缓存字典里面的设备天数是否一致
+        if (
+            days != ALONE_HEALTH_REPORT_CACHE[cache_key]["days"]
+        ):  # 缓存里的days是数字类型（7/15/30），in是用来判断 “成员是否在列表 / 字典 / 字符串中” 的，用days not in 数字会直接报错：
+            logger.error(f"发送邮件失败！请重新设置天数，生成后再发送！")
+            return (
+                jsonify(
+                    {"code": 404, "message": f"未找到近{days}天的AI报告，请先生成报告再发送", "send_status": "fail"}
+                ),
+                404,
+            )
+        # 判断是否缓存字典里面的内容是否过期
+        data = ALONE_HEALTH_REPORT_CACHE[cache_key]
+        now_timestamp = datetime.now().timestamp()
+        if now_timestamp - data["create_time"] > CACHE_EXPIRE_SECONDS:
+            del ALONE_HEALTH_REPORT_CACHE[cache_key]  # 删除缓存内容
+            logger.error(f"发送邮件失败!,已经超过30分钟!请重新获取AI报告内容")
+            return (
+                jsonify(
+                    {"code": 409, "message": f"AI报告已过期（超过30分钟），请重新生成后再发送", "send_status": "fail"}
+                ),
+                409,  # 缓存过期应该用409 冲突
+            )
+        # 完成上面三个条件，才可以发送邮箱
+        email_sendor = EmailSender(**emali_config.SMTP_CONFIG)
+        logger.info(f"与邮箱服务器建立连接成功")
+        email_sendor.ai_report_to_email(
+            ai_report=data["report_content"],
+            recipient_emails=emali_config.RECIPIENT_EMAILS,
+            report_type=f"设备{device_name},近{days}的健康检查历史AI报告",
+        )
+        logger.info(f"设备{device_name}近{days}天健康AI报告发送邮箱成功，收件人：{emali_config.RECIPIENT_EMAILS}")
+        return (
+            jsonify(
+                {
+                    "code": 200,
+                    "message": f"设备{device_name}健康AI报告已成功发送至指定邮箱",
+                    "send_status": "success",
+                    "devices": device_name,
+                    "report_days": days,
+                    "recipient_count": len(emali_config.RECIPIENT_EMAILS),
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        error_msg = str(e)[:200]
+        logger.error(f"设备{device_name}健康AI报告发送邮箱失败：{error_msg}")
+        return (
+            jsonify({"code": 500, "message": "AI报告发送邮箱失败", "send_status": "fail", "error_detail": error_msg}),
+            500,
+        )
+
+
+# 第二十个API接口，让AI分析所有的设备的健康状态
+ALL_HEALTH_REPORT_CACHE = {}
+CACHE_EXPIRE_SECONDS = 1800
+
+
 @app.route("/api/health/ai/all/")
 def ai_health_weekly_report():
     # 复用单设备接口的前置校验逻辑
@@ -775,6 +967,12 @@ def ai_health_weekly_report():
         days = request.args.get("days", default=7, type=int)
         # 调用全设备周报AI分析方法
         health_report = deepseek_assistant.get_deepseek_all_device_health_weekly(days=days)
+        cache_key = f"days_{days}"
+        # 3. 存入缓存：值为「报告内容+生成时间戳」，用于后续判断过期
+        ALL_HEALTH_REPORT_CACHE[cache_key] = {
+            "report_content": health_report,
+            "create_time": datetime.now().timestamp(),  # 时间戳：方便判断是否过期
+        }
         logger.info(f"全网设备近{days}天健康AI报告接口调用成功，报告生成完成")
         # 统一返回格式（和单设备一致，含report_time）
         return (
@@ -800,11 +998,141 @@ def ai_health_weekly_report():
                     "message": "Deepseek调用失败",
                     "data": None,
                     "deepseek_status": "error",
-                    "error_detail": "服务端处理异常，请稍后重试"
+                    "error_detail": "服务端处理异常，请稍后重试",
                 }
             ),
             500,
         )
+
+
+@app.route("/api/health/ai/all/email/send", methods=["POST"])
+def ai_health_weekly_report_send_email():
+    if deepseek_assistant is None:
+        logger.error(f"调用AI大模型失败，未成功获取AI生成的报告，请查看相关的APIkey")
+        return (
+            jsonify({"code": 500, "message": "Deepseek调用失败,请查看API key", "data": None, "deepseek_status": "N/A"}),
+            500,
+        )
+    try:
+        # 先取出来days参数判断缓存字典里面有没有
+        try:
+            datas = request.get_json(force=True, silent=False)  # 漏写请求体类型强制解析，传入非法JSON立马报错
+            # 没有传入请求体也会强制解析，所以要用一个try语句防止出现错误
+        except Exception as e:
+            logger.error(f"解析请求体失败：前端未传入合法的JSON数据，错误信息：{str(e)[:100]}")
+            return (
+                jsonify({"code": 400, "message": "请求参数错误，请传入合法的JSON数据", "send_status": "fail"}),
+                400,
+            )
+        days = datas.get("days", request.args.get("days", default=7, type=int))
+        cache_key = f"days_{days}"
+        # 先去判断天数这个键是否在缓存字典里面
+        if cache_key not in ALL_HEALTH_REPORT_CACHE:
+            logger.error(f"发送邮件失败！请先生成近{days}天的AI报告！")
+            return (
+                jsonify(
+                    {"code": 404, "message": f"未找到近{days}天的AI报告，请先生成报告再发送", "send_status": "fail"}
+                ),
+                404,
+            )
+        # 判断数据是否过期
+        data = ALL_HEALTH_REPORT_CACHE[cache_key]  # 这个结果本质也是个字典
+        now_timestamp = datetime.now().timestamp()
+        if now_timestamp - data["create_time"] > CACHE_EXPIRE_SECONDS:
+            del ALL_HEALTH_REPORT_CACHE[cache_key]  # 删除缓存内容
+            logger.error(f"发送邮件失败!,已经超过30分钟!请重新获取AI报告内容")
+            return (
+                jsonify(
+                    {"code": 409, "message": f"AI报告已过期（超过30分钟），请重新生成后再发送", "send_status": "fail"}
+                ),
+                409,  # 缓存过期应该用409 冲突
+            )
+        # 符合以上条件，取出报告内容，发送到邮箱
+        all_device_health_report = data["report_content"]
+        logger.info("已经成功获取到所有设备的健康检查状态，即将发送到邮箱！")
+        email_sendor = EmailSender(**emali_config.SMTP_CONFIG)  # 建立好与邮箱服务器的通道
+        # 发送邮件！
+        email_sendor.ai_report_to_email(
+            ai_report=all_device_health_report,
+            recipient_emails=emali_config.RECIPIENT_EMAILS,
+            report_type=f"所有设备近{days}天的健康状态历史分析",
+        )
+        logger.info(f"全网设备近{days}天健康AI报告发送邮箱成功，收件人：{emali_config.RECIPIENT_EMAILS}")
+        return (
+            jsonify(
+                {
+                    "code": 200,
+                    "message": "全网健康AI报告已成功发送至指定邮箱",
+                    "send_status": "success",
+                    "report_days": days,
+                    "recipient_count": len(emali_config.RECIPIENT_EMAILS),
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        error_msg = str(e)[:200]
+        logger.error(f"全网健康AI报告发送邮箱失败：{error_msg}")
+        return (
+            jsonify({"code": 500, "message": "AI报告发送邮箱失败", "send_status": "fail", "error_detail": error_msg}),
+            500,
+        )
+
+
+# 导入自动发送邮箱的初始化函数
+from core.Email.auto_send_report import auto_send_all_health_report, auto_send_backup_report
+
+
+def init_scheduler():
+    try:
+        scheduler = BackgroundScheduler(timezone="Asia/Shanghai")
+        scheduler.add_job(
+            func=auto_send_backup_report,  # func必须传函数名（不加括号），调度器会在指定时间自动调用这个函数
+            trigger="cron",
+            day_of_week=emali_config.AUTO_SEND_WEEKDAY,
+            hour=emali_config.AUTO_SEND_HOUR,
+            minute=emali_config.AUTO_SEND_MINUTE,
+            args=[emali_config.AI_REPORT_DAYS],  # 不能直接赋值”，而是 APScheduler 的add_job函数把args设计成列表参数
+            id="auto_send_backup_reportmonday9am",
+            replace_existing=True,
+        )
+        logger.info(
+            f"【定时任务】添加备份报告任务成功（每周{emali_config.AUTO_SEND_WEEKDAY} {emali_config.AUTO_SEND_HOUR}:{emali_config.AUTO_SEND_MINUTE}）"
+        )
+
+        scheduler.add_job(
+            func=auto_send_all_health_report,  # func必须传函数名（不加括号），调度器会在指定时间自动调用这个函数
+            trigger="cron",
+            day_of_week=emali_config.AUTO_SEND_WEEKDAY,
+            hour=emali_config.AUTO_SEND_HOUR,
+            minute=emali_config.AUTO_SEND_MINUTE,
+            args=[emali_config.AI_REPORT_DAYS],  # 不能直接赋值”，而是 APScheduler 的add_job函数把args设计成列表参数
+            id="auto_send_all_health_reportmonday9am",
+            replace_existing=True,
+        )
+        logger.info(
+            f"【定时任务】添加健康报告任务成功（每周{emali_config.AUTO_SEND_WEEKDAY} {emali_config.AUTO_SEND_HOUR}:{emali_config.AUTO_SEND_MINUTE}）"
+        )
+        scheduler.start()
+        # 返回实例 → 把这个“有任务、已启动”的实例交出去
+        logging.info("【定时任务】调度器启动成功，后台开始计时")
+        return scheduler
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"【定时任务】初始化失败！错误：{error_msg[:200]}")  # 新增：捕获错误并输出
+        return None
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    logger.info("调度器正在准备加载任务请稍后.......")
+    init_scheduler()
+
+    app.run(
+        host="0.0.0.0",
+        port=8080,
+        debug=True,
+    )
     # host参数，本质上要求传入一个「字符串（str）类型」的值，用来指定 Flask 服务绑定的 IP 地址。0.0.0.0是一个 IP 地址格式的字符串
+    # 这行代码永远执行不到！因为上面的app.run()不会结束（除非手动停服务）因为 app.run() 是「阻塞式」的
+    # init_scheduler()
+    # logger.info('调度器正在准备加载任务请稍后.......')

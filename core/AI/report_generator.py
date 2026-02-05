@@ -92,11 +92,12 @@ class ReportGenerator:
             error_msg = str(e)
             logger.error(f"报告内容生成失败，AI调用失败 {error_msg[:100]}")
             raise
-    def get_deepseek_to_device_health(self,device_name = None,days = 7):
+
+    def get_deepseek_to_device_health(self, device_name=None, days=7):
         logger.info(f"正在分析设备{device_name}近{days}天的健康状态...")
         if device_name is None:
             return "请指定要分析的设备名称"
-        helthly_record = self.db.get_health_check_history(device_name=device_name,days=days)
+        helthly_record = self.db.get_health_check_history(device_name=device_name, days=days)
         if not helthly_record:
             return f"设备{device_name}没有健康检查历史记录"
         prompt = f"""
@@ -114,7 +115,7 @@ class ReportGenerator:
 
         # 报告格式要求
         分模块简短表述，用项目符号/短句，专业简洁，检查时间统一按YYYY-MM-DD HH:MM显示。
-        """     
+        """
         try:
             health_report = self.use_deepseek_api(prompt)
             logger.info("报告内容生成成功！")
@@ -124,14 +125,15 @@ class ReportGenerator:
             error_msg = str(e)
             logger.error(f"报告内容生成失败，AI调用失败 {error_msg[:100]}")
             raise
+
     def get_deepseek_all_device_health_weekly(self, days=7):
-            logger.info(f"正在分析所有设备近{days}天的健康状态，生成AI运维报告...")
-            all_health_record = self.db.get_health_check_history(days=days)
-            if not all_health_record:
-                return f"近{days}天全网无设备健康检查记录，无法生成健康周报"
-            
-            # 全设备周报专属Prompt - 精简聚焦全网汇总、分层、高频问题、全局建议
-            prompt = f"""
+        logger.info(f"正在分析所有设备近{days}天的健康状态，生成AI运维报告...")
+        all_health_record = self.db.get_health_check_history(days=days)
+        if not all_health_record:
+            return f"近{days}天全网无设备健康检查记录，无法生成健康周报"
+
+        # 全设备周报专属Prompt - 精简聚焦全网汇总、分层、高频问题、全局建议
+        prompt = f"""
         你是10年+资深网络运维架构师，擅长全网设备健康状态汇总分析与运维周报编写，报告专业简洁、数据支撑充分、建议落地可执行。
         请根据以下【全网所有设备近{days}天健康检查原始记录（JSON格式）】，生成一份全网设备健康运维周报，贴合企业运维定期汇报场景，内容聚焦全局概况、问题汇总、优化建议。
 
@@ -148,21 +150,21 @@ class ReportGenerator:
         # 报告格式要求（周报风格）
         分模块用二级标题+项目符号表述，专业简洁、重点突出，检查时间统一按YYYY-MM-DD HH:MM显示，适配运维口头/书面汇报。
         """
-            # 保持和单设备一致的调试打印格式
-            print("=" * 50 + "传给AI的【全网设备健康周报】Prompt" + "=" * 50)
-            print(prompt)
-            print("=" * 100)
-            
-            logger.info("正在生成全网设备健康AI周报....")
-            try:
-                health_report = self.use_deepseek_api(prompt)  # 复用原有AI调用方法
-                logger.info("全网设备健康AI周报生成成功！")
-                print(health_report)
-                return health_report
-            except Exception as e:
-                error_msg = str(e)
-                logger.error(f"全网健康报告生成失败，AI调用失败 {error_msg[:100]}")
-                raise
+        # 保持和单设备一致的调试打印格式
+        print("=" * 50 + "传给AI的【全网设备健康周报】Prompt" + "=" * 50)
+        print(prompt)
+        print("=" * 100)
+
+        logger.info("正在生成全网设备健康AI周报....")
+        try:
+            health_report = self.use_deepseek_api(prompt)  # 复用原有AI调用方法
+            logger.info("全网设备健康AI周报生成成功！")
+            print(health_report)
+            return health_report
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"全网健康报告生成失败，AI调用失败 {error_msg[:100]}")
+            raise
 
 
 deepseek_api = os.getenv("DEEPSEEK_API_KEY", "")
