@@ -7,8 +7,12 @@ import sys
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(ROOT_DIR)
+BACKUP_DIR = os.path.join(
+    ROOT_DIR,
+)
 from utils.log_setup import setup_logger
 from utils.retry_decorator import ssh_retry
+
 
 CONFIG_PATH = os.path.join(ROOT_DIR, "config", "devices.yaml")
 logger = setup_logger("netdevops_backup", "backup.log")
@@ -52,7 +56,7 @@ def backup_single_device(device_info):
         logger.info("连接成功！")
         logger.info(f"正在开始备份设备{device_info['host']}........请稍后....")
         output = connections.send_command("display interface brief")  # 这里以备份接口信息为例
-        backup_dir = "backupN1"  # N1的意思是创建第一个文件夹，以后若有需要可以该
+        backup_dir = os.path.join(ROOT_DIR, "backupN1")  # "backupN1"  # N1的意思是创建第一个文件夹，以后若有需要可以该
         os.makedirs(backup_dir, exist_ok=True)
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         filename = os.path.join(backup_dir, f"{device_info['host']}__配置__{timestamp}.txt")

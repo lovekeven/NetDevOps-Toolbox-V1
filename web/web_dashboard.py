@@ -1,3 +1,4 @@
+from concurrent.futures import thread
 from datetime import datetime
 import sys
 import os
@@ -9,7 +10,9 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(ROOT_DIR)
 
 from db.database import db_manager
-from flask import jsonify, Flask, render_template, request
+
+# 导入下载模块
+from flask import jsonify, Flask, render_template, request, send_from_directory
 
 # 1.jsonify就是为了返回JSON格式的数据
 from core.health_check.health_checker import check_single_device
@@ -46,7 +49,10 @@ from config import emali_config
 
 # 引入定时发送任务的核心类
 from apscheduler.schedulers.background import BackgroundScheduler
-
+#引入netmiko测试连接
+from netmiko import ConnectHandler
+#引入多线程模块
+import threading
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
 app = Flask(__name__)
@@ -86,8 +92,30 @@ def get_devices(filename=CONFIG_PATH):
 @app.route("/")
 def index():
     devices = get_devices()
+    def check_device_status(dev):
+        try:
+            # 测试连接
+            dev_copy = dev.copy()
+            if 'device_name' in dev_copy:
+                del dev_copy['device_name']
+            connection = ConnectHandler(**dev_copy,timeout=2) 
+            #Netmiko 默认超时约 10 秒，若有 1 台设备离线，页面会卡在这台设备的连接上 10 秒，设备多的话加载会极慢，加 2
+            #  秒超时后，单台设备连不上会立刻判离线，页面加载速度会大幅提升。
+            connection.disconnect()
+            dev["status"] = "在线"
+            logger.info(f"连接设备 {dev['device_name']} 成功")
+        except Exception as e:
+            logger.error(f"连接设备 {dev['device_name']} 失败: {e}")
+            dev["status"] = "离线"
+    threads = []
     for dev in devices:
-        dev["status"] = "在线"
+        thread = threading.Thread(target=check_device_status, args=(dev,))
+        #参数那里只能以元组的形式
+        threads.append(thread)
+        thread.start()
+    for thread in threads:
+        thread.join()
+        
     return render_template("index.html", devices=devices)
 
 
@@ -1121,6 +1149,50 @@ def init_scheduler():
         error_msg = str(e)
         logger.error(f"【定时任务】初始化失败！错误：{error_msg[:200]}")  # 新增：捕获错误并输出
         return None
+
+
+# 下载历史备份的API接口
+@app.route("/api/v1/backup/download", methods=["GET"])
+def download_backup_file():
+    logger.info("准备下载文件...")
+    try:
+        backup_dir = request.args.get("path", "N/A")
+        logger.info("成功获取备份文件的相对路径！")
+        if not backup_dir or backup_dir == "N/A":
+            return (
+                jsonify(
+                    {
+                        "code": 400,
+                        "msg": "下载失败：无有效下载路径",
+                        "data": None,
+                    }
+                ),
+                400,
+            )
+        if ".." in backup_dir or os.path.isabs(backup_dir):
+            return (
+                jsonify(
+                    {
+                        "code": 403,
+                        "msg": '"文件路径非法，禁止访问"',
+                        "data": None,
+                    }
+                ),
+                403,
+            )
+        # 在后端拼接绝对路径
+        real_backup_file = os.path.join(ROOT_DIR, backup_dir)
+        # 看他是否存在，判断它是否是一个文件，不是文件夹
+        if not os.path.exists(real_backup_file) or not os.path.isfile(real_backup_file):
+            return jsonify({"code": 404, "msg": f"备份文件不存在：{real_backup_file}", "data": None}), 404
+        file_dir = os.path.dirname(real_backup_file)
+        file_name = os.path.basename(real_backup_file)
+        return send_from_directory(
+            directory=file_dir, path=file_name, as_attachment=True  # 核心：触发浏览器下载，不是展示
+        )
+    except Exception as e:
+        logger.info(f"文件下载失败: {e}")
+        return jsonify({"code": 500, "msg": f"下载失败：{str(e)}", "data": None}), 500
 
 
 if __name__ == "__main__":

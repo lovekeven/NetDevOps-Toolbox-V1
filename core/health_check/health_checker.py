@@ -278,6 +278,7 @@ def check_single_device(device_info):
             }
         )
         # 检查结果插入数据库
+        results = adapt_db_data(results)
         db_manager.log_check_device(results)
         if current_card:  # 只有匹配到卡片才更新
             current_card.update(results)
@@ -329,6 +330,7 @@ def check_single_device(device_info):
             }
         )
         logger.error("准备执行健康检查失败记录入库...")
+        results = adapt_db_data(results)
         db_manager.log_check_device(results)
         logger.error("健康检查失败记录入库执行完成，准备更新卡片...")
         if current_card:  # 只有匹配到卡片才更新
