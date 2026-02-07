@@ -49,15 +49,18 @@ from config import emali_config
 
 # 引入定时发送任务的核心类
 from apscheduler.schedulers.background import BackgroundScheduler
-#引入netmiko测试连接
+
+# 引入netmiko测试连接
 from netmiko import ConnectHandler
-#引入多线程模块
+
+# 引入多线程模块
 import threading
+
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
 app = Flask(__name__)
 
-
+# 设备清单路径
 CONFIG_PATH = os.path.join(ROOT_DIR, "config", "nornir_inventory.yaml")
 
 
@@ -71,13 +74,15 @@ def get_devices(filename=CONFIG_PATH):
             for device_name, device_info in data.items():
                 # 逐层提取字段，加容错get，避免字段不存在时报错（关键）
                 netmiko_extras = device_info.get("connection_options", {}).get("netmiko", {}).get("extras", {})
+                data = device_info.get("data", {})
                 device = {
                     "device_name": device_name,  # 保持原有键，兼容后续逻辑
-                    "device_type": netmiko_extras.get("device_type", "hp_comware"),  # 从netmiko配置取设备类型
+                    "device_type": netmiko_extras.get("device_type", "未知"),  # 从netmiko配置取设备类型
                     "host": device_info.get("hostname", ""),  # 顶层取IP/主机名
                     "username": device_info.get("username", ""),  # 顶层取用户名
                     "password": device_info.get("password", ""),  # 顶层取密码
                     "port": netmiko_extras.get("port", 22),  # 从netmiko配置取端口，默认22
+                    "vendor": data.get("vendor", "华三H3C"),
                 }
                 # 过滤空设备（防止清单有无效配置）
                 if device["host"] and device["username"] and device["password"]:
@@ -92,14 +97,16 @@ def get_devices(filename=CONFIG_PATH):
 @app.route("/")
 def index():
     devices = get_devices()
+
     def check_device_status(dev):
         try:
             # 测试连接
             dev_copy = dev.copy()
-            if 'device_name' in dev_copy:
-                del dev_copy['device_name']
-            connection = ConnectHandler(**dev_copy,timeout=2) 
-            #Netmiko 默认超时约 10 秒，若有 1 台设备离线，页面会卡在这台设备的连接上 10 秒，设备多的话加载会极慢，加 2
+            if "device_name" in dev_copy:
+                del dev_copy["device_name"]
+                del dev_copy["vendor"]
+            connection = ConnectHandler(**dev_copy, timeout=2)
+            # Netmiko 默认超时约 10 秒，若有 1 台设备离线，页面会卡在这台设备的连接上 10 秒，设备多的话加载会极慢，加 2
             #  秒超时后，单台设备连不上会立刻判离线，页面加载速度会大幅提升。
             connection.disconnect()
             dev["status"] = "在线"
@@ -107,15 +114,16 @@ def index():
         except Exception as e:
             logger.error(f"连接设备 {dev['device_name']} 失败: {e}")
             dev["status"] = "离线"
+
     threads = []
     for dev in devices:
         thread = threading.Thread(target=check_device_status, args=(dev,))
-        #参数那里只能以元组的形式
+        # 参数那里只能以元组的形式
         threads.append(thread)
         thread.start()
     for thread in threads:
         thread.join()
-        
+
     return render_template("index.html", devices=devices)
 
 
@@ -142,6 +150,7 @@ def device_health(device_name):
         target_device_copy = target_device.copy()
         if "device_name" in target_device_copy:
             del target_device_copy["device_name"]
+            del target_device_copy["vendor"]
         result = check_single_device(target_device_copy)
         return jsonify(result)
     except Exception as e:
@@ -172,6 +181,7 @@ def device_backup(device_name):
         target_device_copy = target_device.copy()
         if "device_name" in target_device_copy:
             del target_device_copy["device_name"]
+            del target_device_copy["vendor"]
         # 1.下面是你备份的函数吧，你调用的时候，他会先建立连接这个时候**device_info解包的时候，连接库不认识device_name这个参数
         start_time = datetime.now()
         backup_single_device(target_device_copy)
@@ -1193,6 +1203,90 @@ def download_backup_file():
     except Exception as e:
         logger.info(f"文件下载失败: {e}")
         return jsonify({"code": 500, "msg": f"下载失败：{str(e)}", "data": None}), 500
+
+
+# 厂商映射表
+VENDOR_MAP = {"华三H3C": "hp_comware", "思科Cisco": "cisco_ios", "华为Huawei": "huawei"}
+# 引入校验ipv4的工具函数
+from utils.valid_ipv4 import is_valid_ipv4
+
+
+@app.route("/api/save_device", methods=["POST"])
+def save_device():
+    try:
+        try:
+            device_data = request.get_json(force=True, silent=False)  # 请求体类型无标注强制解析，非法请求体直接报错
+            logger.info("获取设备信息成功")
+        except Exception as e:
+            logger.error(f"获取设备信息出现错误：{str(e)[:100]}")
+            return jsonify(
+                {
+                    "code": 1,
+                    "msg": f"非法请求体，请检查输入内容{str(e)[:100]}",
+                }
+            )
+
+        device_name = device_data.get("device_name").strip()
+        # 如果前端设备名字传的纯空格，这里去空以后会变成空字符串""，后面有拦截的
+        hostname = device_data.get("hostname").strip()
+        # 给参数做strip()去空，核心原因正是要让写入配置文件的数据是「干净、有效的」
+        username = device_data.get("username").strip()
+        password = device_data.get("password").strip()
+        vendor = device_data.get("vendor", "华三H3C").strip()
+        device_type = VENDOR_MAP[vendor]
+        secret = device_data.get("secret", "").strip()
+        port_str = device_data.get("port", "22").strip()
+        ip_valid, ip_msg = is_valid_ipv4(hostname)
+        if not ip_valid:
+            return jsonify({"code": 1, "msg": f"IP地址校验失败：{ip_msg}"})
+        if not port_str.isdigit():
+            logger.warning("端口号未输入纯数字！")
+            return jsonify({"code": 1, "msg": "请输入纯数字的端口号"})
+        port = int(port_str)
+        if not (1 <= port <= 65535):
+            logger.warning("未输入有效范围的端口号")
+            return jsonify({"code": 1, "msg": "输入的端口号范围不在（1~65535）之间，请输入有效范围的端口号"})
+        if not all(
+            [device_name, hostname, username, password],
+        ):
+            return jsonify({"code": 1, "msg": "请输入设备名称，IP,用户名，密码"})
+        device_config = {
+            "username": username,
+            "hostname": hostname,
+            "password": password,
+            "connection_options": {
+                "netmiko": {
+                    "extras": {
+                        "device_type": device_type,
+                        "port": port,
+                    },
+                },
+            },
+            "data": {
+                "vendor": vendor,
+            },
+        }
+        if vendor == "思科Cisco" and secret:
+            device_config["secret"] = secret
+        device = {}
+        # 判断设备清单存不存在
+        if not os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                yaml.dump({}, f)  # 传给一个空字典的形式，为了上面解析的时候不是返回None,返回的也是空字典
+        # 读取文件转换为字典
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            device = yaml.safe_load(f) or {}  # 如果里面没有就返回空字典
+        # 追加更新
+        device[device_name] = device_config
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            yaml.dump(device, f, default_flow_style=False, allow_unicode=True, indent=2, sort_keys=False)
+            # default_flow_style=False让每个键值对单独占一行，而非挤在一行，可读性拉满强制使用「块格式」（换行）
+            # allow_unicode=True支持 Unicode 字符（中文）当设备配
+            # sort_keys=False保持字典键的顺序，不自动排序
+        return jsonify({"code": 0, "msg": f"设备{device_name}保存成功！"})
+
+    except Exception as e:
+        return jsonify({"code": 2, "msg": f"保存失败：{str(e)}"})
 
 
 if __name__ == "__main__":
