@@ -1169,7 +1169,7 @@
                                 </th>
                                 <th>设备名</th>
                                 <th>IP地址</th>
-                                <th>设备类型</th>
+                                <th>厂商</th>
                                 <th>设备状态</th>
                                 <th>备份状态</th>
                                 <th>操作</th>
@@ -1185,7 +1185,7 @@
                                 <td>{{ device.device_name }}</td>
                                 <td>{{ device.host }}</td>
                                 <td>
-                                    <span class="badge bg-info text-dark">{{ device.device_type }}</span>
+                                    <span class="badge bg-info text-dark">{{ device.vendor }}</span>
                                 </td>
                                 <!-- 设备状态列 -->
                                 <td class="device-status">
@@ -1494,6 +1494,121 @@
 
         // DOM加载完成后初始化所有模态框
         document.addEventListener('DOMContentLoaded', function() {
+            // 报告状态存储对象 - 每种报告类型独立保存
+            const reportStates = {
+                backup_single: {
+                    status: '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>',
+                    content: '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成AI报告」按钮获取运维摘要</div>',
+                    time: '',
+                    emailDisabled: true,
+                    autoSendReminder: '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱',
+                    days: 7,
+                    deviceName: '',
+                    emailDataset: { days: '', reportType: '', deviceName: '' }
+                },
+                backup_all: {
+                    status: '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>',
+                    content: '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成AI报告」按钮获取运维摘要</div>',
+                    time: '',
+                    emailDisabled: true,
+                    autoSendReminder: '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱',
+                    days: 7,
+                    deviceName: '',
+                    emailDataset: { days: '', reportType: '', deviceName: '' }
+                },
+                health_single: {
+                    status: '<span class="text-muted">点击「生成报告」获取健康分析</span>',
+                    content: '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成报告」按钮获取AI健康分析报告</div>',
+                    time: '',
+                    emailDisabled: true,
+                    autoSendReminder: '',
+                    days: 7,
+                    deviceName: '',
+                    emailDataset: { days: '', reportType: '', deviceName: '' }
+                },
+                health_all: {
+                    status: '<span class="text-muted">点击「生成报告」获取健康分析</span>',
+                    content: '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成报告」按钮获取AI健康分析报告</div>',
+                    time: '',
+                    emailDisabled: true,
+                    autoSendReminder: '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱',
+                    days: 7,
+                    deviceName: '',
+                    emailDataset: { days: '', reportType: '', deviceName: '' }
+                }
+            };
+
+            // 当前报告类型
+            let currentReportType = 'backup_single';
+
+            // 获取当前报告类型
+            function getCurrentReportType() {
+                const isBackup = document.getElementById('backupReportBtn').classList.contains('active');
+                const isSingle = document.getElementById('singleDeviceBtn').classList.contains('active');
+                if (isBackup) {
+                    return isSingle ? 'backup_single' : 'backup_all';
+                } else {
+                    return isSingle ? 'health_single' : 'health_all';
+                }
+            }
+
+            // 保存当前报告状态
+            window.saveCurrentReportState = function() {
+                const reportStatus = document.getElementById('report-status');
+                const reportContent = document.getElementById('aiReportContent');
+                const reportTime = document.getElementById('reportGenerateTime');
+                const sendEmailBtn = document.getElementById('sendEmailBtn');
+                const autoSendReminder = document.getElementById('autoSendReminder');
+                
+                // 根据当前报告类型选择正确的输入框
+                const isBackup = currentReportType.startsWith('backup');
+                const daysInput = isBackup ? document.getElementById('reportDays') : document.getElementById('healthReportDays');
+                const deviceInput = document.getElementById('healthReportDevice');
+
+                const state = reportStates[currentReportType];
+                state.status = reportStatus.innerHTML;
+                state.content = reportContent.innerHTML;
+                state.time = reportTime.textContent;
+                state.emailDisabled = sendEmailBtn.disabled;
+                state.autoSendReminder = autoSendReminder.innerHTML;
+                state.days = daysInput ? daysInput.value : 7;
+                state.deviceName = deviceInput ? deviceInput.value : '';
+                // 保存 sendEmailBtn 的 dataset
+                state.emailDataset = {
+                    days: sendEmailBtn.dataset.days || '',
+                    reportType: sendEmailBtn.dataset.reportType || '',
+                    deviceName: sendEmailBtn.dataset.deviceName || ''
+                };
+            };
+
+            // 加载指定报告状态
+            window.loadReportState = function(reportType) {
+                const state = reportStates[reportType];
+                const reportStatus = document.getElementById('report-status');
+                const reportContent = document.getElementById('aiReportContent');
+                const reportTime = document.getElementById('reportGenerateTime');
+                const sendEmailBtn = document.getElementById('sendEmailBtn');
+                const autoSendReminder = document.getElementById('autoSendReminder');
+                
+                // 根据目标报告类型选择正确的输入框
+                const isBackup = reportType.startsWith('backup');
+                const daysInput = isBackup ? document.getElementById('reportDays') : document.getElementById('healthReportDays');
+                const deviceInput = document.getElementById('healthReportDevice');
+
+                reportStatus.innerHTML = state.status;
+                reportContent.innerHTML = state.content;
+                reportTime.textContent = state.time;
+                sendEmailBtn.disabled = state.emailDisabled;
+                autoSendReminder.innerHTML = state.autoSendReminder;
+                if (daysInput) daysInput.value = state.days;
+                if (deviceInput) deviceInput.value = state.deviceName;
+                // 恢复 sendEmailBtn 的 dataset
+                sendEmailBtn.dataset.days = state.emailDataset.days;
+                sendEmailBtn.dataset.reportType = state.emailDataset.reportType;
+                sendEmailBtn.dataset.deviceName = state.emailDataset.deviceName;
+                currentReportType = reportType;
+            };
+
             // 初始化所有模态框
             modalInstances.deviceCardsModal = new bootstrap.Modal(document.getElementById('deviceCardsModal'));
             modalInstances.singleDeviceCardModal = new bootstrap.Modal(document.getElementById('singleDeviceCardModal'));
@@ -1524,34 +1639,20 @@
                 document.getElementById('singleDeviceBtn').classList.add('active');
                 document.getElementById('allDevicesBtn').classList.remove('active');
                 document.getElementById('singleDeviceInput').style.display = 'block';
-                // 重置报告状态和内容
-                const reportStatus = document.getElementById('report-status');
-                const reportContent = document.getElementById('aiReportContent');
-                const reportTime = document.getElementById('reportGenerateTime');
-                const sendEmailBtn = document.getElementById('sendEmailBtn');
-                reportStatus.innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
-                reportContent.innerHTML = '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成报告」按钮获取AI健康分析报告</div>';
-                reportTime.textContent = '';
-                sendEmailBtn.disabled = true;
-                // 清除自动发送提醒
-                document.getElementById('autoSendReminder').innerHTML = '';
+                // 保存当前状态并加载新状态
+                saveCurrentReportState();
+                const newReportType = getCurrentReportType();
+                loadReportState(newReportType);
             });
 
             document.getElementById('allDevicesBtn').addEventListener('click', function() {
                 document.getElementById('allDevicesBtn').classList.add('active');
                 document.getElementById('singleDeviceBtn').classList.remove('active');
                 document.getElementById('singleDeviceInput').style.display = 'none';
-                // 重置报告状态和内容
-                const reportStatus = document.getElementById('report-status');
-                const reportContent = document.getElementById('aiReportContent');
-                const reportTime = document.getElementById('reportGenerateTime');
-                const sendEmailBtn = document.getElementById('sendEmailBtn');
-                reportStatus.innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
-                reportContent.innerHTML = '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成报告」按钮获取AI健康分析报告</div>';
-                reportTime.textContent = '';
-                sendEmailBtn.disabled = true;
-                // 添加自动发送提醒
-                document.getElementById('autoSendReminder').innerHTML = '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱';
+                // 保存当前状态并加载新状态
+                saveCurrentReportState();
+                const newReportType = getCurrentReportType();
+                loadReportState(newReportType);
             });
 
             // 备份报告和健康报告切换按钮
@@ -1560,16 +1661,10 @@
                 document.getElementById('healthReportBtn').classList.remove('active');
                 document.getElementById('backupReportOptions').style.display = 'block';
                 document.getElementById('healthReportOptions').style.display = 'none';
-                const reportStatus = document.getElementById('report-status');
-                const reportContent = document.getElementById('aiReportContent');
-                const reportTime = document.getElementById('reportGenerateTime');
-                const sendEmailBtn = document.getElementById('sendEmailBtn');
-                reportStatus.innerHTML = '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>';
-                reportContent.innerHTML = '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成AI报告」按钮获取运维摘要</div>';
-                reportTime.textContent = '';
-                sendEmailBtn.disabled = true;
-                // 添加自动发送提醒
-                document.getElementById('autoSendReminder').innerHTML = '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱';
+                // 保存当前状态并加载新状态
+                saveCurrentReportState();
+                const newReportType = getCurrentReportType();
+                loadReportState(newReportType);
             });
 
             document.getElementById('healthReportBtn').addEventListener('click', function() {
@@ -1577,20 +1672,10 @@
                 document.getElementById('backupReportBtn').classList.remove('active');
                 document.getElementById('backupReportOptions').style.display = 'none';
                 document.getElementById('healthReportOptions').style.display = 'block';
-                const reportStatus = document.getElementById('report-status');
-                const reportContent = document.getElementById('aiReportContent');
-                const reportTime = document.getElementById('reportGenerateTime');
-                const sendEmailBtn = document.getElementById('sendEmailBtn');
-                reportStatus.innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
-                reportContent.innerHTML = '<div class="text-center py-4"><i class="fas fa-robot fa-2x text-muted mb-2"></i><br>请点击「生成报告」按钮获取健康分析</div>';
-                reportTime.textContent = '';
-                sendEmailBtn.disabled = true;
-                // 根据当前选择的设备类型显示相应的提醒
-                if (document.getElementById('allDevicesBtn').classList.contains('active')) {
-                    document.getElementById('autoSendReminder').innerHTML = '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱';
-                } else {
-                    document.getElementById('autoSendReminder').innerHTML = '';
-                }
+                // 保存当前状态并加载新状态
+                saveCurrentReportState();
+                const newReportType = getCurrentReportType();
+                loadReportState(newReportType);
             });
 
             // 重新绑定生成健康分析AI报告按钮事件
@@ -1666,10 +1751,14 @@
                             if (isSingleDevice) {
                                 sendEmailBtn.dataset.deviceName = device;
                             }
+                            // 更新状态对象
+                            window.saveCurrentReportState();
                         } else {
                             reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
                             reportContent.innerHTML = '<span class="report-empty">暂无有效健康数据可供分析</span>';
                             sendEmailBtn.disabled = true;
+                            // 更新状态对象
+                            window.saveCurrentReportState();
                         }
                     })
                     .catch(error => {
@@ -1677,11 +1766,14 @@
                         reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
                         console.error('AI健康分析报告生成异常：', error);
                         sendEmailBtn.disabled = true;
+                        // 更新状态对象
+                        window.saveCurrentReportState();
                     })
                     .finally(() => {
                         generateBtn.innerHTML = originalBtnText;
                         generateBtn.disabled = false;
                     });
+            });
 
             // 发送邮件按钮
             document.getElementById('sendEmailBtn').addEventListener('click', function() {
@@ -1792,80 +1884,6 @@
                     refreshBtn.disabled = false;
                     refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>刷新';
                 });
-
-            // 切换按钮事件监听器
-            document.getElementById('backupReportBtn').addEventListener('click', function() {
-                document.getElementById('backupReportBtn').classList.add('active');
-                document.getElementById('healthReportBtn').classList.remove('active');
-                document.getElementById('backupReportOptions').style.display = 'block';
-                document.getElementById('healthReportOptions').style.display = 'none';
-                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>';
-            });
-
-            document.getElementById('healthReportBtn').addEventListener('click', function() {
-                document.getElementById('healthReportBtn').classList.add('active');
-                document.getElementById('backupReportBtn').classList.remove('active');
-                document.getElementById('backupReportOptions').style.display = 'none';
-                document.getElementById('healthReportOptions').style.display = 'block';
-                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
-            });
-
-            // 生成健康分析AI报告按钮
-            document.getElementById('generateHealthReportBtn').addEventListener('click', function() {
-                const generateBtn = this;
-                const deviceInput = document.getElementById('healthReportDevice');
-                const daysInput = document.getElementById('healthReportDays');
-                const reportStatus = document.getElementById('report-status');
-                const reportContent = document.getElementById('aiReportContent');
-                const reportTime = document.getElementById('reportGenerateTime');
-
-                const device = deviceInput.value.trim();
-                let days = parseInt(daysInput.value.trim());
-
-                if (!device) {
-                    alert('请输入设备名称！');
-                    return;
-                }
-
-                if (isNaN(days) || days < 1 || days > 30) {
-                    alert('请输入1-30之间的有效天数！');
-                    daysInput.value = 7;
-                    return;
-                }
-
-                const originalBtnText = generateBtn.innerHTML;
-                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
-                generateBtn.disabled = true;
-                reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI健康分析报告，请稍候...</span>';
-                reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
-                reportTime.textContent = '';
-
-                const apiUrl = `/api/health/ai/?device_name=${device}&days=${days}`;
-                fetch(apiUrl)
-                    .then(response => response.json().then(data => ({ response, data })))
-                    .then(({ response, data }) => {
-                        if (!response.ok) throw new Error(data.message || data.error_detail || `请求失败，状态码：${response.status}`);
-                        if (data.code === 200 && data.data && data.data !== '') {
-                            reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
-                            reportContent.innerHTML = formatReportToHtml(data.data);
-                            if (data.report_time) {
-                                reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
-                            }
-                        } else {
-                            reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
-                            reportContent.innerHTML = '<span class="report-empty">暂无有效健康数据可供分析</span>';
-                        }
-                    })
-                    .catch(error => {
-                        reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
-                        reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
-                        console.error('AI健康分析报告生成异常：', error);
-                    })
-                    .finally(() => {
-                        generateBtn.innerHTML = originalBtnText;
-                        generateBtn.disabled = false;
-                    });
-            });
         }
 
         // 初始化API状态检查按钮
@@ -1930,193 +1948,6 @@
                         .finally(() => {
                             button.innerHTML = originalHtml;
                             button.disabled = false;
-                        });
-                });
-            });
-        }
-
-            document.getElementById('healthReportBtn').addEventListener('click', function() {
-                document.getElementById('healthReportBtn').classList.add('active');
-                document.getElementById('backupReportBtn').classList.remove('active');
-                document.getElementById('backupReportOptions').style.display = 'none';
-                document.getElementById('healthReportOptions').style.display = 'block';
-                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
-            });
-
-            // 生成健康分析AI报告按钮
-            document.getElementById('generateHealthReportBtn').addEventListener('click', function() {
-                const generateBtn = this;
-                const deviceInput = document.getElementById('healthReportDevice');
-                const daysInput = document.getElementById('healthReportDays');
-                const reportStatus = document.getElementById('report-status');
-                const reportContent = document.getElementById('aiReportContent');
-                const reportTime = document.getElementById('reportGenerateTime');
-
-                const device = deviceInput.value.trim();
-                let days = parseInt(daysInput.value.trim());
-
-                if (!device) {
-                    alert('请输入设备名称！');
-                    return;
-                }
-
-                if (isNaN(days) || days < 1 || days > 30) {
-                    alert('请输入1-30之间的有效天数！');
-                    daysInput.value = 7;
-                    return;
-                }
-
-                const originalBtnText = generateBtn.innerHTML;
-                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
-                generateBtn.disabled = true;
-                reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI健康分析报告，请稍候...</span>';
-                reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
-                reportTime.textContent = '';
-
-                const apiUrl = `/api/health/ai/?device_name=${device}&days=${days}`;
-                fetch(apiUrl)
-                    .then(response => response.json().then(data => ({ response, data })))
-                    .then(({ response, data }) => {
-                        if (!response.ok) throw new Error(data.message || data.error_detail || `请求失败，状态码：${response.status}`);
-                        if (data.code === 200 && data.data && data.data !== '') {
-                            reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
-                            reportContent.innerHTML = formatReportToHtml(data.data);
-                            if (data.report_time) {
-                                reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
-                            }
-                        } else {
-                            reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
-                            reportContent.innerHTML = '<span class="report-empty">暂无有效健康数据可供分析</span>';
-                        }
-                    })
-                    .catch(error => {
-                        reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
-                        reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
-                        console.error('AI健康分析报告生成异常：', error);
-                    })
-                    .finally(() => {
-                        generateBtn.innerHTML = originalBtnText;
-                        generateBtn.disabled = false;
-                    });
-
-            // 切换按钮事件监听器
-            document.getElementById('backupReportBtn').addEventListener('click', function() {
-                document.getElementById('backupReportBtn').classList.add('active');
-                document.getElementById('healthReportBtn').classList.remove('active');
-                document.getElementById('backupReportOptions').style.display = 'block';
-                document.getElementById('healthReportOptions').style.display = 'none';
-                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>';
-            });
-
-            document.getElementById('healthReportBtn').addEventListener('click', function() {
-                document.getElementById('healthReportBtn').classList.add('active');
-                document.getElementById('backupReportBtn').classList.remove('active');
-                document.getElementById('backupReportOptions').style.display = 'none';
-                document.getElementById('healthReportOptions').style.display = 'block';
-                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
-            });
-
-            // 生成健康分析AI报告按钮
-            document.getElementById('generateHealthReportBtn').addEventListener('click', function() {
-                const generateBtn = this;
-                const deviceInput = document.getElementById('healthReportDevice');
-                const daysInput = document.getElementById('healthReportDays');
-                const reportStatus = document.getElementById('report-status');
-                const reportContent = document.getElementById('aiReportContent');
-                const reportTime = document.getElementById('reportGenerateTime');
-
-                const device = deviceInput.value.trim();
-                let days = parseInt(daysInput.value.trim());
-
-                if (!device) {
-                    alert('请输入设备名称！');
-                    return;
-                }
-
-                if (isNaN(days) || days < 1 || days > 30) {
-                    alert('请输入1-30之间的有效天数！');
-                    daysInput.value = 7;
-                    return;
-                }
-
-                const originalBtnText = generateBtn.innerHTML;
-                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
-                generateBtn.disabled = true;
-                reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI健康分析报告，请稍候...</span>';
-                reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
-                reportTime.textContent = '';
-
-                const apiUrl = `/api/health/ai/?device_name=${device}&days=${days}`;
-                fetch(apiUrl)
-                    .then(response => response.json().then(data => ({ response, data })))
-                    .then(({ response, data }) => {
-                        if (!response.ok) throw new Error(data.message || data.error_detail || `请求失败，状态码：${response.status}`);
-                        if (data.code === 200 && data.data && data.data !== '') {
-                            reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
-                            reportContent.innerHTML = formatReportToHtml(data.data);
-                            if (data.report_time) {
-                                reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
-                            }
-                        } else {
-                            reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
-                            reportContent.innerHTML = '<span class="report-empty">暂无有效健康数据可供分析</span>';
-                        }
-                    })
-                    .catch(error => {
-                        reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
-                        reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
-                        console.error('AI健康分析报告生成异常：', error);
-                    })
-                    .finally(() => {
-                        generateBtn.innerHTML = originalBtnText;
-                        generateBtn.disabled = false;
-                    });
-            });
-        }
-
-        // 初始化API状态检查按钮
-        function initApiStatusCheck() {
-            document.getElementById('refresh-api-btn').addEventListener('click', checkApiStatus);
-        }
-
-        // 2. 设备备份功能
-        function initBackupFunction() {
-            document.querySelectorAll('.backup-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const hostname = this.getAttribute('data-hostname');
-                    const backupCell = this.closest('tr').querySelector('.backup-status');
-                    const originalHtml = this.innerHTML;
-
-                    this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>备份中...';
-                    this.disabled = true;
-                    backupCell.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-warning">备份中</span></div>';
-
-                    fetch(`/api/backup/${hostname}`)
-                        .then(response => response.json().then(data => ({ response, data })))
-                        .then(({ response, data }) => {
-                            if (!response.ok) throw new Error(data.message || `备份请求失败，状态码：${response.status}`);
-                            if (data.status && data.status === '成功') {
-                                const successHtml = `
-                                    <div class="status-indicator">
-                                        <span class="status-dot online"></span>
-                                        <span class="badge bg-success">备份成功</span>
-                                    </div>
-                                    <small class="text-muted d-block mt-1">
-                                        备份路径：${data.backup_path || '未知路径'}
-                                    </small>
-                                `;
-                                backupCell.innerHTML = successHtml;
-                            } else {
-                                backupCell.innerHTML = `<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">备份失败：${data.message || '未知错误'}</span></div>`;
-                            }
-                        })
-                        .catch(error => {
-                            backupCell.innerHTML = `<div class="status-indicator"><span class="status-dot offline"></span><span class="badge bg-danger">❌ ${error.message}</span></div>`;
-                            console.error('备份请求异常:', error);
-                        })
-                        .finally(() => {
-                            this.innerHTML = originalHtml;
-                            this.disabled = false;
                         });
                 });
             });
@@ -2911,10 +2742,14 @@
                             sendEmailBtn.disabled = false;
                             sendEmailBtn.dataset.days = days;
                             sendEmailBtn.dataset.reportType = 'backup';
+                            // 更新状态对象
+                            window.saveCurrentReportState();
                         } else {
                             reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
                             reportContent.innerHTML = '<span class="report-empty">暂无有效备份数据可供分析</span>';
                             sendEmailBtn.disabled = true;
+                            // 更新状态对象
+                            window.saveCurrentReportState();
                         }
                     })
                     .catch(error => {
@@ -2922,6 +2757,8 @@
                         reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
                         console.error('AI报告生成异常：', error);
                         sendEmailBtn.disabled = true;
+                        // 更新状态对象
+                        window.saveCurrentReportState();
                     })
                     .finally(() => {
                         generateBtn.innerHTML = originalBtnText;
@@ -3195,7 +3032,37 @@
                     })
                     .catch(error => {
                         console.error('Nornir并发检查异常：', error);
-                        alert(`并发检查失败：${error.message}`);
+                        
+                        // 显示失败结果卡片
+                        const tableBody = document.getElementById('nornirCheckResultTableBody');
+                        const successCount = document.getElementById('nornirSuccessCount');
+                        const failedCount = document.getElementById('nornirFailedCount');
+                        const totalCount = document.getElementById('nornirTotalCount');
+
+                        tableBody.innerHTML = '';
+                        
+                        // 为每个选择的设备显示失败信息
+                        selectedDevices.forEach(deviceName => {
+                            const tr = document.createElement('tr');
+                            const statusBadge = '<span class="badge bg-danger">失败</span>';
+                            
+                            const output = `<div><p><strong>错误信息：</strong>${error.message}</p><p><strong>原因：</strong>可能是网络问题或服务器故障</p></div>`;
+                            tr.innerHTML = `
+                                <td>${deviceName}</td>
+                                <td>${statusBadge}</td>
+                                <td>${output}</td>
+                                <td>${new Date().toLocaleString('zh-CN')}</td>
+                            `;
+                            tableBody.appendChild(tr);
+                        });
+
+                        // 更新汇总统计
+                        successCount.innerHTML = `<i class="fas fa-check-circle me-1"></i>成功：0 台`;
+                        failedCount.innerHTML = `<i class="fas fa-times-circle me-1"></i>失败：${selectedDevices.length} 台`;
+                        totalCount.innerHTML = `<i class="fas fa-server me-1"></i>总计：${selectedDevices.length} 台`;
+
+                        // 显示模态框
+                        modalInstances.nornirCheckResultModal.show();
                     })
                     .finally(() => {
                         this.innerHTML = originalText;
@@ -3314,9 +3181,75 @@
 
         // 设备管理功能
         function initDeviceManagementFunction() {
+            // 加载设备列表
+            function loadDeviceList() {
+                const deviceListBody = document.getElementById('deviceListTableBody');
+                deviceListBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><div class="spinner-border text-primary me-2"></div>加载设备列表中...</td></tr>';
+
+                fetch('/api/devices')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.code === 0 && data.data && data.data.length > 0) {
+                            deviceListBody.innerHTML = '';
+                            data.data.forEach(device => {
+                                const row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td>${device.device_name || '未知'}</td>
+                                    <td>${device.hostname || device.host || '未知'}</td>
+                                    <td>${device.vendor || '未知'}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger delete-device-btn" data-device-name="${device.device_name || device.name}">
+                                            <i class="fas fa-trash-alt me-1"></i>删除
+                                        </button>
+                                    </td>
+                                    <td><span class="badge bg-success">已添加</span></td>
+                                `;
+                                deviceListBody.appendChild(row);
+                            });
+                            // 绑定删除按钮事件
+                            bindDeleteDeviceEvents();
+                        } else {
+                            deviceListBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无设备，请先添加</td></tr>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('加载设备列表失败：', error);
+                        deviceListBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">加载设备列表失败</td></tr>';
+                    });
+            }
+
+            // 绑定删除设备事件
+            function bindDeleteDeviceEvents() {
+                document.querySelectorAll('.delete-device-btn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const deviceName = this.getAttribute('data-device-name');
+                        if (confirm(`确定要删除设备 ${deviceName} 吗？`)) {
+                            fetch(`/api/delete_device/${deviceName}`, {
+                                method: 'DELETE'
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.code === 0) {
+                                    alert('设备删除成功！');
+                                    loadDeviceList();
+                                } else {
+                                    alert(`删除失败：${data.msg || '未知错误'}`);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('删除设备异常：', error);
+                                alert(`删除设备失败：${error.message}`);
+                            });
+                        }
+                    });
+                });
+            }
+
             // 处理添加设备按钮点击事件
             document.getElementById('addDeviceBtn').addEventListener('click', function() {
                 modalInstances.deviceManagementModal.show();
+                // 打开模态框时加载设备列表
+                loadDeviceList();
             });
 
             // 处理厂商选择变化事件（显示/隐藏Enable密码字段）
@@ -3359,16 +3292,16 @@
                 // 构建设备数据
                 const deviceData = {
                     device_name: deviceName,
-                    host: deviceIp,
+                    hostname: deviceIp,
                     username: deviceUsername,
                     password: devicePassword,
                     vendor: deviceVendor,
-                    port: parseInt(devicePort),
-                    enable_password: deviceEnablePassword
+                    port: devicePort,
+                    secret: deviceEnablePassword
                 };
 
                 // 发送请求添加设备
-                fetch('/api/devices', {
+                fetch('/api/save_device', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -3377,17 +3310,17 @@
                 })
                 .then(response => response.json().then(data => ({ response, data })))
                 .then(({ response, data }) => {
-                    if (!response.ok) throw new Error(data.message || `添加设备失败，状态码：${response.status}`);
-                    if (data.code === 200 && data.status === 'success') {
+                    if (!response.ok) throw new Error(data.msg || `添加设备失败，状态码：${response.status}`);
+                    if (data.code === 0) {
                         alert('设备添加成功！');
                         // 重置表单
                         document.getElementById('addDeviceForm').reset();
                         // 隐藏Enable密码字段
                         document.getElementById('enablePasswordSection').style.display = 'none';
-                        // 刷新设备列表
-                        location.reload();
+                        // 重新加载设备列表
+                        loadDeviceList();
                     } else {
-                        throw new Error(data.message || '添加设备失败');
+                        throw new Error(data.msg || '添加设备失败');
                     }
                 })
                 .catch(error => {

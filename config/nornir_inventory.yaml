@@ -64,14 +64,3 @@ SW6:
         port: 22
   data:
     vendor: HCLCloud
-'5555':
-  username: admin
-  hostname: 192.168.58.5
-  password: '154235'
-  connection_options:
-    netmiko:
-      extras:
-        device_type: huawei
-        port: 22
-  data:
-    vendor: 华为Huawei

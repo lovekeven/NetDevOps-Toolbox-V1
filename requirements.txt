@@ -1,7 +1,14 @@
-requests
-netmiko
-pyyaml
-flask
-nornir
-nornir-netmiko
-psutil
+# 核心依赖
+requests==2.32.3
+netmiko==4.3.0
+pyyaml==6.0.2
+flask==2.1.3
+nornir==3.3.0
+nornir-netmiko==0.4.0
+psutil==5.9.8
+
+# 定时任务
+APScheduler==3.10.4
+
+# 其他工具
+python-dotenv==1.0.1

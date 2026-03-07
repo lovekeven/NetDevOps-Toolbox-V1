@@ -1,7 +1,7 @@
 import json  # 解析数据库的备份文件变为JSON格式给deepseek
 import sys
 import requests  # 发送请求
-import logging
+import logging  # 可以不需要引入
 import time
 import os
 
@@ -27,7 +27,7 @@ class ReportGenerator:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-        }  # Content-Type代表请求头的数据格式
+        }  # Content-Type代表请求体的数据格式
         data = {
             "model": "glm-4.7",  # 模型名称，其他平台需更换
             "messages": [{"role": "user", "content": prompt}],

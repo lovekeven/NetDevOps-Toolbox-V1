@@ -1289,6 +1289,39 @@ def save_device():
         return jsonify({"code": 2, "msg": f"保存失败：{str(e)}"})
 
 
+@app.route("/api/devices", methods=["GET"])
+def get_devices_api():
+    try:
+        devices = get_devices()
+        return jsonify({"code": 0, "data": devices})
+    except Exception as e:
+        logger.error(f"获取设备列表失败：{str(e)}")
+        return jsonify({"code": 1, "msg": f"获取设备列表失败：{str(e)}"})
+
+
+@app.route("/api/delete_device/<device_name>", methods=["DELETE"])
+def delete_device(device_name):
+    try:
+        if not os.path.exists(CONFIG_PATH):
+            return jsonify({"code": 1, "msg": "设备清单文件不存在"})
+        
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            device = yaml.safe_load(f) or {}
+        
+        if device_name not in device:
+            return jsonify({"code": 1, "msg": "设备不存在"})
+        
+        del device[device_name]
+        
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            yaml.dump(device, f, default_flow_style=False, allow_unicode=True, indent=2, sort_keys=False)
+        
+        return jsonify({"code": 0, "msg": f"设备{device_name}删除成功！"})
+    except Exception as e:
+        logger.error(f"删除设备失败：{str(e)}")
+        return jsonify({"code": 2, "msg": f"删除失败：{str(e)}"})
+
+
 if __name__ == "__main__":
     logger.info("调度器正在准备加载任务请稍后.......")
     init_scheduler()
