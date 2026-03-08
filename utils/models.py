@@ -14,8 +14,11 @@ logger = setup_logger("modelsS", "models.log")
 # from core.cloud.real_providers.ali_client import AliyunCloudClient
 # 这个在哪里用到就在那里导入
 
-# 导入阿里云服务端异常，方便精准捕获
-from aliyunsdkcore.acs_exception.exceptions import ServerException
+# 导入阿里云服务端异常，方便精准捕获（可选）
+try:
+    from aliyunsdkcore.acs_exception.exceptions import ServerException
+except ImportError:
+    ServerException = None
 
 # 导入数据库(实例)
 from db.database import db_manager
