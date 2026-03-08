@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt /app/
 #1.COPY的文件必须在项目根目录下面
 #2.就是把依赖文件放到了操作台上
-RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 #1.pip理解为python世界里的应用商店下载器，是Python语言里官方包管理工具，pip install + 第三方模块
 #2.--no-cache-dir是 pip 的参数，作用是「禁用 pip 缓存，安装完成后自动清理所有安装残留文件」；
 #3.-i 是 --index-url 的缩写，指定 pip 下载依赖的「镜像源地址」（不是官方源）
