@@ -35,7 +35,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/zhuangdedocker/wangjianzhuangdedocker
+          images: registry.cn-hangzhou.aliyuncs.com/nick1522928711/wangjianzhuangdedocker
           tags: |
             type=ref,event=branch
             type=ref,event=pr
