@@ -8,23 +8,20 @@ sys.path.append(ROOT_DIR)
 from utils.aliyun_time import convert_aliyun_time
 
 
-from aliyunsdkcore.client import AcsClient
-
-# 1.创建阿里云 API 客户端的核心类，所有阿里云接口都靠它初始化（AK/SK/ 地域）；
-# 2.综合类的大厅
-from aliyunsdkcore.acs_exception.exceptions import ServerException
-
-# 1.专门捕获阿里云 SDK 的「服务端异常」（比如阿里云接口挂了、地域不可用）
-
-from aliyunsdkvpc.request.v20160428.DescribeVpcsRequest import DescribeVpcsRequest
-
-# 1.专门查询VPC的请求类
-from aliyunsdkecs.request.v20140526.DescribeInstancesRequest import DescribeInstancesRequest
-
-# 1.专门用于「查询阿里云 ECS 实例（云服务器）列表」的请求类
-from aliyunsdkecs.request.v20140526.DescribeSecurityGroupsRequest import DescribeSecurityGroupsRequest
-
-# 1. 专门用于「查询阿里云安全组列表」的请求类
+try:
+    from aliyunsdkcore.client import AcsClient
+    from aliyunsdkcore.acs_exception.exceptions import ServerException
+    from aliyunsdkvpc.request.v20160428.DescribeVpcsRequest import DescribeVpcsRequest
+    from aliyunsdkecs.request.v20140526.DescribeInstancesRequest import DescribeInstancesRequest
+    from aliyunsdkecs.request.v20140526.DescribeSecurityGroupsRequest import DescribeSecurityGroupsRequest
+    ALIYUN_SDK_AVAILABLE = True
+except ImportError:
+    ALIYUN_SDK_AVAILABLE = False
+    AcsClient = None
+    ServerException = None
+    DescribeVpcsRequest = None
+    DescribeInstancesRequest = None
+    DescribeSecurityGroupsRequest = None
 
 from utils.models import CloudVPC, CloudSecurityGroup
 
@@ -35,6 +32,9 @@ class AliyunCloudClient:
         self.ak = ak or os.getenv("ALIYUN_AK")
         self.sk = sk or os.getenv("ALIYUN_SK")
         self.region = region
+        if not ALIYUN_SDK_AVAILABLE:
+            self.client = None
+            return
         if not self.ak or not self.sk:
             raise ValueError("ALIYUN_AK and ALIYUN_SK must be set")
         self.client = AcsClient(self.ak, self.sk, self.region)
