@@ -13,7 +13,7 @@ APScheduler==3.10.4
 
 # 阿里云SDK
 aliyun-python-sdk-core==2.15.2
-aliyun-python-sdk-ecs==4.25.0
+aliyun-python-sdk-ecs==4.24.26
 
 # 其他工具
 python-dotenv==1.0.1
