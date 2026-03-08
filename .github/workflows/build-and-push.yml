@@ -31,32 +31,15 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: registry.cn-hangzhou.aliyuncs.com/nick1522928711/wangjianzhuangdedocker
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: List files for debug
-        run: |
-          ls -la
-          cat requirements.txt
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/nick1522928711/wangjianzhuangdedocker:latest
+            crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/nick1522928711/wangjianzhuangdedocker:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
