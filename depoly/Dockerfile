@@ -3,8 +3,8 @@ FROM python:3.10
 WORKDIR /app
 #1.在这个厨房里给Docker引擎说，你在这个清理出来的工作台上工作
 COPY requirements.txt /app/
-#1.COPY的文件必须在项目根目录下面
-#2.就是把依赖文件放到了操作台上
+#1.从构建上下文（项目根目录）复制requirements.txt到容器中
+#2.构建命令：docker build -f depoly/Dockerfile -t netdevops:v1 .
 RUN pip install --no-cache-dir -r requirements.txt
 #1.pip理解为python世界里的应用商店下载器，是Python语言里官方包管理工具，pip install + 第三方模块
 #2.--no-cache-dir是 pip 的参数，作用是「禁用 pip 缓存，安装完成后自动清理所有安装残留文件」；
