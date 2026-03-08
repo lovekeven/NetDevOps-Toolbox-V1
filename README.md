@@ -11,7 +11,7 @@
     - 🐳 **容器化部署**：支持Docker一键部署，无需克隆项目，直接拉取镜像即可运行。
     - 🔄 **自动化CI/CD**：GitHub Actions自动构建并推送镜像到阿里云容器镜像服务。
 - **技术栈**：Python, Flask, SQLite, Nornir, Netmiko, AI API, RESTful API, psutil（系统监控）
-- **体验地址**：Docker 一键部署 `docker pull crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/nick1522928711/wangjianzhuangdedocker:latest`，即可在浏览器访问 `http://localhost:8080`（点击「检查系统服务状态」体验监控功能）
+- **体验地址**：Docker 一键部署 `docker pull crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/zhuangdedocker/wangjianzhuangdedocker:latest`，即可在浏览器访问 `http://localhost:8080`（点击「检查系统服务状态」体验监控功能）
 ## 一，项目描述
 这是一款基于 Python 开发的网络设备自动化运维工具，能批量完成网络设备的配置备份和健康状态检查（接口、CPU、内存），通过Web仪表盘统一操作，解决传统手动运维效率低、易出错的问题。同时在前端增加云网络，和混合云平台
 ## 二，功能特性
@@ -41,10 +41,10 @@
 2.  拉取镜像并运行（一行命令即可）：
     ```bash
     # 拉取镜像
-    docker pull crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/nick1522928711/wangjianzhuangdedocker:latest
+    docker pull crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/zhuangdedocker/wangjianzhuangdedocker:latest
     
     # 运行容器
-    docker run -d -p 8080:8080 --name netdevops-app crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/nick1522928711/wangjianzhuangdedocker:latest
+    docker run -d -p 8080:8080 --name netdevops-app crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/zhuangdedocker/wangjianzhuangdedocker:latest
     ```
     > 说明：镜像已通过 GitHub Actions 自动构建并推送到阿里云容器镜像服务，无需克隆项目
 3.  打开浏览器访问：http://127.0.0.1:8080

@@ -38,8 +38,8 @@ jobs:
           file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/nick1522928711/wangjianzhuangdedocker:latest
-            crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/nick1522928711/wangjianzhuangdedocker:${{ github.sha }}
+            crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/zhuangdedocker/wangjianzhuangdedocker:latest
+            crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/zhuangdedocker/wangjianzhuangdedocker:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
