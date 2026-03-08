@@ -1,15 +1,17 @@
 # NetDevOps-Toolbox-V1
-## ✨ 最新进展：项目已升级为智能数据化系统（V7.1）！
-- **日期**：2026年3月7日
-- **里程碑**：备份结果支持前端下载，用户可以手动在可视化界面添加和删除设备，并且增加AI分析后发送邮件功能（每周一自动发送），备份历史和健康历史支持按天数和按记录查询
+## ✨ 最新进展：项目已升级为智能数据化系统（V7.2）！
+- **日期**：2026年3月8日
+- **里程碑**：新增Docker容器化部署，GitHub Actions自动化CI/CD，支持阿里云镜像仓库一键拉取
 - **核心功能**：
     - 🗃️ **数据持久化**：集成SQLite数据库，扩展设备检查健康状态，物理设备档案卡数据表，实现设备/系统/服务数据全量存储与追溯。
     - 🤖 **AI智能分析**：接入大模型API，可根据自动生成智能运维报告，并且一键发送到邮箱。
     - ⚡ **专业并发框架**：优化Nornir框架逻辑，根据实际情况判断设备是否健康。
     - 📈 **系统可观测性**：完成全维度监控体系建设（系统级指标/API服务/Nornir框架/Web仪表盘），支持实时状态查询与阈值告警。
     - 🌐 **API能力扩展**：主要新增添加设备，和删除设备以及发送邮件的API接口。
+    - 🐳 **容器化部署**：支持Docker一键部署，无需克隆项目，直接拉取镜像即可运行。
+    - 🔄 **自动化CI/CD**：GitHub Actions自动构建并推送镜像到阿里云容器镜像服务。
 - **技术栈**：Python, Flask, SQLite, Nornir, Netmiko, AI API, RESTful API, psutil（系统监控）
-- **体验地址**：克隆项目后运行 `python web/web_dashboard.py`，即可在浏览器访问 `http://localhost:8080`（点击「检查系统服务状态」体验监控功能）
+- **体验地址**：Docker 一键部署 `docker pull crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/zhuangdedocker/wangjianzhuangdedocker:latest`，即可在浏览器访问 `http://localhost:8080`（点击「检查系统服务状态」体验监控功能）
 ## 一，项目描述
 这是一款基于 Python 开发的网络设备自动化运维工具，能批量完成网络设备的配置备份和健康状态检查（接口、CPU、内存），通过Web仪表盘统一操作，解决传统手动运维效率低、易出错的问题。同时在前端增加云网络，和混合云平台
 ## 二，功能特性
@@ -31,57 +33,49 @@
 - 发送API请求：requests
 ## 四，安装与使用
 
-### 1. 克隆项目
-git clone https://github.com/lovekeven/NetDevOps-Toolbox-V1.git
-cd NetDevOps-Toolbox-V1
-
-
-### 2. 环境部署方式（二选一，按需选择）
+### 1. 环境部署方式（二选一，按需选择）
 > 说明：两种部署方式均可实现项目运行，无需同时操作，按需挑选即可。
 
-#### 方式一：本地Python环境部署（适合开发者/需修改代码的用户）
-1.  前提准备：已安装Python 3.8+（推荐3.9~3.11版本，兼容性更好）；
-2.  打开终端/命令行工具，切换到项目根目录（包含`requirements.txt`文件）：
-    ```bash
-    # Windows示例（替换为你的项目实际路径）
-    cd D:\Projects\NetDevOps-Toolbox-V1
-    # Mac/Linux示例（替换为你的项目实际路径）
-    cd ~/Projects/NetDevOps-Toolbox-V1
-3.  pip install -r requirements.txt
-#### 方式二：Docker 容器化部署（推荐新手 / 快速启动 / 无需配置 Python 环境）（注：目前正在开发Docker的部署，若部署不成功请等我一会）
+#### 方式一：Docker 容器化部署（推荐新手 / 快速启动 / 无需克隆项目）
 1.  前提准备：本地已安装「Docker Desktop」（Windows/Mac）或「Docker Engine」（Linux），且 Docker 服务已启动；
-2.  无需手动安装 Python / 项目依赖：Docker 会通过项目根目录的「Dockerfile」自动构建环境、安装所有依赖；
-3.  打开终端 / 命令行工具，切换到项目根目录（包含Dockerfile文件）：
+2.  拉取镜像并运行（一行命令即可）：
     ```bash
-    # Windows示例（替换为你的项目实际路径）
-    cd D:\Projects\NetDevOps-Toolbox-V1
-    # Mac/Linux示例（替换为你的项目实际路径）
-    cd ~/Projects/NetDevOps-Toolbox-V1
-    构建 Docker 镜像（镜像名可自定义，建议与项目名一致）：
-    docker build -t netdevops-toolbox:v1 .
-### 3. 设备配置文件编写
+    # 拉取镜像
+    docker pull crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/zhuangdedocker/wangjianzhuangdedocker:latest
+    
+    # 运行容器
+    docker run -d -p 8080:8080 --name netdevops-app crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/zhuangdedocker/wangjianzhuangdedocker:latest
+    ```
+    > 说明：镜像已通过 GitHub Actions 自动构建并推送到阿里云容器镜像服务，无需克隆项目
+3.  打开浏览器访问：http://127.0.0.1:8080
+
+#### 方式二：本地Python环境部署（适合开发者/需修改代码的用户）
+1.  克隆项目：
+    ```bash
+    git clone https://github.com/lovekeven/NetDevOps-Toolbox-V1.git
+    cd NetDevOps-Toolbox-V1
+    ```
+2.  前提准备：已安装Python 3.8+（推荐3.9~3.11版本，兼容性更好）；
+3.  安装依赖：
+    ```bash
+    pip install -r requirements.txt
+    ```
+4.  启动服务：
+    ```bash
+    python web/web_dashboard.py
+    ```
+5.  打开浏览器访问：http://127.0.0.1:8080
+### 2. 设备配置文件编写
 1.直接在前端页面添加设备处，更新和删除设备
-### 4. 核心命令示例
 
-#### 方式一：优先推荐 - Web仪表盘图形化操作（本地/Docker部署均支持，最简单）
-Web仪表盘是目前最便捷的使用方式，两种部署方式启动后，操作步骤完全一致，无需输入任何命令。
+### 3. Web仪表盘操作说明
+服务启动后，打开浏览器访问 http://127.0.0.1:8080：
+1.  进入页面后，可直观看到所有设备列表；
+2.  执行「设备备份」：点击对应设备后的「备份」按钮，等待操作完成（页面会实时显示「备份中→备份成功」反馈）
+3.  执行「健康检查」：点击对应设备后的「健康检查」按钮，检查接口状态、CPU / 内存使用率
+4.  查看结果：备份文件自动归档到「backupN1」目录，健康检查结果在浏览器页面使用F12点击控制台可以看到
 
-##### 步骤1：根据你的部署方式，启动Web服务
-1.  若为「本地Python环境部署」：
-    ```
-    项目根目录终端执行，启动Web仪表盘（核心脚本：web_dashboard.py）
-    python web_dashboard.py
-2.  若为「Docker 容器化部署」：
-    ```
-    启动容器后，Web仪表盘会自动运行（无需额外命令，已配置web_dashboard.py为入口）
-    docker run -p 8080:8080 netdevops-toolbox:v1
-##### 步骤 2：访问 Web 仪表盘，完成操作
-1.  打开浏览器，输入访问地址：http://127.0.0.1:5000；
-2.  进入页面后，可直观看到所有设备列表；
-3.  执行「设备备份」：点击对应设备后的「备份」按钮，等待操作完成（页面会实时显示「备份中→备份成功」反馈）
-4.  执行「健康检查」：点击对应设备后的「健康检查」按钮，检查结，接口状态、CPU / 内存使用率
-5.  查看结果：备份文件自动归档到「backupN1」目录（本地部署直接在项目根目录，Docker 部署可通过容器挂载目录获取），健康检查结果在浏览器页面使用f12,点击控制台就可以看到
-#### 方式二：
+### 4. 命令行方式（可选）
 通过 main.py 统一调度，支持两种模式（backup/检查），两种目标选择（--all/--ip），具体示例如下：
 - 模式 1：备份功能
         
