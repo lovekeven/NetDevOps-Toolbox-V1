@@ -31,8 +31,13 @@ from core.cloud.concept_simulator import CloudNetworkSimulator
 
 cloud_simulator = CloudNetworkSimulator()
 
-# 引入真实阿里云客户
-from core.cloud.real_providers.ali_client import AliyunCloudClient
+# 引入真实阿里云客户（可选）
+try:
+    from core.cloud.real_providers.ali_client import AliyunCloudClient
+    aliyun_client_available = True
+except ImportError:
+    aliyun_client_available = False
+    AliyunCloudClient = None
 
 # 引入混合资源管理器(全局实例)
 from core.hybrid_manager.hybrid_manager import HybridResourceManager
