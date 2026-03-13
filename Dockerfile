@@ -3,6 +3,9 @@ FROM python:3.10-alpine
 WORKDIR /app
 #1.在这个厨房里给Docker引擎说，你在这个清理出来的工作台上工作
 
+# 安装编译依赖（psutil 需要）
+RUN apk add --no-cache gcc musl-dev linux-headers
+
 # 先复制依赖文件并安装
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
