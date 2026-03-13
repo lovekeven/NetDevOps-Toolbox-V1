@@ -1,4 +1,4 @@
-FROM python:3.10
+FROM python:3.10-alpine
 #1.给Docker引擎找了一个基于python3.10的厨房
 WORKDIR /app
 #1.在这个厨房里给Docker引擎说，你在这个清理出来的工作台上工作
