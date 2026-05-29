@@ -61,7 +61,8 @@ class SystemMonitor:
         try:
             # 检查数据库连接
             try:
-                recoard = db_manager.get_recent_backups(limit=1)  # 取所有设备的备份历史记录的第一条
+                # 原代码：recoard = ...  # 拼写错误：recoard 应为 record
+                record = db_manager.get_recent_backups(limit=1)  # 取所有设备的备份历史记录的第一条
                 logger.info("数据库连接正常！")
                 services_status["database"] = "healthy"
             except Exception as e:

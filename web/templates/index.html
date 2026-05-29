@@ -1385,11 +1385,12 @@
                                     <th>备份路径</th>
                                     <th>备份时间</th>
                                     <th>备份状态</th>
+                                    <th>操作</th>
                                 </tr>
                             </thead>
                             <tbody id="backupHistoryTableBody">
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">请点击「刷新备份历史」获取记录</td>
+                                    <td colspan="6" class="text-center text-muted py-4">请点击「刷新备份历史」获取记录</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1891,8 +1892,73 @@
             document.getElementById('refresh-api-btn').addEventListener('click', checkApiStatus);
         }
 
+        // Toast通知函数
+        function showToast(message, type = 'info') {
+            // 创建toast元素
+            const toastContainer = document.createElement('div');
+            toastContainer.className = `toast position-fixed top-20 end-0 m-4 fade show`;
+            toastContainer.style.minWidth = '300px';
+            toastContainer.style.zIndex = '9999';
+            
+            const bgClass = {
+                'success': 'bg-success',
+                'danger': 'bg-danger', 
+                'warning': 'bg-warning',
+                'info': 'bg-info'
+            }[type] || 'bg-info';
+            
+            toastContainer.innerHTML = `
+                <div class="toast-header ${bgClass} text-white">
+                    <strong class="me-auto">通知</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body bg-white text-dark">
+                    ${message}
+                </div>
+            `;
+            
+            document.body.appendChild(toastContainer);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                toastContainer.remove();
+            }, 3000);
+        }
+
         // 2. 设备备份功能
         function initBackupFunction() {
+            // 设备列表中备份下载按钮点击事件
+            document.addEventListener('click', function(e) {
+                console.log('点击事件触发，目标:', e.target);
+                const downloadBtn = e.target.closest('.download-backup-list-btn');
+                console.log('找到下载按钮:', downloadBtn);
+                
+                if (downloadBtn) {
+                    e.preventDefault();
+                    const backupPath = downloadBtn.getAttribute('data-path');
+                    console.log('原始data-path:', backupPath);
+                    
+                    const decodedPath = decodeURIComponent(backupPath);
+                    console.log('解码后路径:', decodedPath);
+                    
+                    const fileName = decodedPath.split('/').pop() || decodedPath.split('\\').pop() || 'backup.txt';
+                    const url = `/api/v1/backup/download?path=${encodeURIComponent(decodedPath)}`;
+                    
+                    console.log('完整下载URL:', url);
+                    console.log('文件名:', fileName);
+                    
+                    // 直接创建下载链接
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = fileName;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    showToast('文件下载成功', 'success');
+                }
+            });
+
             document.querySelectorAll('.backup-btn').forEach(button => {
                 button.addEventListener('click', function() {
                     const hostname = this.getAttribute('data-hostname');
@@ -1908,14 +1974,22 @@
                         .then(({ response, data }) => {
                             if (!response.ok) throw new Error(data.message || `备份请求失败，状态码：${response.status}`);
                             if (data.status && data.status === '成功') {
+                                const hasPath = data.backup_path && data.backup_path !== 'N/A' && data.backup_path !== '未知路径';
                                 const successHtml = `
                                     <div class="status-indicator">
                                         <span class="status-dot online"></span>
                                         <span class="badge bg-success">备份成功</span>
                                     </div>
                                     <small class="text-muted d-block mt-1">
-                                        备份路径：${data.backup_path || '未知路径'}
+                                        ${data.backup_path || '未知路径'}
                                     </small>
+                                    ${hasPath ? `
+                                    <button class="btn btn-xs btn-outline-primary mt-1 download-backup-list-btn" 
+                                            data-path="${encodeURIComponent(data.backup_path)}" 
+                                            title="下载备份文件">
+                                        <i class="fas fa-download"></i> 下载
+                                    </button>
+                                    ` : ''}
                                 `;
                                 backupCell.innerHTML = successHtml;
                                 showToast('备份成功', 'success');
@@ -2076,9 +2150,18 @@
                                     <div>
                                         <h6 class="mb-3">健康问题</h6>
                                         <div class="bg-opacity-10 rounded-lg p-3" style="background-color: rgba(79, 70, 229, 0.1);">
-                                            ${result.device_health_issues && result.device_health_issues.length > 0 ? 
-                                                `<ul class="mb-0">${result.device_health_issues.map(issue => `<li>${issue}</li>`).join('')}</ul>` : 
-                                                '<p class="mb-0 text-muted">无健康问题</p>'}
+                                            ${(() => {
+                                                let issues = result.device_health_issues;
+                                                // 如果是字符串，按分号分割成数组
+                                                if (typeof issues === 'string') {
+                                                    issues = issues.split(';').filter(item => item.trim() && item !== '无');
+                                                }
+                                                // 如果是数组且有内容
+                                                if (issues && issues.length > 0) {
+                                                    return `<ul class="mb-0">${issues.map(issue => `<li>${issue}</li>`).join('')}</ul>`;
+                                                }
+                                                return '<p class="mb-0 text-muted">无健康问题</p>';
+                                            })()}
                                         </div>
                                     </div>
                                 </div>
@@ -2103,6 +2186,18 @@
                         });
                 });
             });
+        }
+
+        // 状态值转换为中文显示（全局函数）
+        function getStatusText(status) {
+            const statusMap = {
+                'healthy': '健康',
+                'degraded': '降级',
+                'failed': '失败',
+                '在线': '在线',
+                '离线': '离线'
+            };
+            return statusMap[status] || status;
         }
 
         // 4. 健康检查历史功能
@@ -2351,7 +2446,7 @@
                                                     <p class="mb-1"><strong>检查时间：</strong>${record.check_time || '未知'}</p>
                                                 </div>
                                                 <div class="col-md-6">
-                                                    <p class="mb-1"><strong>健康状态：</strong>${record.status || '未知'}</p>
+                                                    <p class="mb-1"><strong>健康状态：</strong>${getStatusText(record.status) || '未知'}</p>
                                                     <p class="mb-1"><strong>检查状态：</strong>${record.check_status || '未知'}</p>
                                                     <p class="mb-1"><strong>可达性：</strong>${record.reachable || '未知'}</p>
                                                     <p class="mb-1"><strong>错误信息：</strong>${record.error_message || '无'}</p>
@@ -2452,9 +2547,13 @@
                     statusText = '检查中';
                 }
 
-                // 处理使用率显示，无数据时不加百分号
-                const cpuUsage = cardData.cpu_usage && cardData.cpu_usage !== 'N/A' ? `${cardData.cpu_usage}%` : (cardData.cpu_usage || '未知');
-                const memoryUsage = cardData.memory_usage && cardData.memory_usage !== 'N/A' ? `${cardData.memory_usage}%` : (cardData.memory_usage || '未知');
+                // 处理使用率显示，检查是否已包含百分号
+                const cpuUsage = cardData.cpu_usage && cardData.cpu_usage !== 'N/A' 
+                    ? (cardData.cpu_usage.includes('%') ? cardData.cpu_usage : `${cardData.cpu_usage}%`) 
+                    : (cardData.cpu_usage || '未知');
+                const memoryUsage = cardData.memory_usage && cardData.memory_usage !== 'N/A' 
+                    ? (cardData.memory_usage.includes('%') ? cardData.memory_usage : `${cardData.memory_usage}%`) 
+                    : (cardData.memory_usage || '未知');
 
                 // 处理可达性显示
                 let reachableText = '未知';
@@ -2477,7 +2576,7 @@
                     <div class="row text-sm">
                         <div class="col-6 mb-1">
                             <span class="text-muted">UP端口：</span>
-                            <span>${cardData.up_interface || cardData.up_ports || 0}</span>
+                            <span>${cardData.up_interfaces || cardData.up_interface || cardData.up_ports || 0}</span>
                         </div>
                         <div class="col-6 mb-1">
                             <span class="text-muted">DOWN端口：</span>
@@ -2485,7 +2584,7 @@
                         </div>
                         <div class="col-6 mb-1">
                             <span class="text-muted">总端口：</span>
-                            <span>${cardData.total_interface || cardData.total_ports || 0}</span>
+                            <span>${cardData.total_interfaces || cardData.total_interface || cardData.total_ports || 0}</span>
                         </div>
                         <div class="col-6 mb-1">
                             <span class="text-muted">CPU使用率：</span>
@@ -2625,6 +2724,27 @@
                 queryBackupHistory(true);
             });
 
+            // 下载备份文件
+            document.getElementById('backupHistoryModal').addEventListener('click', function(e) {
+                const target = e.target.closest('.download-backup-btn');
+                if (target) {
+                    e.preventDefault();
+                    const backupPath = decodeURIComponent(target.getAttribute('data-path'));
+                    downloadBackupFile(backupPath);
+                }
+            });
+
+            // 下载文件函数
+            function downloadBackupFile(path) {
+                const url = `/api/v1/backup/download?path=${encodeURIComponent(path)}`;
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = path.split('/').pop() || 'backup.conf';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
             // 核心查询方法
             function queryBackupHistory(isQueryAll = false) {
                 if (!currentModalHostname) return;
@@ -2652,7 +2772,7 @@
                 const originalBtnText = btn.innerHTML;
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>查询中...';
                 btn.disabled = true;
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-warning py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在查询备份历史...</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-warning py-4"><div class="spinner-border spinner-border-sm me-2"></div>正在查询备份历史...</td></tr>';
                 countInfo.textContent = '总记录数：查询中...';
 
                 // 构建API URL
@@ -2669,6 +2789,8 @@
                         if (data.status === 'success' && data.history && data.history.length > 0) {
                             data.history.forEach(record => {
                                 const tr = document.createElement('tr');
+                                const isSuccess = record.status === 'success' || record.status === '成功';
+                                const hasPath = record.backup_path && record.backup_path !== 'N/A';
                                 tr.innerHTML = `
                                     <td>${record.id || '未知'}</td>
                                     <td>${record.hostname || currentModalHostname}</td>
@@ -2677,21 +2799,26 @@
                                     </td>
                                     <td>${record.start_time || record.backup_time || '未知时间'}</td>
                                     <td>
-                                        ${record.status === 'success' || record.status === '成功' 
-                                            ? '<span class="badge bg-success">成功</span>' 
-                                            : '<span class="badge bg-danger">失败</span>'}
+                                        ${isSuccess ? '<span class="badge bg-success">成功</span>' : '<span class="badge bg-danger">失败</span>'}
+                                    </td>
+                                    <td>
+                                        ${isSuccess && hasPath 
+                                            ? `<button class="btn btn-sm btn-outline-primary download-backup-btn" data-path="${encodeURIComponent(record.backup_path)}" title="下载备份文件">
+                                                <i class="fas fa-download"></i>
+                                              </button>` 
+                                            : '<span class="text-muted">-</span>'}
                                     </td>
                                 `;
                                 tableBody.appendChild(tr);
                             });
                             countInfo.textContent = `总记录数：${data.history_record || data.history.length} 条（当前查询${isQueryAll ? '全部' : limit}条）`;
                         } else {
-                            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无备份历史记录</td></tr>';
+                            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">暂无备份历史记录</td></tr>';
                             countInfo.textContent = '总记录数：0 条';
                         }
                     })
                     .catch(error => {
-                        tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">❌ ${error.message}</td></tr>`;
+                        tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">❌ ${error.message}</td></tr>`;
                         countInfo.textContent = '总记录数：查询失败';
                         console.error('备份历史查询异常：', error);
                     })
@@ -2909,34 +3036,57 @@
             const nornirTableSelectAll = document.getElementById('nornirTableSelectAll');
             const nornirSelectedCount = document.getElementById('nornirSelectedCount');
             const nornirBatchCheckBtn = document.getElementById('nornirBatchCheckBtn');
-            const nornirDeviceCheckboxes = document.querySelectorAll('.nornirDeviceCheckbox');
+
+            // 确保元素存在
+            if (!nornirBatchCheckBtn) {
+                console.error('nornirBatchCheckBtn 元素不存在');
+                return;
+            }
+
+            // 使用动态查询，确保能获取到设备复选框
+            function getDeviceCheckboxes() {
+                return document.querySelectorAll('.nornirDeviceCheckbox');
+            }
 
             // 同步全选状态
             function syncNornirSelectAllStatus() {
+                const nornirDeviceCheckboxes = getDeviceCheckboxes();
                 const allChecked = Array.from(nornirDeviceCheckboxes).every(checkbox => checkbox.checked);
                 const anyChecked = Array.from(nornirDeviceCheckboxes).some(checkbox => checkbox.checked);
-                nornirSelectAll.checked = allChecked;
-                nornirTableSelectAll.checked = allChecked;
+                
+                if (nornirSelectAll) nornirSelectAll.checked = allChecked;
+                if (nornirTableSelectAll) nornirTableSelectAll.checked = allChecked;
                 nornirBatchCheckBtn.disabled = !anyChecked;
 
                 const selectedCount = Array.from(nornirDeviceCheckboxes).filter(checkbox => checkbox.checked).length;
-                nornirSelectedCount.textContent = `已选：${selectedCount} 台`;
+                if (nornirSelectedCount) nornirSelectedCount.textContent = `已选：${selectedCount} 台`;
             }
 
             // 全选按钮事件
-            nornirSelectAll.addEventListener('change', function() {
-                nornirDeviceCheckboxes.forEach(checkbox => checkbox.checked = this.checked);
-                syncNornirSelectAllStatus();
+            if (nornirSelectAll) {
+                nornirSelectAll.addEventListener('change', function() {
+                    const nornirDeviceCheckboxes = getDeviceCheckboxes();
+                    nornirDeviceCheckboxes.forEach(checkbox => checkbox.checked = this.checked);
+                    syncNornirSelectAllStatus();
+                });
+            }
+            if (nornirTableSelectAll) {
+                nornirTableSelectAll.addEventListener('change', function() {
+                    const nornirDeviceCheckboxes = getDeviceCheckboxes();
+                    nornirDeviceCheckboxes.forEach(checkbox => checkbox.checked = this.checked);
+                    syncNornirSelectAllStatus();
+                });
+            }
+            
+            // 为每个复选框添加事件监听
+            const nornirDeviceCheckboxes = getDeviceCheckboxes();
+            nornirDeviceCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', syncNornirSelectAllStatus);
             });
-            nornirTableSelectAll.addEventListener('change', function() {
-                nornirDeviceCheckboxes.forEach(checkbox => checkbox.checked = this.checked);
-                syncNornirSelectAllStatus();
-            });
-            nornirDeviceCheckboxes.forEach(checkbox => checkbox.addEventListener('change', syncNornirSelectAllStatus));
-
+            
             // 批量检查按钮事件（修复URL参数拼接）
             nornirBatchCheckBtn.addEventListener('click', function() {
-                const selectedDevices = Array.from(nornirDeviceCheckboxes)
+                const selectedDevices = Array.from(getDeviceCheckboxes())
                     .filter(checkbox => checkbox.checked)
                     .map(checkbox => checkbox.getAttribute('data-hostname'));
 
@@ -2969,109 +3119,68 @@
                         // 渲染成功结果
                         if (data.success && Array.isArray(data.success)) {
                             data.success.forEach(item => {
-                                const tr = document.createElement('tr');
-                                const result = item.result;
-                                const isSuccess = result.check_status === '成功';
-                                const statusBadge = isSuccess ? '<span class="badge bg-success">成功</span>' : '<span class="badge bg-danger">失败</span>';
-                                isSuccess ? success++ : failed++;
+                                success++;
+                                const statusBadge = item.result.status === 'healthy' 
+                                    ? '<span class="badge bg-success">健康</span>' 
+                                    : '<span class="badge bg-warning">降级</span>';
+                                
+                                let issues = item.result.device_health_issues;
+                                if (typeof issues === 'string') {
+                                    issues = issues.split(';').filter(i => i.trim() && i !== '无');
+                                }
+                                const issuesText = issues && issues.length > 0 
+                                    ? issues.join(', ') 
+                                    : '无';
 
-                                const output = `
-                                    <div>
-                                        <p><strong>设备名称：</strong>${result.device_name}</p>
-                                        <p><strong>IP地址：</strong>${result.host}</p>
-                                        <p><strong>版本：</strong>${result.version}</p>
-                                        <p><strong>状态：</strong>${result.status}</p>
-                                        <p><strong>检查状态：</strong>${result.check_status}</p>
-                                        <p><strong>UP接口：</strong>${result.up_interface}</p>
-                                        <p><strong>DOWN接口：</strong>${result.down_interface}</p>
-                                        <p><strong>CPU使用率：</strong>${result.CPU_usage}</p>
-                                        <p><strong>内存使用率：</strong>${result.memory_usage}</p>
-                                        <p><strong>检查时间：</strong>${result.check_time}</p>
-                                    </div>
+                                tableBody.innerHTML += `
+                                    <tr>
+                                        <td>${item.hostname}</td>
+                                        <td>${statusBadge}</td>
+                                        <td>${item.result.CPU_usage || 'N/A'}</td>
+                                        <td>${item.result.memory_usage || 'N/A'}</td>
+                                        <td>${item.result.up_interface || 0}/${item.result.total_interface || 0}</td>
+                                        <td>${issuesText}</td>
+                                    </tr>
                                 `;
-
-                                tr.innerHTML = `
-                                    <td>${result.device_name}</td>
-                                    <td>${statusBadge}</td>
-                                    <td>${output}</td>
-                                    <td>${result.check_time}</td>
-                                `;
-                                tableBody.appendChild(tr);
                             });
                         }
 
                         // 渲染失败结果
                         if (data.failed && Array.isArray(data.failed)) {
                             data.failed.forEach(item => {
-                                const tr = document.createElement('tr');
-                                const statusBadge = '<span class="badge bg-danger">失败</span>';
                                 failed++;
-
-                                const output = `<div><p><strong>错误信息：</strong>${item.error}</p></div>`;
-                                tr.innerHTML = `
-                                    <td>${item.hostname}</td>
-                                    <td>${statusBadge}</td>
-                                    <td>${output}</td>
-                                    <td>${new Date().toLocaleString('zh-CN')}</td>
+                                tableBody.innerHTML += `
+                                    <tr>
+                                        <td>${item.hostname}</td>
+                                        <td><span class="badge bg-danger">失败</span></td>
+                                        <td colspan="4">${item.error || '未知错误'}</td>
+                                    </tr>
                                 `;
-                                tableBody.appendChild(tr);
                             });
                         }
 
-                        // 无结果处理
-                        if ((!data.success || data.success.length === 0) && (!data.failed || data.failed.length === 0)) {
-                            tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">暂无检查结果数据</td></tr>';
-                        }
+                        successCount.textContent = success;
+                        failedCount.textContent = failed;
+                        totalCount.textContent = success + failed;
 
-                        // 更新汇总统计
-                        successCount.innerHTML = `<i class="fas fa-check-circle me-1"></i>成功：${success} 台`;
-                        failedCount.innerHTML = `<i class="fas fa-times-circle me-1"></i>失败：${failed} 台`;
-                        totalCount.innerHTML = `<i class="fas fa-server me-1"></i>总计：${selectedDevices.length} 台`;
-
-                        modalInstances.nornirCheckResultModal.show();
+                        // 显示结果模态框
+                        const nornirResultModal = new bootstrap.Modal(document.getElementById('nornirResultModal'));
+                        nornirResultModal.show();
                     })
                     .catch(error => {
-                        console.error('Nornir并发检查异常：', error);
-                        
-                        // 显示失败结果卡片
-                        const tableBody = document.getElementById('nornirCheckResultTableBody');
-                        const successCount = document.getElementById('nornirSuccessCount');
-                        const failedCount = document.getElementById('nornirFailedCount');
-                        const totalCount = document.getElementById('nornirTotalCount');
-
-                        tableBody.innerHTML = '';
-                        
-                        // 为每个选择的设备显示失败信息
-                        selectedDevices.forEach(deviceName => {
-                            const tr = document.createElement('tr');
-                            const statusBadge = '<span class="badge bg-danger">失败</span>';
-                            
-                            const output = `<div><p><strong>错误信息：</strong>${error.message}</p><p><strong>原因：</strong>可能是网络问题或服务器故障</p></div>`;
-                            tr.innerHTML = `
-                                <td>${deviceName}</td>
-                                <td>${statusBadge}</td>
-                                <td>${output}</td>
-                                <td>${new Date().toLocaleString('zh-CN')}</td>
-                            `;
-                            tableBody.appendChild(tr);
-                        });
-
-                        // 更新汇总统计
-                        successCount.innerHTML = `<i class="fas fa-check-circle me-1"></i>成功：0 台`;
-                        failedCount.innerHTML = `<i class="fas fa-times-circle me-1"></i>失败：${selectedDevices.length} 台`;
-                        totalCount.innerHTML = `<i class="fas fa-server me-1"></i>总计：${selectedDevices.length} 台`;
-
-                        // 显示模态框
-                        modalInstances.nornirCheckResultModal.show();
+                        console.error('并发检查失败:', error);
+                        alert('并发检查失败: ' + error.message);
                     })
                     .finally(() => {
                         this.innerHTML = originalText;
                         this.disabled = false;
                     });
             });
-
-            // 初始同步状态
+            
+            // 初始调用一次，确保状态正确
             syncNornirSelectAllStatus();
+            
+            console.log('Nornir批量检查功能初始化完成');
         }
 
         // 初始化AI健康分析报告功能

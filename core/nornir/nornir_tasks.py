@@ -74,91 +74,99 @@ def check_devices_health(task: Task) -> Result:
         base_result["error_message"] += f"设备卡片加载失败；"
 
     try:
-        # 获取版本信息
+        # 获取底层 Netmiko 连接
+        net_connect = task.host.get_connection("netmiko", task.nornir.config)
+        
+        # 使用 send_command_timing 替代 send_command，避免提示符匹配问题
         logger.info(f"正在查询设备{device_name}的版本信息.....")
-        version_result = task.run(
-            task=netmiko_send_command, command_string="display version", name=f"查询版本-{device_name}"
-        )
+        version_output = net_connect.send_command_timing("display version", delay_factor=3)
         logger.info(f"查询{device_name}版本信息成功！")
+        
         # 查询接口状态
         logger.info(f"正在查询设备{device_name}的接口状态信息....")
-        interface_result = task.run(
-            task=netmiko_send_command, command_string="display interface brief", name=f"查询接口状态-{device_name}"
-        )
+        interface_output = net_connect.send_command_timing("display interface brief", delay_factor=3)
         logger.info(f"查询{device_name}接口状态成功！")
+        
         # 查询CPU使用率
         logger.info(f"正在查询设备{device_name}的CPU使用率....")
-        CPU_usage_result = task.run(
-            task=netmiko_send_command, command_string="display cpu-usage", name=f"查询CPU使用率-{device_name}"
-        )
-        # 查询内存使用率
+        cpu_output = net_connect.send_command_timing("display cpu-usage", delay_factor=3)
         logger.info(f"查询{device_name}CPU使用率成功！")
+        
+        # 查询内存使用率
         logger.info(f"正在查询设备{device_name}的内存使用率....")
-        memory_usage_result = task.run(
-            task=netmiko_send_command, command_string="display memory-usage", name=f"查询内存使用率-{device_name}"
-        )
+        memory_output = net_connect.send_command_timing("display memory", delay_factor=3)
         logger.info(f"查询{device_name}内存使用率成功！")
-        # 1.分析接口状态
-        output_inteface = interface_result.result
+        # 1.分析接口状态（简化逻辑，参考单设备检查）
+        output_inteface = interface_output
+        
+        # 添加调试日志 - 打印完整输出
+        logger.info(f"接口输出完整内容:\n{output_inteface}")
 
         total_ports = 0
         down_ports = 0
         up_ports = 0
         critical_ports_down = False
-        lines = output_inteface.split("\n")
-        data_start = 0
-        for i, line in enumerate(lines):
-            # enumerate()是 Python 里专门用来遍历可迭代对象（比如列表、文件行）时，同时获取「元素的索引 + 元素本身」的内置函数，
-            # 找到数据的开始行
-            if "Interface" in line and "Protocol" in line:
-                data_start = i + 1
-                logger.info(f"找到表头在{data_start}行")
-                break
-        if data_start == 0:
-            data_start = 18
-            logger.info(f"找到表头在{data_start}行")
-        for line in lines[data_start:]:
+        
+        # 接口名称模式：匹配 GE、FE、Vlan、LoopBack、NULL、MEth 等接口类型
+        import re
+        interface_pattern = re.compile(r'^(GE|FE|Vlan|LoopBack|NULL|MEth|XGE|Ten-GigabitEthernet)\d')
+        
+        # 直接遍历所有行
+        for line in output_inteface.split("\n"):
             line_clean = line.strip().upper()
             if not line_clean:
                 continue
+            
+            # 只处理真正的接口行（以接口类型开头）
+            if not interface_pattern.match(line_clean):
+                continue
+            
+            # 检查端口状态
             if "UP" in line_clean and "DOWN" not in line_clean:
                 up_ports += 1
+                logger.debug(f"找到UP端口: {line_clean}")
             elif "DOWN" in line_clean:
                 down_ports += 1
+                logger.debug(f"找到DOWN端口: {line_clean}")
                 if line_clean.startswith("GE1/0/1 "):
                     critical_ports_down = True
                     logger.info(f"端口 GE1/0/1 状态为DOWN")
                     logger.warning(f"关键端口 GE1/0/1 已DOWN")
+        
         total_ports = up_ports + down_ports
+        logger.info(f"接口解析完成 - UP: {up_ports}, DOWN: {down_ports}, 总计: {total_ports}")
         base_result["up_interface"] = up_ports
         base_result["down_interface"] = down_ports
         base_result["total_interface"] = total_ports
-        base_result["version"] = version_result.result[:100]
+        # 清理版本信息，移除命令前缀
+        cleaned_version = version_output.strip()
+        if cleaned_version.startswith('>'):
+            # 找到第一个换行符，跳过命令行
+            first_newline = cleaned_version.find('\n')
+            if first_newline != -1:
+                cleaned_version = cleaned_version[first_newline+1:].strip()
+        base_result["version"] = cleaned_version[:100]
 
         # 2.分析CPU使用率
-        CPU_usage = CPU_usage_result.result
+        CPU_usage = cpu_output
         CPU_lines = CPU_usage.split("\n")
         CPU_usage_high = False
-        cpu_usage_val = "N/A"  # CPU使用率的值
+        cpu_usage_val = "N/A"
         for line in CPU_lines:
             line_clean = line.strip()
             if not line_clean:
                 continue
             if "seconds" in line_clean:
-                match = re.search(
-                    r"(\d+)%", line_clean
-                )  # 返回的不是字符串，而是一个正则匹配对象（Match Object）（你代码里的match就是这个对象）；
-                # match.group(1) 是从这个对象里提取出你需要的字符串内容，这也是为什么它返回的是字符串 ——
-                # 因为正则匹配的原始数据是文本（line_clean是字符串），提取的结果自然也是字符串。正则表达式匹配的是「文本字符」
-                # ，不管字符看起来像数字还是字母，提取结果本质都是字符串
+                match = re.search(r"(\d+)%", line_clean)
                 if match:
-                    cpu_usage_val = f"{match.group(1)}%"  # 提取具体%值，和单设备格式一致
+                    cpu_usage_val = f"{match.group(1)}%"
                     if int(match.group(1)) > 88:
                         CPU_usage_high = True
                         logger.warning(f"设备{device_name}（{device_ip}）CPU使用率过高：{cpu_usage_val}（超过88%）")
         base_result["CPU_usage"] = cpu_usage_val
-        # 3.分析内存使用率
-        memory_usage = memory_usage_result.result
+        
+        # 3.分析内存使用率（使用 display memory 输出格式）
+        memory_usage = memory_output
         memory_lines = memory_usage.split("\n")
         memory_usage_high = False
         mem_usage_val = "N/A"
@@ -166,14 +174,16 @@ def check_devices_health(task: Task) -> Result:
             line_clean = line.strip()
             if not line_clean:
                 continue
-            if "Memory" in line and "usage" in line:
-                match = re.search(r"(\d+)%", line)
-                if match:
-                    mem_usage_val = f"{match.group(1)}%"  # 提取具体%值，和单设备格式一致
-                    if int(match.group(1)) > 88:
-                        memory_usage_high = True
-                        logger.warning(f"设备{device_name}（{device_ip}）内存使用率过高：{mem_usage_val}（超过88%）")
-        # 赋值给统一字段（和单设备的memory_usage完全一致）
+            # 匹配Mem行的数据：Mem: Total Used Free ... FreeRatio
+            match = re.search(r"Mem:\s+(\d+)\s+(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+\.?\d*)%", line_clean)
+            if match:
+                free_ratio = float(match.group(3))
+                mem_usage_val = f"{100 - free_ratio:.1f}%"
+                if (100 - free_ratio) > 88:
+                    memory_usage_high = True
+                    logger.warning(f"设备{device_name}（{device_ip}）内存使用率过高：{mem_usage_val}（超过88%）")
+                break
+        # 赋值给统一字段
         base_result["memory_usage"] = mem_usage_val
 
         # 4.判断设备是否健康

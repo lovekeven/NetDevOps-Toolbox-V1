@@ -55,9 +55,9 @@ def read_devices_yml(filename=CONFIG_PATH, yaml_connect=None):
 
 # 第二步：检查接口的状态
 def check_interface_status(connections):
-    error_massage = ""
+    error_message = ""
     try:
-        output_interfaces = connections.send_command("display interface brief", delay_factor=2)
+        output_interfaces = connections.send_command_timing("display interface brief", delay_factor=2)
         # 1.send_command() 不支持 timeout 和 read_timeout 参数，传递后触发报错，跟那个device_name一样
         up_interface = 0
         down_interface = 0
@@ -67,66 +67,111 @@ def check_interface_status(connections):
             elif "DOWN" in line:
                 down_interface += 1
         total_interface = up_interface + down_interface
-        return total_interface, up_interface, down_interface, error_massage
+        return total_interface, up_interface, down_interface, error_message
     except Exception as e:
         logger.error(f"错误：【子功能】检查接口状态出错 {e}")
-        error_massage = "检查端口状态失败"
-        return 0, 0, 0, error_massage
+        error_message = "检查端口状态失败"
+        return 0, 0, 0, error_message
 
 
 # 第三步：检查CPU使用率
 def check_cpu_usage(connections):
-    error_massage = ""
+    error_message = ""
     try:
-        output_cpu_usage = connections.send_command("display cpu-usage", delay_factor=2)
-        for line in output_cpu_usage.split("\n"):
-            if "seconds" in line:
-                match = re.search(r"(\d+)%", line)
-                if match:
-                    return f"{match.group(1)}%", error_massage
-                else:
-                    logger.error("并未查询到CPU使用率！")
-                    return "N/A", error_massage
-        return "N/A", error_massage
+        # 增加延迟时间，确保命令完成
+        output_cpu_usage = connections.send_command_timing("display cpu-usage", delay_factor=5)
+        # 添加调试日志
+        logger.info(f"CPU输出原始内容: {repr(output_cpu_usage)}")
+        
+        # 如果输出为空或太短，重试一次
+        if not output_cpu_usage or len(output_cpu_usage.strip()) < 10:
+            logger.warning("CPU输出为空，重试一次...")
+            output_cpu_usage = connections.send_command_timing("display cpu-usage", delay_factor=5)
+            logger.info(f"CPU输出重试后: {repr(output_cpu_usage)}")
+        
+        # 从输出中提取CPU使用率（格式：14% in last 5 seconds）
+        match = re.search(r"(\d+)%\s+in last 5 seconds", output_cpu_usage)
+        if match:
+            logger.info(f"CPU匹配成功: {match.group(1)}%")
+            return f"{match.group(1)}%", error_message
+        # 备用匹配：直接查找第一个百分比
+        match = re.search(r"(\d+)%", output_cpu_usage)
+        if match:
+            logger.info(f"CPU备用匹配成功: {match.group(1)}%")
+            return f"{match.group(1)}%", error_message
+        logger.error("并未查询到CPU使用率！")
+        return "N/A", error_message
     except Exception as e:
         logger.error(f"错误：【子功能】检查CPU使用率出错！ {e}")
-        error_massage = "检查CPU使用率失败！"
-        return "N/A", error_massage
+        error_message = "检查CPU使用率失败！"
+        return "N/A", error_message
 
 
 # 第四步：检查内存使用率
 def check_memory_usage(connections):
-    error_massage = ""
+    error_message = ""
     try:
-        output_memory_usage = connections.send_command("display memory-threshold", delay_factor=2)
-        for line in output_memory_usage.split("\n"):
-            if "Memory" in line and "usage" in line:
-                match = re.search(r"(\d+)%", line)
-                if match:
-                    return f"{match.group(1)}%", error_massage
-                else:
-                    logger.error("并未查询到内存使用率！")
-                    return "N/A", error_massage
-        return "N/A", error_massage
+        # 使用 display memory 命令获取内存信息
+        output_memory_usage = connections.send_command_timing("display memory", delay_factor=3)
+        logger.info(f"内存输出原始内容: {repr(output_memory_usage[:150])}")
+        
+        # 内存输出格式：
+        #              Total      Used      Free    Shared   Buffers    Cached   FreeRatio
+        # Mem:        382808    291956     90852         0         4    189092       23.8%
+        
+        # 匹配Mem行的数据：Mem: Total Used Free ... FreeRatio
+        match = re.search(r"Mem:\s+(\d+)\s+(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+\.?\d*)%", output_memory_usage)
+        if match:
+            total_kb = int(match.group(1))
+            used_kb = int(match.group(2))
+            free_ratio = float(match.group(3))
+            used_ratio = 100 - free_ratio
+            logger.info(f"内存匹配成功: 总内存={total_kb}, 已用={used_kb}, 空闲率={free_ratio}%, 使用率={used_ratio:.1f}%")
+            return f"{used_ratio:.1f}%", error_message
+        
+        # 备用匹配：直接查找最后一个百分比（FreeRatio）
+        matches = re.findall(r"(\d+\.?\d*)%", output_memory_usage)
+        if matches:
+            free_ratio = float(matches[-1])  # 最后一个百分比是FreeRatio
+            used_ratio = 100 - free_ratio
+            logger.info(f"内存备用匹配成功: 空闲率={free_ratio}%, 使用率={used_ratio:.1f}%")
+            return f"{used_ratio:.1f}%", error_message
+            
+        logger.error("并未查询到内存使用率！")
+        return "N/A", error_message
     except Exception as e:
         logger.error(f"错误：【子功能】检查内存使用率出错！ {e}")
-        error_massage = "检查内存使用率失败"
-        return "N/A", error_massage
+        error_message = "检查内存使用率失败"
+        return "N/A", error_message
 
 
 # 补充检查设备版本信息
 def check_device_version(connections):
-    error_massage = ""
+    error_message = ""
     try:
-        version_result = connections.send_command("display version", delay_factor=2)
-        if not version_result:
-            return "未知", error_massage
+        # 增加延迟时间，确保版本信息完整返回
+        version_result = connections.send_command_timing("display version", delay_factor=5)
+        if not version_result or version_result.strip() == "":
+            # 尝试禁用分页后再查询
+            connections.send_command_timing("screen-length disable", delay_factor=1)
+            version_result = connections.send_command_timing("display version", delay_factor=5)
+        
+        if not version_result or version_result.strip() == "":
+            logger.warning("版本信息查询为空")
+            return "未知", error_message
         else:
-            return version_result[:100], error_massage
+            # 清理版本信息，移除命令前缀（如 >display version）
+            cleaned_version = version_result.strip()
+            if cleaned_version.startswith('>'):
+                first_newline = cleaned_version.find('\n')
+                if first_newline != -1:
+                    cleaned_version = cleaned_version[first_newline+1:].strip()
+            # 返回前100个字符作为版本摘要
+            return cleaned_version[:100], error_message
     except Exception as e:
         logger.error(f"错误：【子功能】检查版本信息出错！ {e}")
-        error_massage = "检查版本信息失败"
-        return "未知", error_massage
+        error_message = "检查版本信息失败"
+        return "未知", error_message
 
 
 # 第五步对单个设备进行检查（改造后：绑定全局卡片+统一样式，对齐并发框架）
@@ -186,7 +231,12 @@ def check_single_device(device_info):
         results["error_message"] += f"设备卡片加载失败；"
 
     try:
-        # 3. 原有连接逻辑不变，成功后更新status为"成功"
+        # 3. 添加兼容HCL模拟器的参数
+        device_info["global_delay_factor"] = 2
+        device_info["timeout"] = 30
+        device_info["conn_timeout"] = 10
+        device_info["fast_cli"] = False
+        
         connections = ConnectHandler(**device_info)
         logger.info("连接成功！")
         logger.info(f"正在检查设备{results['device_name']}({device_info['host']})的各项状态.......")
@@ -194,41 +244,54 @@ def check_single_device(device_info):
         # 4. 原有接口检查逻辑不变，直接复用
         try:
             total_interface, up_interface, down_interface, if_error = check_interface_status(connections)
+            # 将接口检查结果赋值到字典
+            results["total_interface"] = total_interface
+            results["up_interface"] = up_interface
+            results["down_interface"] = down_interface
             if if_error:
                 results["error_message"] += "检查端口状态失败；"
         except Exception as e:
             results["error_message"] += f"检查端口状态失败 {e}；"
             total_interface, up_interface, down_interface = 0, 0, 0
+            results["total_interface"] = 0
+            results["up_interface"] = 0
+            results["down_interface"] = 0
 
         try:
             CPU_usage, if_error = check_cpu_usage(connections)
+            results["CPU_usage"] = CPU_usage  # 将结果赋值到字典
             if if_error:
                 results["error_message"] += "检查CPU使用率失败！；"
         except Exception as e:
             results["error_message"] += f"检查CPU使用率失败！ {e}；"
             CPU_usage = "N/A"
+            results["CPU_usage"] = CPU_usage
 
         try:
             memory_usage, if_error = check_memory_usage(connections)
+            results["memory_usage"] = memory_usage  # 将结果赋值到字典
             if if_error:
                 results["error_message"] += "检查内存使用率失败！；"
         except Exception as e:
             results["error_message"] += f"检查内存使用率失败！ {e}；"
             memory_usage = "N/A"
+            results["memory_usage"] = memory_usage
         try:
             version_result, if_error = check_device_version(connections)
+            results["version"] = version_result  # 将结果赋值到字典
             if if_error:
                 results["error_message"] += "检查设备版本信息失败！；"
         except Exception as e:
             results["error_message"] += f"检查设备版本信息失败！ {e}；"
             version_result = "未知"
+            results["version"] = version_result
         device_health_issues = []
         # 1. 关键端口GE1/0/1 DOWN判断（和并发一致）
         # 先从接口结果里判断关键端口状态（单设备需补这段接口解析，下面会给）
         critical_ports_down = False
         # 直接重新获取接口结果，避免变量不存在的问题，和并发解析逻辑完全一致
         try:
-            output_interfaces = connections.send_command("display interface brief", delay_factor=2)
+            output_interfaces = connections.send_command_timing("display interface brief", delay_factor=2)
             lines = output_interfaces.split("\n")
             for line in lines:
                 line_clean = line.strip().upper()
@@ -244,15 +307,21 @@ def check_single_device(device_info):
             device_health_issues.append(f"过多端口down ({results['down_interface']}/{results['total_interface']})")
         # 3. CPU使用率超88%判断（和并发一致）
         if results["CPU_usage"] != "N/A":
-            cpu_num = int(results["CPU_usage"].replace("%", ""))
-            # 把字符串里的百分号%全部替换成空字符串
-            if cpu_num > 88:
-                device_health_issues.append("CPU使用率过高，已经超过88%")
+            try:
+                cpu_num = float(results["CPU_usage"].replace("%", ""))
+                # 把字符串里的百分号%全部替换成空字符串
+                if cpu_num > 88:
+                    device_health_issues.append("CPU使用率过高，已经超过88%")
+            except ValueError:
+                logger.error(f"CPU使用率格式错误: {results['CPU_usage']}")
         # 4. 内存使用率超88%判断（和并发一致）
         if results["memory_usage"] != "N/A":
-            mem_num = int(results["memory_usage"].replace("%", ""))
-            if mem_num > 88:
-                device_health_issues.append("内存使用率过高，已经超过88%")
+            try:
+                mem_num = float(results["memory_usage"].replace("%", ""))
+                if mem_num > 88:
+                    device_health_issues.append("内存使用率过高，已经超过88%")
+            except ValueError:
+                logger.error(f"内存使用率格式错误: {results['memory_usage']}")
         # 列表空时设为["无"]（和并发一致），保证前端展示统一
         device_health_issues = device_health_issues if device_health_issues else ["无"]
 
@@ -493,7 +562,8 @@ def main():
     for device in target_devices:
         logger.info(f"正在准备检查设备:{device['host']}.......")
         device_result = check_single_device(device)
-        if device_result["status"] == "成功":
+        # 原代码：if device_result["status"] == "成功":  # BUG：status 字段值是 healthy/degraded/failed，不是"成功"
+        if device_result.get("check_status") == "成功":  # 修复：使用 check_status 字段判断检查是否成功
             success += 1
             total_down_interface += device_result["down_interface"]
         device_results.append(device_result)

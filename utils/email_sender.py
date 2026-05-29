@@ -35,8 +35,9 @@ class EmailSender:
         try:
             msg = MIMEMultipart("alternative")  # 信封支持多种格式的转换
             # 先写邮件主题
+            # 原代码：strftime('%Y年-%M月-%d日 %H:%M:%S')  # BUG：%M 是分钟，不是月份
             msg["Subject"] = (
-                f"Netdevops运维工具箱：关于设备的AI{report_type}状态分析 --{datetime.now().strftime('%Y年-%M月-%d日 %H:%M:%S')}"
+                f"Netdevops运维工具箱：关于设备的AI{report_type}状态分析 --{datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}"
             )
             msg["From"] = self.smtp_email
             msg["To"] = ", ".join(recipient_emails)

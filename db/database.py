@@ -376,7 +376,8 @@ class DatabaseManager:
             return card_list
         except sqlite3.Error as e:
             logger.error(f"读取档案卡失败：{str(e)[:100]}")
-            self.conn.rollback()
+            # 原代码：self.conn.rollback()  # 问题：SELECT 查询不需要 rollback，只有 INSERT/UPDATE/DELETE 才需要
+            # 修复：移除 rollback，SELECT 失败不影响数据一致性
             raise
 
     def update_physical_card(self, card_dict):
@@ -400,7 +401,7 @@ class DatabaseManager:
             card_dict.get("reachable", "未检测"),
             card_dict.get("version", "未知"),
             card_dict.get("status", "unknown"),
-            card_dict.get("last_check", "未检查"),
+            card_dict.get("last_check_time", "未检查"),  # 修正：使用正确的字段名
             card_dict["id"],  # 更新条件：主键device_id（SW1/SW2）
         )
         cursor = self.conn.cursor()

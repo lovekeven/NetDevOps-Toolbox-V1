@@ -19,7 +19,7 @@ logger = setup_logger("report_generator", "report_generator.log")
 class ReportGenerator:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.deepseek_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+        self.deepseek_URL = "https://qianfan.baidubce.com/v2/chat/completions"
         self.db = db_manager
         logger.info("智能报告生成器初始化完成")
 
@@ -29,7 +29,7 @@ class ReportGenerator:
             "Content-Type": "application/json",
         }  # Content-Type代表请求体的数据格式
         data = {
-            "model": "glm-4.7",  # 模型名称，其他平台需更换
+            "model": "deepseek-v3.1-250821",  # 模型名称，其他平台需更换
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.7,  # 控制创造性，0.0较保守，1.0更有创意
             "max_tokens": 10000,  # 限制回复长度

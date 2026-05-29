@@ -1,7 +1,7 @@
 SW1:
-  username: '11'
+  username: 'admin'
   hostname: 192.168.56.11
-  password: 2005qazwsx
+  password: 200505154238Wjz
   connection_options:
     netmiko:
       extras:

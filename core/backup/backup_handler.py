@@ -52,10 +52,18 @@ def backup_single_device(device_info):
     logger.info(f"正在尝试连接{device_info['host']}......")
     connections = None
     try:
+        # 添加兼容HCL模拟器的参数
+        device_info["global_delay_factor"] = 2
+        device_info["timeout"] = 30
+        device_info["conn_timeout"] = 10
+        device_info["fast_cli"] = False
+        
         connections = ConnectHandler(**device_info)
         logger.info("连接成功！")
         logger.info(f"正在开始备份设备{device_info['host']}........请稍后....")
-        output = connections.send_command("display interface brief")  # 这里以备份接口信息为例
+        
+        # 使用send_command_timing替代send_command，避免提示符匹配问题
+        output = connections.send_command_timing("display interface brief", delay_factor=2)
         backup_dir = os.path.join(ROOT_DIR, "backupN1")  # "backupN1"  # N1的意思是创建第一个文件夹，以后若有需要可以该
         os.makedirs(backup_dir, exist_ok=True)
         timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -64,7 +72,9 @@ def backup_single_device(device_info):
             f.write(output)
         logger.info(f"设备{device_info['host']}备份成功！")
         logger.info(f"备份之后的路径\文件名为：{filename}")
-        return True
+        # 返回相对路径给调用者
+        relative_path = f"backupN1/{os.path.basename(filename)}"
+        return relative_path
     except Exception as e:
         error_msg = str(e)
         logger.error("连接失败！")

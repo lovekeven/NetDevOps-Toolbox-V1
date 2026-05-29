@@ -12,7 +12,7 @@ sys.path.append(ROOT_DIR)
 from db.database import db_manager
 
 # 导入下载模块
-from flask import jsonify, Flask, render_template, request, send_from_directory
+from flask import jsonify, Flask, render_template, request, send_from_directory, send_file
 
 # 1.jsonify就是为了返回JSON格式的数据
 from core.health_check.health_checker import check_single_device
@@ -189,14 +189,13 @@ def device_backup(device_name):
             del target_device_copy["vendor"]
         # 1.下面是你备份的函数吧，你调用的时候，他会先建立连接这个时候**device_info解包的时候，连接库不认识device_name这个参数
         start_time = datetime.now()
-        backup_single_device(target_device_copy)
+        # 接收备份函数返回的实际文件路径
+        backup_path = backup_single_device(target_device_copy)
         end_time = datetime.now()
-        import time
-
-        backup_dir = "backupN1"
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
-        backup_filename = f"{target_device['host']}__配置__{timestamp}.txt"
-        backup_path = f"{backup_dir}/{backup_filename}"
+        
+        # 如果返回的不是字符串（备份失败），抛出异常
+        if not isinstance(backup_path, str):
+            raise Exception("备份函数未返回有效路径")
         # 向数据库表中插入数据
         db_manager.log_backup(
             hostname=device_name,
@@ -268,8 +267,9 @@ def backup_history(device_name=None):
     try:
         days = request.args.get("days", default=7, type=int)
         limit = request.args.get("limit", default=20, type=int)
-        recoard = db_manager.get_recent_backups(hostname=device_name, limit=limit, days=days)
-        return jsonify({"status": "success", "history_record": len(recoard), "history": recoard})
+        # 原代码：recoard = ...  # 拼写错误：recoard 应为 record
+        record = db_manager.get_recent_backups(hostname=device_name, limit=limit, days=days)
+        return jsonify({"status": "success", "history_record": len(record), "history": record})
     except Exception as e:
         error_msg = str(e)
         return (
@@ -508,7 +508,8 @@ def get_cloud_resources():
                     logger.info("获取全部真实云资源成功！")
                     return jsonify([all_re.to_dict() for all_re in all_resourse])
                 except Exception as e:
-                    logger.error(f"获取全部真实网络资源失败{e}")
+                    error_msg = str(e)  # 修复：原代码使用了未定义的 error_msg，改为从 e 获取
+                    logger.error(f"获取全部真实网络资源失败{error_msg}")
                     return jsonify({"error": f"获取全部真实网络资源失败{error_msg[:200]}"}), 500
             else:
                 if resource_type == "vpc":
@@ -827,8 +828,9 @@ def get_device_health_history(device_name=None):
     try:
         limit = request.args.get("limit", default=20, type=int)
         days = request.args.get("days", default=7, type=int)
-        recoard = db_manager.get_health_check_history(device_name=device_name, limit=limit, days=days)
-        return jsonify({"status": "success", "history_record": len(recoard), "history": recoard})
+        # 原代码：recoard = ...  # 拼写错误：recoard 应为 record
+        record = db_manager.get_health_check_history(device_name=device_name, limit=limit, days=days)
+        return jsonify({"status": "success", "history_record": len(record), "history": record})
     except Exception as e:
         error_msg = str(e)
         return (
@@ -1171,8 +1173,9 @@ def init_scheduler():
 def download_backup_file():
     logger.info("准备下载文件...")
     try:
+        # 获取路径（Flask已经自动解码URL参数）
         backup_dir = request.args.get("path", "N/A")
-        logger.info("成功获取备份文件的相对路径！")
+        logger.info(f"成功获取备份文件的相对路径：{backup_dir}")
         if not backup_dir or backup_dir == "N/A":
             return (
                 jsonify(
@@ -1197,13 +1200,27 @@ def download_backup_file():
             )
         # 在后端拼接绝对路径
         real_backup_file = os.path.join(ROOT_DIR, backup_dir)
+        logger.info(f"完整文件路径: {real_backup_file}")
+        
         # 看他是否存在，判断它是否是一个文件，不是文件夹
         if not os.path.exists(real_backup_file) or not os.path.isfile(real_backup_file):
+            # 列出backupN1目录中的文件供调试
+            backup_dir_path = os.path.join(ROOT_DIR, "backupN1")
+            if os.path.exists(backup_dir_path):
+                files = os.listdir(backup_dir_path)
+                logger.info(f"backupN1目录中的文件: {files}")
             return jsonify({"code": 404, "msg": f"备份文件不存在：{real_backup_file}", "data": None}), 404
+        
         file_dir = os.path.dirname(real_backup_file)
         file_name = os.path.basename(real_backup_file)
-        return send_from_directory(
-            directory=file_dir, path=file_name, as_attachment=True  # 核心：触发浏览器下载，不是展示
+        
+        # 使用 send_file 代替 send_from_directory，添加更多控制
+        return send_file(
+            real_backup_file,
+            mimetype='text/plain; charset=utf-8',
+            as_attachment=True,
+            download_name=file_name,
+            max_age=0
         )
     except Exception as e:
         logger.info(f"文件下载失败: {e}")

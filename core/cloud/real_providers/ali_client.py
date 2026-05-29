@@ -6,6 +6,9 @@ from typing import List
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(ROOT_DIR)
 from utils.aliyun_time import convert_aliyun_time
+from utils.log_setup import setup_logger  # 新增：统一使用项目日志器
+
+logger = setup_logger("ali_client", "ali_client.log")  # 新增：初始化日志器
 
 
 try:
@@ -61,7 +64,8 @@ class AliyunCloudClient:
 
             return vpcs
         except ServerException as e:
-            print(f"获取VPC列表失败: {e}")
+            # 原代码：print(f"获取VPC列表失败: {e}")  # 问题：使用 print 而不是 logger
+            logger.error(f"获取VPC列表失败: {e}")  # 修复：统一使用 logger
             raise
 
     def get_all_security_groups(self) -> List[CloudSecurityGroup]:
@@ -94,7 +98,8 @@ class AliyunCloudClient:
             return sgs
 
         except ServerException as e:
-            print(f"获取安全组失败: {e}")
+            # 原代码：print(f"获取安全组失败: {e}")  # 问题：使用 print 而不是 logger
+            logger.error(f"获取安全组失败: {e}")  # 修复：统一使用 logger
             raise
 
     def get_all_instances(self):
@@ -117,7 +122,8 @@ class AliyunCloudClient:
                 )
             return instances
         except ServerException as e:
-            print(f"获取ECS实例失败: {e}")
+            # 原代码：print(f"获取ECS实例失败: {e}")  # 问题：使用 print 而不是 logger
+            logger.error(f"获取ECS实例失败: {e}")  # 修复：统一使用 logger
             raise
 
     def get_all_resources(self):
@@ -128,7 +134,8 @@ class AliyunCloudClient:
             return resource
         except ServerException as e:
             error_msg = str(e)
-            print(f"获取全部资源失败{error_msg[:100]}")
+            # 原代码：print(f"获取全部资源失败{error_msg[:100]}")  # 问题：使用 print 而不是 logger
+            logger.error(f"获取全部资源失败{error_msg[:100]}")  # 修复：统一使用 logger
             raise
 
 

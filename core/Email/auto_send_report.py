@@ -45,12 +45,12 @@ def auto_send_backup_report(days=7):
         }
         # 3. 调用公共邮件工具发送（核心复用，只传内容和标题）
         report_title = f"【自动发送】所有设备近{days}天的备份情况AI报告"
-        if email_sender.ai_report_to_email(
+        # 原代码：if email_sender.ai_report_to_email(...)  # BUG：ai_report_to_email 没有返回值，永远为 None
+        # 修复：ai_report_to_email 成功时返回 None，失败时 raise 异常，所以 try 块成功就是发送成功
+        email_sender.ai_report_to_email(
             ai_report=report_content, report_type=report_title, recipient_emails=emali_config.RECIPIENT_EMAILS
-        ):
-            logger.info(f"【自动任务】完成：近{days}天备份记录AI报告发送成功,收件人：{emali_config.RECIPIENT_EMAILS}")
-        else:
-            logger.error(f"【自动任务】失败：近{days}天备份记录AI报告发送失败")
+        )
+        logger.info(f"【自动任务】完成：近{days}天备份记录AI报告发送成功,收件人：{emali_config.RECIPIENT_EMAILS}")
     except Exception as e:
         error_msg = str(e)[:200]
         logger.error(f"【自动任务】异常：生成/发送备份记录AI报告失败，{error_msg}")
@@ -73,12 +73,12 @@ def auto_send_all_health_report(days=7):
         }
         # 3. 发送邮箱
         report_title = f"【自动发送】全网设备近{days}天的健康检查AI报告"
-        if email_sender.ai_report_to_email(
+        # 原代码：if email_sender.ai_report_to_email(...)  # BUG：同上，ai_report_to_email 没有返回值
+        # 修复：直接调用，成功则继续，失败会抛出异常被外层 catch
+        email_sender.ai_report_to_email(
             ai_report=report_content, report_type=report_title, recipient_emails=emali_config.RECIPIENT_EMAILS
-        ):
-            logger.info(f"【自动任务】完成：近{days}天全网健康AI报告发送成功,收件人：{emali_config.RECIPIENT_EMAILS}")
-        else:
-            logger.error(f"【自动任务】失败：近{days}天全网健康AI报告发送失败")
+        )
+        logger.info(f"【自动任务】完成：近{days}天全网健康AI报告发送成功,收件人：{emali_config.RECIPIENT_EMAILS}")
     except Exception as e:
         error_msg = str(e)[:200]
         logger.error(f"【自动任务】异常：生成/发送全网健康AI报告失败，{error_msg}")

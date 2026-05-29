@@ -98,13 +98,14 @@ class PhysicalDevice(NetworkResource):
                 "ip_address": self.ip_address,
                 "vendor": self.vendor,
                 "check_status": self.check_status,
-                "up_interface": self.up_interfaces,
+                "up_interfaces": self.up_interfaces,  # 修正：使用复数形式，匹配数据库字段
                 "down_interface": self.down_interface,
-                "total_interface": self.total_interfaces,
+                "total_interfaces": self.total_interfaces,  # 修正：使用复数形式，匹配数据库字段
                 "cpu_usage": self.cpu_usage,
                 "memory_usage": self.memory_usage,
                 "reachable": self.reachable,
                 "version": self.version,
+                "last_check_time": self.last_check_time,  # 修正：使用正确的字段名
             }
         )
         return base_dict
