@@ -921,35 +921,85 @@
             <p>智能网络设备自动化运维平台</p>
         </div>
 
-        <!-- 网络拓扑可视化卡片（一期增强版） -->
+        <!-- 网络拓扑可视化卡片（二期：双模切换） -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-project-diagram text-primary me-2"></i>网络拓扑可视化</h5>
                 <div class="d-flex gap-2 align-items-center">
-                    <!-- SNMP 扫描区域 -->
-                    <div class="input-group input-group-sm" style="width: 300px;">
-                        <input type="text" id="seedIpInput" class="form-control" placeholder="种子设备IP，如 192.168.1.1">
-                        <input type="text" id="communityInput" class="form-control" placeholder="community" value="public" style="width: 80px;">
-                        <button id="scanTopologyBtn" class="btn btn-success">
-                            <i class="fas fa-search me-1"></i>扫描
+                    <!-- 模式切换 -->
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-primary active" id="modeTraditional" onclick="switchTopologyMode('traditional')">
+                            <i class="fas fa-network-wired me-1"></i>传统探测
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" id="modeSdn" onclick="switchTopologyMode('sdn')">
+                            <i class="fas fa-cogs me-1"></i>SDN控制器
                         </button>
                     </div>
-                    <button id="refreshTopologyBtn" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-sync-alt me-1"></i>刷新
-                    </button>
-                    <button id="autoLayoutBtn" class="btn btn-sm btn-outline-info">
-                        <i class="fas fa-magic me-1"></i>布局
-                    </button>
-                    <button id="saveSnapshotBtn" class="btn btn-sm btn-outline-warning">
-                        <i class="fas fa-camera me-1"></i>快照
-                    </button>
-                    <button id="exportPngBtn" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-download me-1"></i>PNG
-                    </button>
                 </div>
             </div>
             <div class="card-body">
+                <!-- 传统探测模式面板 -->
+                <div id="traditionalPanel" class="mb-3">
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <div class="input-group input-group-sm" style="width: 300px;">
+                            <input type="text" id="seedIpInput" class="form-control" placeholder="种子设备IP，如 192.168.1.1">
+                            <input type="text" id="communityInput" class="form-control" placeholder="community" value="public" style="width: 80px;">
+                            <button id="scanTopologyBtn" class="btn btn-success" onclick="doTraditionalScan()">
+                                <i class="fas fa-search me-1"></i>SNMP扫描
+                            </button>
+                        </div>
+                        <button id="refreshTopologyBtn" class="btn btn-sm btn-outline-primary" onclick="refreshTopology()">
+                            <i class="fas fa-sync-alt me-1"></i>刷新
+                        </button>
+                    </div>
+                    <small class="text-muted mt-1 d-block">
+                        <i class="fas fa-info-circle me-1"></i>
+                        输入种子设备IP，通过SNMP+LLDP自动发现邻居。支持华为/H3C/Cisco。
+                    </small>
+                </div>
+
+                <!-- SDN控制器模式面板（默认隐藏） -->
+                <div id="sdnPanel" class="mb-3" style="display: none;">
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <div class="input-group input-group-sm" style="width: 300px;">
+                            <input type="text" id="ryuIpInput" class="form-control" placeholder="Ryu控制器IP" value="127.0.0.1">
+                            <input type="number" id="ryuPortInput" class="form-control" placeholder="端口" value="8080" style="width: 80px;">
+                            <button class="btn btn-info" onclick="doSdnScan()">
+                                <i class="fas fa-cogs me-1"></i>获取拓扑
+                            </button>
+                        </div>
+                        <button class="btn btn-sm btn-outline-warning" onclick="testSdnConnection()">
+                            <i class="fas fa-plug me-1"></i>测试连接
+                        </button>
+                    </div>
+                    <small class="text-muted mt-1 d-block">
+                        <i class="fas fa-info-circle me-1"></i>
+                        连接Ryu控制器，获取OpenFlow网络拓扑。需要先启动Ryu。
+                    </small>
+                </div>
+
+                <hr class="my-2">
+
+                <!-- 操作按钮 -->
+                <div class="d-flex gap-2 mb-3">
+                    <button class="btn btn-sm btn-outline-info" onclick="autoLayoutTopology()">
+                        <i class="fas fa-magic me-1"></i>自动布局
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning" onclick="saveTopologySnapshot()">
+                        <i class="fas fa-camera me-1"></i>保存快照
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="exportTopologyPNG('topology')">
+                        <i class="fas fa-download me-1"></i>导出PNG
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="exportTopologyJSON('topology')">
+                        <i class="fas fa-file-code me-1"></i>导出JSON
+                    </button>
+                </div>
+
+                <!-- 拓扑图容器 -->
                 <div id="topology-container"></div>
+
+                <!-- 图例 -->
                 <div class="topology-legend">
                     <div class="legend-item">
                         <span class="legend-dot" style="background: #8b5cf6;"></span>
@@ -968,19 +1018,110 @@
                         <span>终端设备</span>
                     </div>
                     <div class="legend-item">
-                        <span class="legend-dot online"></span>
-                        <span>在线</span>
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-dot offline"></span>
-                        <span>离线</span>
+                        <span class="legend-dot" style="background: #ec4899;"></span>
+                        <span>OpenFlow交换机</span>
                     </div>
                 </div>
-                <div class="mt-3">
-                    <small class="text-muted">
-                        <i class="fas fa-info-circle me-1"></i>
-                        输入种子设备IP点击扫描，自动发现LLDP邻居和终端设备。支持华为/H3C/Cisco设备。
-                    </small>
+            </div>
+        </div>
+
+        <!-- 网络工具箱卡片（二期新增） -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-tools text-warning me-2"></i>网络工具箱</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Ping 测试 -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-dark">
+                            <div class="card-header py-2">
+                                <i class="fas fa-bullseye me-1"></i>Ping 连通测试
+                            </div>
+                            <div class="card-body">
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="text" id="pingHost" class="form-control" placeholder="目标IP，如 8.8.8.8">
+                                    <button class="btn btn-outline-success" onclick="doPingTest()">
+                                        <i class="fas fa-play me-1"></i>Ping
+                                    </button>
+                                </div>
+                                <div id="pingResult" class="small text-muted"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 端口扫描 -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-dark">
+                            <div class="card-header py-2">
+                                <i class="fas fa-door-open me-1"></i>端口扫描
+                            </div>
+                            <div class="card-body">
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="text" id="portScanHost" class="form-control" placeholder="目标IP">
+                                    <button class="btn btn-outline-info" onclick="doPortScan()">
+                                        <i class="fas fa-search me-1"></i>扫描
+                                    </button>
+                                </div>
+                                <div id="portScanResult" class="small text-muted"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 网段扫描 -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-dark">
+                            <div class="card-header py-2">
+                                <i class="fas fa-broadcast-tower me-1"></i>网段扫描
+                            </div>
+                            <div class="card-body">
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="text" id="subnetInput" class="form-control" placeholder="网段，如 192.168.1">
+                                    <button class="btn btn-outline-warning" onclick="doSubnetScan()">
+                                        <i class="fas fa-search me-1"></i>扫描
+                                    </button>
+                                </div>
+                                <div id="subnetResult" class="small text-muted"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Traceroute -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-dark">
+                            <div class="card-header py-2">
+                                <i class="fas fa-route me-1"></i>Traceroute
+                            </div>
+                            <div class="card-body">
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="text" id="tracerouteHost" class="form-control" placeholder="目标IP或域名">
+                                    <button class="btn btn-outline-danger" onclick="doTraceroute()">
+                                        <i class="fas fa-play me-1"></i>追踪
+                                    </button>
+                                </div>
+                                <div id="tracerouteResult" class="small text-muted"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LLDP 查询 -->
+                    <div class="col-md-12 mb-3">
+                        <div class="card bg-dark">
+                            <div class="card-header py-2">
+                                <i class="fas fa-ethernet me-1"></i>LLDP 邻居查询
+                            </div>
+                            <div class="card-body">
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="text" id="lldpHost" class="form-control" placeholder="设备IP">
+                                    <input type="text" id="lldpCommunity" class="form-control" placeholder="community" value="public" style="width: 100px;">
+                                    <button class="btn btn-outline-primary" onclick="doLldpQuery()">
+                                        <i class="fas fa-search me-1"></i>查询
+                                    </button>
+                                </div>
+                                <div id="lldpResult" class="small text-muted"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -4102,50 +4243,231 @@
         initCustomCommandFunction();
 
         // ============================================================
-        // 网络拓扑可视化功能（一期增强版）
+        // 网络拓扑可视化功能（二期：双模切换 + 工具箱）
         // ============================================================
-        // 初始化拓扑（使用 topology.js 模块）
+
+        // 初始化拓扑
         const topo = initTopology('topology-container');
+        let currentMode = 'traditional'; // 当前模式
 
-        // 绑定按钮事件
-        document.getElementById('refreshTopologyBtn').addEventListener('click', function() {
-            refreshTopology();
-        });
+        // 切换拓扑模式
+        function switchTopologyMode(mode) {
+            currentMode = mode;
+            document.getElementById('traditionalPanel').style.display = mode === 'traditional' ? 'block' : 'none';
+            document.getElementById('sdnPanel').style.display = mode === 'sdn' ? 'block' : 'none';
+            document.getElementById('modeTraditional').className = mode === 'traditional' ? 'btn btn-primary active' : 'btn btn-outline-primary';
+            document.getElementById('modeSdn').className = mode === 'sdn' ? 'btn btn-primary active' : 'btn btn-outline-primary';
+        }
 
-        document.getElementById('autoLayoutBtn').addEventListener('click', function() {
-            autoLayoutTopology();
-        });
-
-        // 扫描按钮
-        document.getElementById('scanTopologyBtn').addEventListener('click', function() {
+        // 传统 SNMP 扫描
+        function doTraditionalScan() {
             const seedIp = document.getElementById('seedIpInput').value.trim();
             const community = document.getElementById('communityInput').value.trim() || 'public';
-
-            if (!seedIp) {
-                alert('请输入种子设备IP');
-                return;
-            }
-
+            if (!seedIp) { alert('请输入种子设备IP'); return; }
             scanTopology(seedIp, community);
-        });
+        }
 
-        // 保存快照按钮
-        document.getElementById('saveSnapshotBtn').addEventListener('click', function() {
-            const name = prompt('输入快照名称（留空自动生成）：');
-            saveTopologySnapshot(name || undefined);
-        });
+        // SDN 扫描
+        function doSdnScan() {
+            const ip = document.getElementById('ryuIpInput').value.trim() || '127.0.0.1';
+            const port = document.getElementById('ryuPortInput').value || '8080';
 
-        // 导出 PNG 按钮
-        document.getElementById('exportPngBtn').addEventListener('click', function() {
-            exportTopologyPNG('network_topology');
-        });
+            showToast('正在从 Ryu 控制器获取拓扑...', 'info');
+
+            fetch(`/api/v1/sdn/topology?ip=${ip}&port=${port}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.code === 0) {
+                        topo.renderTopology(data.data);
+                        showToast(`SDN 拓扑获取成功：${data.data.metadata.switch_count} 个交换机`, 'success');
+                    } else {
+                        showToast('获取失败: ' + data.msg, 'error');
+                    }
+                })
+                .catch(e => showToast('请求失败: ' + e.message, 'error'));
+        }
+
+        // 测试 SDN 连接
+        function testSdnConnection() {
+            const ip = document.getElementById('ryuIpInput').value.trim() || '127.0.0.1';
+            const port = document.getElementById('ryuPortInput').value || '8080';
+
+            fetch(`/api/v1/sdn/test?ip=${ip}&port=${port}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.data.status === 'connected') {
+                        showToast('Ryu 控制器连接成功！', 'success');
+                    } else {
+                        showToast('连接失败: ' + (data.data.error || '未知错误'), 'error');
+                    }
+                })
+                .catch(e => showToast('测试失败: ' + e.message, 'error'));
+        }
 
         // 支持回车触发扫描
         document.getElementById('seedIpInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                document.getElementById('scanTopologyBtn').click();
-            }
+            if (e.key === 'Enter') doTraditionalScan();
         });
+
+        // ============================================================
+        // 网络工具箱功能
+        // ============================================================
+
+        // Ping 测试
+        function doPingTest() {
+            const host = document.getElementById('pingHost').value.trim();
+            if (!host) { alert('请输入目标IP'); return; }
+
+            document.getElementById('pingResult').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在 Ping...';
+
+            fetch('/api/v1/tools/ping', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({host: host})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.code === 0) {
+                    const r = data.data;
+                    const icon = r.reachable ? '✅' : '❌';
+                    const rtt = r.reachable ? `，延迟 ${r.rtt_avg}ms` : '';
+                    document.getElementById('pingResult').innerHTML = `${icon} ${host} ${r.reachable ? '可达' : '不可达'}${rtt}`;
+                } else {
+                    document.getElementById('pingResult').innerHTML = '❌ 测试失败: ' + data.msg;
+                }
+            })
+            .catch(e => {
+                document.getElementById('pingResult').innerHTML = '❌ 请求失败: ' + e.message;
+            });
+        }
+
+        // 端口扫描
+        function doPortScan() {
+            const host = document.getElementById('portScanHost').value.trim();
+            if (!host) { alert('请输入目标IP'); return; }
+
+            document.getElementById('portScanResult').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在扫描...';
+
+            fetch('/api/v1/tools/port-scan', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({host: host})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.code === 0) {
+                    let html = '<div class="mt-1">';
+                    data.data.forEach(p => {
+                        const icon = p.open ? '✅' : '❌';
+                        html += `<span class="me-2">${icon} ${p.port}/${p.service}</span>`;
+                    });
+                    html += '</div>';
+                    document.getElementById('portScanResult').innerHTML = html;
+                } else {
+                    document.getElementById('portScanResult').innerHTML = '❌ 扫描失败: ' + data.msg;
+                }
+            })
+            .catch(e => {
+                document.getElementById('portScanResult').innerHTML = '❌ 请求失败: ' + e.message;
+            });
+        }
+
+        // 网段扫描
+        function doSubnetScan() {
+            const network = document.getElementById('subnetInput').value.trim();
+            if (!network) { alert('请输入网段，如 192.168.1'); return; }
+
+            document.getElementById('subnetResult').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在扫描（可能需要10-30秒）...';
+
+            fetch('/api/v1/tools/ping-sweep', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({network: network, start: 1, end: 254})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.code === 0) {
+                    let html = `<div class="mt-1">发现 ${data.data.length} 台主机：</div>`;
+                    data.data.forEach(h => {
+                        html += `<span class="badge bg-success me-1 mb-1">${h.host}</span>`;
+                    });
+                    document.getElementById('subnetResult').innerHTML = html;
+                } else {
+                    document.getElementById('subnetResult').innerHTML = '❌ 扫描失败: ' + data.msg;
+                }
+            })
+            .catch(e => {
+                document.getElementById('subnetResult').innerHTML = '❌ 请求失败: ' + e.message;
+            });
+        }
+
+        // Traceroute
+        function doTraceroute() {
+            const host = document.getElementById('tracerouteHost').value.trim();
+            if (!host) { alert('请输入目标IP或域名'); return; }
+
+            document.getElementById('tracerouteResult').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在追踪...';
+
+            fetch('/api/v1/tools/traceroute', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({host: host})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.code === 0) {
+                    let html = '<div class="mt-1">';
+                    data.data.forEach(hop => {
+                        html += `<div>${hop.hop}. ${hop.ip} (${hop.rtt}ms)</div>`;
+                    });
+                    html += '</div>';
+                    document.getElementById('tracerouteResult').innerHTML = html || '无结果';
+                } else {
+                    document.getElementById('tracerouteResult').innerHTML = '❌ 追踪失败: ' + data.msg;
+                }
+            })
+            .catch(e => {
+                document.getElementById('tracerouteResult').innerHTML = '❌ 请求失败: ' + e.message;
+            });
+        }
+
+        // LLDP 查询
+        function doLldpQuery() {
+            const host = document.getElementById('lldpHost').value.trim();
+            const community = document.getElementById('lldpCommunity').value.trim() || 'public';
+            if (!host) { alert('请输入设备IP'); return; }
+
+            document.getElementById('lldpResult').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在查询...';
+
+            fetch('/api/v1/tools/lldp-query', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({host: host, community: community})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.code === 0) {
+                    const r = data.data;
+                    if (r.error) {
+                        document.getElementById('lldpResult').innerHTML = '❌ ' + r.error;
+                        return;
+                    }
+                    let html = `<div class="mt-1">`;
+                    html += `<div><strong>${r.device.sys_name}</strong> (${r.device.sys_descr.substring(0, 50)}...)</div>`;
+                    html += `<div>邻居 (${r.neighbors.length} 个)：</div>`;
+                    r.neighbors.forEach(n => {
+                        html += `<div class="ms-2">→ ${n.remote_name} (${n.remote_ip}) 端口: ${n.remote_port}</div>`;
+                    });
+                    html += `</div>`;
+                    document.getElementById('lldpResult').innerHTML = html;
+                } else {
+                    document.getElementById('lldpResult').innerHTML = '❌ 查询失败: ' + data.msg;
+                }
+            })
+            .catch(e => {
+                document.getElementById('lldpResult').innerHTML = '❌ 请求失败: ' + e.message;
+            });
+        }
 
         // ============================================================
         // 实时监控 WebSocket 功能（中优先级 #7）

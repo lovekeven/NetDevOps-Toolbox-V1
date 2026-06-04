@@ -66,6 +66,8 @@ import threading
 import asyncio
 from core.topology.snmp_collector import SNMPCollector, PYSNMP_AVAILABLE
 from core.topology.topology_builder import TopologyBuilder
+from core.topology.sdn_collector import SDNCollector
+from core.topology.network_tools import NetworkTools
 
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
@@ -2319,6 +2321,198 @@ def get_snapshot_detail(snapshot_id):
         return jsonify({"code": 1, "msg": "快照不存在", "data": None}), 404
     except Exception as e:
         logger.error(f"获取快照详情失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# ============================================================
+# SDN 控制器相关 API（二期新增）
+# ============================================================
+
+# 测试 SDN 控制器连接
+@app.route("/api/v1/sdn/test")
+def test_sdn_connection():
+    """测试能否连接到 Ryu 控制器"""
+    try:
+        controller_ip = request.args.get('ip', '127.0.0.1')
+        controller_port = int(request.args.get('port', 8080))
+
+        collector = SDNCollector(controller_ip, controller_port)
+        result = collector.test_connection()
+
+        return jsonify({"code": 0, "msg": "success", "data": result})
+    except Exception as e:
+        logger.error(f"SDN 连接测试失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 获取 SDN 拓扑数据
+@app.route("/api/v1/sdn/topology")
+def get_sdn_topology():
+    """从 Ryu 控制器获取 SDN 网络拓扑"""
+    try:
+        controller_ip = request.args.get('ip', '127.0.0.1')
+        controller_port = int(request.args.get('port', 8080))
+
+        collector = SDNCollector(controller_ip, controller_port)
+        result = collector.collect_all()
+
+        # 保存到数据库
+        db_manager.clear_topology_nodes()
+        db_manager.clear_topology_links()
+        db_manager.batch_save_topology_nodes(result['nodes'])
+        db_manager.batch_save_topology_links(result['edges'])
+
+        return jsonify({
+            "code": 0,
+            "msg": "success",
+            "data": {
+                "nodes": result['nodes'],
+                "links": result['edges'],
+                "metadata": result['metadata'],
+                "mode": "sdn"
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取 SDN 拓扑失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 获取流表信息
+@app.route("/api/v1/sdn/flows")
+def get_sdn_flows():
+    """获取 OpenFlow 流表"""
+    try:
+        controller_ip = request.args.get('ip', '127.0.0.1')
+        controller_port = int(request.args.get('port', 8080))
+        dpid = request.args.get('dpid')
+
+        collector = SDNCollector(controller_ip, controller_port)
+        flows = collector.get_flow_stats(int(dpid) if dpid else None)
+
+        return jsonify({"code": 0, "msg": "success", "data": flows})
+    except Exception as e:
+        logger.error(f"获取流表失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# ============================================================
+# 网络小工具 API（二期新增）
+# ============================================================
+
+# IP 网段扫描
+@app.route("/api/v1/tools/ping-sweep", methods=["POST"])
+def ping_sweep():
+    """扫描网段内存活主机"""
+    try:
+        data = request.get_json() or {}
+        network = data.get("network")
+        start = data.get("start", 1)
+        end = data.get("end", 254)
+
+        if not network:
+            return jsonify({"code": 1, "msg": "缺少网段参数", "data": None}), 400
+
+        # 限制扫描范围，防止太慢
+        if end - start > 254:
+            end = start + 254
+
+        alive_hosts = NetworkTools.scan_subnet(network, start=start, end=end)
+
+        return jsonify({
+            "code": 0,
+            "msg": f"扫描完成，发现 {len(alive_hosts)} 台主机",
+            "data": alive_hosts
+        })
+    except Exception as e:
+        logger.error(f"网段扫描失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 端口扫描
+@app.route("/api/v1/tools/port-scan", methods=["POST"])
+def port_scan():
+    """扫描指定主机的开放端口"""
+    try:
+        data = request.get_json() or {}
+        host = data.get("host")
+        ports = data.get("ports")
+
+        if not host:
+            return jsonify({"code": 1, "msg": "缺少主机参数", "data": None}), 400
+
+        results = NetworkTools.scan_ports(host, ports=ports)
+
+        return jsonify({
+            "code": 0,
+            "msg": "扫描完成",
+            "data": results
+        })
+    except Exception as e:
+        logger.error(f"端口扫描失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 连通测试
+@app.route("/api/v1/tools/ping", methods=["POST"])
+def ping_test():
+    """Ping 连通测试"""
+    try:
+        data = request.get_json() or {}
+        host = data.get("host")
+        count = data.get("count", 2)
+
+        if not host:
+            return jsonify({"code": 1, "msg": "缺少主机参数", "data": None}), 400
+
+        result = NetworkTools.ping(host, count=count)
+
+        return jsonify({"code": 0, "msg": "success", "data": result})
+    except Exception as e:
+        logger.error(f"Ping 测试失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# Traceroute
+@app.route("/api/v1/tools/traceroute", methods=["POST"])
+def traceroute_test():
+    """Traceroute 路径追踪"""
+    try:
+        data = request.get_json() or {}
+        host = data.get("host")
+        max_hops = data.get("max_hops", 15)
+
+        if not host:
+            return jsonify({"code": 1, "msg": "缺少主机参数", "data": None}), 400
+
+        hops = NetworkTools.traceroute(host, max_hops=max_hops)
+
+        return jsonify({
+            "code": 0,
+            "msg": f"Traceroute 完成，{len(hops)} 跳",
+            "data": hops
+        })
+    except Exception as e:
+        logger.error(f"Traceroute 失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# LLDP 单设备查询
+@app.route("/api/v1/tools/lldp-query", methods=["POST"])
+def lldp_query():
+    """查询单个设备的 LLDP 邻居"""
+    try:
+        data = request.get_json() or {}
+        host = data.get("host")
+        community = data.get("community", "public")
+
+        if not host:
+            return jsonify({"code": 1, "msg": "缺少主机参数", "data": None}), 400
+
+        result = NetworkTools.query_device_lldp(host, community=community)
+
+        return jsonify({"code": 0, "msg": "success", "data": result})
+    except Exception as e:
+        logger.error(f"LLDP 查询失败：{e}")
         return jsonify({"code": 1, "msg": str(e), "data": None}), 500
 
 
