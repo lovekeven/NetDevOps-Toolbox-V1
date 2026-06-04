@@ -8,6 +8,12 @@
     <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
     <!-- 引入 Font Awesome 图标 -->
     <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- 引入 vis.js 网络拓扑库 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/vis-network/9.1.6/dist/vis-network.min.js"></script>
+    <!-- 引入 ECharts 图表库 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <!-- 引入 Socket.IO 客户端 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         /* 现代化深色主题 */
         :root {
@@ -847,6 +853,52 @@
             padding: 1rem;
             width: 100%;
         }
+
+        /* 网络拓扑容器样式 */
+        #topology-container {
+            width: 100%;
+            height: 500px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: #0a0a1a;
+        }
+
+        /* 拓扑图例 */
+        .topology-legend {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.online {
+            background-color: #10b981;
+        }
+
+        .legend-dot.offline {
+            background-color: #ef4444;
+        }
+
+        .legend-dot.cloud {
+            background-color: #3b82f6;
+        }
+
+        .legend-dot.switch {
+            background-color: #f59e0b;
+        }
     </style>
 </head>
 <body>
@@ -869,6 +921,145 @@
             <p>智能网络设备自动化运维平台</p>
         </div>
 
+        <!-- 网络拓扑可视化卡片（一期增强版） -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-project-diagram text-primary me-2"></i>网络拓扑可视化</h5>
+                <div class="d-flex gap-2 align-items-center">
+                    <!-- SNMP 扫描区域 -->
+                    <div class="input-group input-group-sm" style="width: 300px;">
+                        <input type="text" id="seedIpInput" class="form-control" placeholder="种子设备IP，如 192.168.1.1">
+                        <input type="text" id="communityInput" class="form-control" placeholder="community" value="public" style="width: 80px;">
+                        <button id="scanTopologyBtn" class="btn btn-success">
+                            <i class="fas fa-search me-1"></i>扫描
+                        </button>
+                    </div>
+                    <button id="refreshTopologyBtn" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-sync-alt me-1"></i>刷新
+                    </button>
+                    <button id="autoLayoutBtn" class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-magic me-1"></i>布局
+                    </button>
+                    <button id="saveSnapshotBtn" class="btn btn-sm btn-outline-warning">
+                        <i class="fas fa-camera me-1"></i>快照
+                    </button>
+                    <button id="exportPngBtn" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-download me-1"></i>PNG
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="topology-container"></div>
+                <div class="topology-legend">
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background: #8b5cf6;"></span>
+                        <span>路由器</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background: #3b82f6;"></span>
+                        <span>交换机</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background: #f59e0b;"></span>
+                        <span>防火墙</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background: #10b981;"></span>
+                        <span>终端设备</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot online"></span>
+                        <span>在线</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot offline"></span>
+                        <span>离线</span>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        输入种子设备IP点击扫描，自动发现LLDP邻居和终端设备。支持华为/H3C/Cisco设备。
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- 实时监控状态卡片 -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-chart-area text-success me-2"></i>实时监控仪表盘</h5>
+                <div class="d-flex gap-2">
+                    <select id="monitoringInterval" class="form-select form-select-sm" style="width: auto;">
+                        <option value="30">30秒</option>
+                        <option value="60" selected>1分钟</option>
+                        <option value="300">5分钟</option>
+                        <option value="600">10分钟</option>
+                    </select>
+                    <button id="startMonitoringBtn" class="btn btn-sm btn-success">
+                        <i class="fas fa-play me-1"></i>启动监控
+                    </button>
+                    <button id="stopMonitoringBtn" class="btn btn-sm btn-danger" disabled>
+                        <i class="fas fa-stop me-1"></i>停止监控
+                    </button>
+                    <span id="monitoringStatus" class="badge bg-secondary">未启动</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- 监控统计卡片 -->
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">设备总数</h6>
+                                <h2 id="monitorTotal" class="mb-0">{{ devices|length }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">在线设备</h6>
+                                <h2 id="monitorOnline" class="mb-0">-</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-danger text-white">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">离线设备</h6>
+                                <h2 id="monitorOffline" class="mb-0">-</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">健康率</h6>
+                                <h2 id="monitorHealthRate" class="mb-0">-</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 监控图表 -->
+                <div class="row mt-3">
+                    <div class="col-md-8">
+                        <div id="monitoringChart" style="height: 300px;"></div>
+                    </div>
+                    <div class="col-md-4">
+                        <div id="deviceStatusChart" style="height: 300px;"></div>
+                    </div>
+                </div>
+                <!-- 最近监控记录 -->
+                <div class="mt-3">
+                    <h6><i class="fas fa-clock me-2"></i>最近监控记录</h6>
+                    <div id="monitoringLog" style="max-height: 200px; overflow-y: auto;">
+                        <p class="text-muted">暂无监控记录</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 顶部卡片网格 -->
         <div class="row mb-4">
             <!-- API服务状态卡片 -->
@@ -888,8 +1079,34 @@
                 </div>
             </div>
 
+            <!-- 效率对比卡片 -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-tachometer-alt text-warning me-2"></i>效率对比</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="efficiencyChart" style="height: 200px;"></div>
+                        <div class="mt-2 small text-muted">
+                            <div class="d-flex justify-content-between">
+                                <span>手动备份 6台设备</span>
+                                <span class="text-danger">30分钟</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>平台备份 6台设备</span>
+                                <span class="text-success">2分钟</span>
+                            </div>
+                            <div class="d-flex justify-content-between fw-bold">
+                                <span>效率提升</span>
+                                <span class="text-primary">15倍</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- AI报告卡片 -->
-            <div class="col-md-6 col-lg-8">
+            <div class="col-md-6 col-lg-4">
                 <div class="card h-100">
                     <div class="card-header">
                         <div class="d-flex justify-content-between align-items-center">
@@ -1238,12 +1455,150 @@
             </div>
         </div>
 
+        <!-- 用户自定义命令卡片（质变级优化 #1） -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-terminal text-success me-2"></i>自定义命令执行终端</h5>
+                <div class="d-flex gap-2">
+                    <button id="refreshWhitelistBtn" class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-sync-alt me-1"></i>刷新命令列表
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- 左侧：命令输入区域 -->
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="commandDeviceSelect" class="form-label">选择设备</label>
+                            <select id="commandDeviceSelect" class="form-select">
+                                <option value="">-- 请选择设备 --</option>
+                                {% for device in devices %}
+                                <option value="{{ device.device_name }}" data-vendor="{{ device.vendor }}">
+                                    {{ device.device_name }} ({{ device.host }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="commandVendorSelect" class="form-label">设备厂商</label>
+                            <select id="commandVendorSelect" class="form-select">
+                                <option value="h3c">H3C / HP Comware</option>
+                                <option value="cisco">Cisco IOS</option>
+                                <option value="huawei">华为 Huawei</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="commandCategorySelect" class="form-label">命令分类（快速选择）</label>
+                            <select id="commandCategorySelect" class="form-select">
+                                <option value="">-- 选择分类查看可用命令 --</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="commandInput" class="form-label">输入命令</label>
+                            <div class="input-group">
+                                <span class="input-group-text" style="background-color: var(--card-hover); color: var(--text-primary); border-color: var(--border-color);">
+                                    <i class="fas fa-chevron-right"></i>
+                                </span>
+                                <input type="text" id="commandInput" class="form-control"
+                                       placeholder="例如: display interface brief"
+                                       style="background-color: var(--card-background); color: var(--text-primary); border-color: var(--border-color);">
+                            </div>
+                            <div class="form-text text-muted" id="commandHint">提示：选择设备后，可从命令分类中快速选择</div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button id="executeCommandBtn" class="btn btn-primary">
+                                <i class="fas fa-play me-1"></i>执行命令
+                            </button>
+                            <button id="batchExecuteCommandBtn" class="btn btn-outline-primary">
+                                <i class="fas fa-layer-group me-1"></i>批量执行（所有在线设备）
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：常用命令列表 -->
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">常用命令（点击快速填入）</label>
+                            <div id="commonCommandsList" class="d-flex flex-wrap gap-2" style="max-height: 300px; overflow-y: auto;">
+                                <div class="text-center text-muted py-4 w-100">
+                                    <small>选择设备厂商后显示可用命令</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">命令安全说明</label>
+                            <div class="p-3 rounded" style="background-color: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
+                                <ul class="mb-0 small text-muted">
+                                    <li>只允许执行<strong>查询类命令</strong>（display/show/ping/tracert）</li>
+                                    <li>禁止执行<strong>配置命令</strong>（configure/undo/delete等）</li>
+                                    <li>命令经过白名单验证，防止注入攻击</li>
+                                    <li>支持带参数的命令（如 ping 192.168.1.1）</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 命令执行结果区域 -->
+                <div class="mt-4" id="commandResultSection" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0"><i class="fas fa-file-alt text-info me-2"></i>命令执行结果</h6>
+                        <div class="d-flex gap-2">
+                            <span id="commandExecutionTime" class="text-muted small"></span>
+                            <button id="copyCommandResultBtn" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-copy me-1"></i>复制结果
+                            </button>
+                            <button id="clearCommandResultBtn" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash me-1"></i>清空
+                            </button>
+                        </div>
+                    </div>
+                    <div id="commandResultContainer" class="p-3 rounded"
+                         style="background-color: #1a1a2e; border: 1px solid var(--border-color); max-height: 500px; overflow-y: auto;">
+                        <pre id="commandResultContent" class="mb-0"
+                             style="color: #00ff00; font-family: 'Consolas', 'Monaco', monospace; font-size: 14px; white-space: pre-wrap; word-break: break-all;">
+                        </pre>
+                    </div>
+                </div>
+
+                <!-- 批量执行结果区域 -->
+                <div class="mt-4" id="batchCommandResultSection" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0"><i class="fas fa-layer-group text-warning me-2"></i>批量执行结果</h6>
+                        <div class="d-flex gap-2">
+                            <span id="batchCommandStats" class="text-muted small"></span>
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-hover table-sm">
+                            <thead class="sticky-top" style="background-color: var(--card-background);">
+                                <tr>
+                                    <th style="width: 120px;">设备名</th>
+                                    <th style="width: 100px;">状态</th>
+                                    <th>命令输出</th>
+                                    <th style="width: 100px;">耗时</th>
+                                </tr>
+                            </thead>
+                            <tbody id="batchCommandResultBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 页脚区域 -->
         <footer class="mt-5 py-4">
             <div class="container">
                 <div class="text-center">
                     <p class="mb-0">
-                        <i class="fas fa-code text-primary me-1"></i>版本 0.5.0 | 基于Flask构建 | 
+                        <i class="fas fa-code text-primary me-1"></i>版本 0.6.0 | 基于Flask构建 |
                         <i class="fas fa-desktop text-info me-1"></i>设备总数: {{ devices|length }} 台
                     </p>
                     <p class="small text-muted mt-1">
@@ -3438,6 +3793,601 @@
                 });
             });
         }
+
+        // ============================================================
+        // 用户自定义命令功能（质变级优化 #1）
+        // ============================================================
+        function initCustomCommandFunction() {
+            const commandDeviceSelect = document.getElementById('commandDeviceSelect');
+            const commandVendorSelect = document.getElementById('commandVendorSelect');
+            const commandCategorySelect = document.getElementById('commandCategorySelect');
+            const commandInput = document.getElementById('commandInput');
+            const executeCommandBtn = document.getElementById('executeCommandBtn');
+            const batchExecuteCommandBtn = document.getElementById('batchExecuteCommandBtn');
+            const refreshWhitelistBtn = document.getElementById('refreshWhitelistBtn');
+            const commonCommandsList = document.getElementById('commonCommandsList');
+            const commandResultSection = document.getElementById('commandResultSection');
+            const commandResultContent = document.getElementById('commandResultContent');
+            const commandExecutionTime = document.getElementById('commandExecutionTime');
+            const copyCommandResultBtn = document.getElementById('copyCommandResultBtn');
+            const clearCommandResultBtn = document.getElementById('clearCommandResultBtn');
+            const batchCommandResultSection = document.getElementById('batchCommandResultSection');
+            const batchCommandResultBody = document.getElementById('batchCommandResultBody');
+            const batchCommandStats = document.getElementById('batchCommandStats');
+
+            // 命令白名单缓存
+            let commandWhitelist = {};
+            let commandCategories = {};
+
+            // 加载命令白名单
+            function loadCommandWhitelist(vendor) {
+                fetch(`/api/v1/command/whitelist?vendor=${vendor}&categories=true`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.code === 0) {
+                            commandWhitelist = data.data.whitelist;
+                            commandCategories = data.data.categories;
+                            updateCategorySelect();
+                            updateCommonCommandsList();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('加载命令白名单失败：', error);
+                    });
+            }
+
+            // 更新命令分类下拉框
+            function updateCategorySelect() {
+                commandCategorySelect.innerHTML = '<option value="">-- 选择分类查看可用命令 --</option>';
+                Object.keys(commandCategories).forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    commandCategorySelect.appendChild(option);
+                });
+            }
+
+            // 更新常用命令列表
+            function updateCommonCommandsList() {
+                commonCommandsList.innerHTML = '';
+                const vendor = commandVendorSelect.value;
+
+                // 获取当前厂商的所有命令
+                const allCommands = [];
+                Object.values(commandWhitelist).forEach(cmdList => {
+                    cmdList.forEach(cmd => {
+                        if (!cmd.includes(' ')) { // 只显示不带参数的命令
+                            allCommands.push(cmd);
+                        }
+                    });
+                });
+
+                // 去重并显示
+                const uniqueCommands = [...new Set(allCommands)];
+                uniqueCommands.forEach(cmd => {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge bg-secondary cursor-pointer';
+                    badge.style.cursor = 'pointer';
+                    badge.textContent = cmd;
+                    badge.title = '点击填入命令输入框';
+                    badge.addEventListener('click', function() {
+                        commandInput.value = cmd;
+                        commandInput.focus();
+                    });
+                    commonCommandsList.appendChild(badge);
+                });
+            }
+
+            // 设备选择变化时自动更新厂商
+            commandDeviceSelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const vendor = selectedOption.getAttribute('data-vendor');
+                if (vendor) {
+                    // 根据厂商名称映射到代码
+                    const vendorMap = {
+                        'HCLCloud': 'h3c',
+                        '华三H3C': 'h3c',
+                        'H3C': 'h3c',
+                        'Cisco': 'cisco',
+                        '华为': 'huawei',
+                        'Huawei': 'huawei'
+                    };
+                    commandVendorSelect.value = vendorMap[vendor] || 'h3c';
+                    loadCommandWhitelist(commandVendorSelect.value);
+                }
+            });
+
+            // 厂商选择变化时更新命令列表
+            commandVendorSelect.addEventListener('change', function() {
+                loadCommandWhitelist(this.value);
+            });
+
+            // 命令分类选择变化时更新输入框
+            commandCategorySelect.addEventListener('change', function() {
+                const category = this.value;
+                if (category && commandCategories[category]) {
+                    // 显示该分类下的命令
+                    commonCommandsList.innerHTML = '';
+                    commandCategories[category].forEach(cmd => {
+                        const badge = document.createElement('span');
+                        badge.className = 'badge bg-primary cursor-pointer';
+                        badge.style.cursor = 'pointer';
+                        badge.textContent = cmd;
+                        badge.title = '点击填入命令输入框';
+                        badge.addEventListener('click', function() {
+                            commandInput.value = cmd;
+                            commandInput.focus();
+                        });
+                        commonCommandsList.appendChild(badge);
+                    });
+                } else {
+                    updateCommonCommandsList();
+                }
+            });
+
+            // 执行单个命令
+            executeCommandBtn.addEventListener('click', function() {
+                const deviceName = commandDeviceSelect.value;
+                const command = commandInput.value.trim();
+                const vendor = commandVendorSelect.value;
+
+                if (!deviceName) {
+                    alert('请先选择设备');
+                    return;
+                }
+                if (!command) {
+                    alert('请输入命令');
+                    return;
+                }
+
+                // 禁用按钮，显示加载状态
+                executeCommandBtn.disabled = true;
+                executeCommandBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>执行中...';
+
+                fetch('/api/v1/command/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_name: deviceName, command: command, vendor: vendor })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    executeCommandBtn.disabled = false;
+                    executeCommandBtn.innerHTML = '<i class="fas fa-play me-1"></i>执行命令';
+
+                    if (data.code === 0) {
+                        // 显示结果
+                        commandResultSection.style.display = 'block';
+                        batchCommandResultSection.style.display = 'none';
+                        commandResultContent.textContent = data.data.output;
+                        commandExecutionTime.textContent = `耗时：${data.data.execution_time}`;
+                        // 滚动到结果区域
+                        commandResultSection.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        alert(`执行失败：${data.msg}`);
+                    }
+                })
+                .catch(error => {
+                    executeCommandBtn.disabled = false;
+                    executeCommandBtn.innerHTML = '<i class="fas fa-play me-1"></i>执行命令';
+                    console.error('执行命令失败：', error);
+                    alert(`执行失败：${error.message}`);
+                });
+            });
+
+            // 批量执行命令
+            batchExecuteCommandBtn.addEventListener('click', function() {
+                const command = commandInput.value.trim();
+                const vendor = commandVendorSelect.value;
+
+                if (!command) {
+                    alert('请输入命令');
+                    return;
+                }
+
+                // 获取所有在线设备
+                const deviceNames = [];
+                document.querySelectorAll('.nornirDeviceCheckbox').forEach(checkbox => {
+                    const hostname = checkbox.getAttribute('data-hostname');
+                    const row = checkbox.closest('tr');
+                    const statusBadge = row.querySelector('.badge.bg-success');
+                    if (statusBadge) {
+                        deviceNames.push(hostname);
+                    }
+                });
+
+                if (deviceNames.length === 0) {
+                    alert('没有在线设备可执行命令');
+                    return;
+                }
+
+                if (!confirm(`确定要在 ${deviceNames.length} 台在线设备上执行命令吗？\n\n命令：${command}`)) {
+                    return;
+                }
+
+                // 禁用按钮，显示加载状态
+                batchExecuteCommandBtn.disabled = true;
+                batchExecuteCommandBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>批量执行中...';
+
+                fetch('/api/v1/command/batch-execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_names: deviceNames, command: command, vendor: vendor })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    batchExecuteCommandBtn.disabled = false;
+                    batchExecuteCommandBtn.innerHTML = '<i class="fas fa-layer-group me-1"></i>批量执行（所有在线设备）';
+
+                    if (data.code === 0) {
+                        // 显示批量结果
+                        commandResultSection.style.display = 'none';
+                        batchCommandResultSection.style.display = 'block';
+
+                        // 更新统计信息
+                        batchCommandStats.textContent = `成功：${data.data.success} 台，失败：${data.data.failed} 台，总计：${data.data.total} 台`;
+
+                        // 渲染结果表格
+                        batchCommandResultBody.innerHTML = '';
+                        data.data.results.forEach(result => {
+                            const tr = document.createElement('tr');
+                            const statusClass = result.status === '成功' ? 'success' : 'danger';
+                            const output = result.status === '成功'
+                                ? (result.output.length > 500 ? result.output.substring(0, 500) + '...' : result.output)
+                                : (result.error || '未知错误');
+
+                            tr.innerHTML = `
+                                <td><strong>${result.device_name}</strong></td>
+                                <td><span class="badge bg-${statusClass}">${result.status}</span></td>
+                                <td><pre class="mb-0 small" style="max-height: 150px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;">${output}</pre></td>
+                                <td>${result.execution_time || '-'}</td>
+                            `;
+                            batchCommandResultBody.appendChild(tr);
+                        });
+
+                        // 滚动到结果区域
+                        batchCommandResultSection.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        alert(`批量执行失败：${data.msg}`);
+                    }
+                })
+                .catch(error => {
+                    batchExecuteCommandBtn.disabled = false;
+                    batchExecuteCommandBtn.innerHTML = '<i class="fas fa-layer-group me-1"></i>批量执行（所有在线设备）';
+                    console.error('批量执行命令失败：', error);
+                    alert(`批量执行失败：${error.message}`);
+                });
+            });
+
+            // 复制结果
+            copyCommandResultBtn.addEventListener('click', function() {
+                const text = commandResultContent.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('结果已复制到剪贴板');
+                }).catch(err => {
+                    console.error('复制失败：', err);
+                    // 降级方案
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    alert('结果已复制到剪贴板');
+                });
+            });
+
+            // 清空结果
+            clearCommandResultBtn.addEventListener('click', function() {
+                commandResultSection.style.display = 'none';
+                commandResultContent.textContent = '';
+            });
+
+            // 刷新命令列表
+            refreshWhitelistBtn.addEventListener('click', function() {
+                loadCommandWhitelist(commandVendorSelect.value);
+            });
+
+            // 支持回车执行命令
+            commandInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    executeCommandBtn.click();
+                }
+            });
+
+            // 初始化加载命令白名单
+            loadCommandWhitelist('h3c');
+        }
+
+        // 初始化自定义命令功能
+        initCustomCommandFunction();
+
+        // ============================================================
+        // 网络拓扑可视化功能（一期增强版）
+        // ============================================================
+        // 初始化拓扑（使用 topology.js 模块）
+        const topo = initTopology('topology-container');
+
+        // 绑定按钮事件
+        document.getElementById('refreshTopologyBtn').addEventListener('click', function() {
+            refreshTopology();
+        });
+
+        document.getElementById('autoLayoutBtn').addEventListener('click', function() {
+            autoLayoutTopology();
+        });
+
+        // 扫描按钮
+        document.getElementById('scanTopologyBtn').addEventListener('click', function() {
+            const seedIp = document.getElementById('seedIpInput').value.trim();
+            const community = document.getElementById('communityInput').value.trim() || 'public';
+
+            if (!seedIp) {
+                alert('请输入种子设备IP');
+                return;
+            }
+
+            scanTopology(seedIp, community);
+        });
+
+        // 保存快照按钮
+        document.getElementById('saveSnapshotBtn').addEventListener('click', function() {
+            const name = prompt('输入快照名称（留空自动生成）：');
+            saveTopologySnapshot(name || undefined);
+        });
+
+        // 导出 PNG 按钮
+        document.getElementById('exportPngBtn').addEventListener('click', function() {
+            exportTopologyPNG('network_topology');
+        });
+
+        // 支持回车触发扫描
+        document.getElementById('seedIpInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('scanTopologyBtn').click();
+            }
+        });
+
+        // ============================================================
+        // 实时监控 WebSocket 功能（中优先级 #7）
+        // ============================================================
+        function initRealTimeMonitoring() {
+            const startBtn = document.getElementById('startMonitoringBtn');
+            const stopBtn = document.getElementById('stopMonitoringBtn');
+            const statusBadge = document.getElementById('monitoringStatus');
+            const intervalSelect = document.getElementById('monitoringInterval');
+
+            // 统计元素
+            const monitorTotal = document.getElementById('monitorTotal');
+            const monitorOnline = document.getElementById('monitorOnline');
+            const monitorOffline = document.getElementById('monitorOffline');
+            const monitorHealthRate = document.getElementById('monitorHealthRate');
+            const monitoringLog = document.getElementById('monitoringLog');
+
+            // 初始化图表
+            let monitoringChart = null;
+            let deviceStatusChart = null;
+            let efficiencyChart = null;
+
+            // 初始化 ECharts
+            function initCharts() {
+                // 监控趋势图
+                const monitoringChartDom = document.getElementById('monitoringChart');
+                if (monitoringChartDom) {
+                    monitoringChart = echarts.init(monitoringChartDom);
+                    const option = {
+                        title: { text: '设备状态趋势', textStyle: { color: '#f1f5f9', fontSize: 14 } },
+                        tooltip: { trigger: 'axis' },
+                        legend: { data: ['在线', '离线'], textStyle: { color: '#94a3b8' } },
+                        xAxis: { type: 'category', data: [], axisLabel: { color: '#94a3b8' } },
+                        yAxis: { type: 'value', axisLabel: { color: '#94a3b8' } },
+                        series: [
+                            { name: '在线', type: 'line', data: [], smooth: true, color: '#10b981' },
+                            { name: '离线', type: 'line', data: [], smooth: true, color: '#ef4444' }
+                        ],
+                        backgroundColor: 'transparent'
+                    };
+                    monitoringChart.setOption(option);
+                }
+
+                // 设备状态饼图
+                const deviceStatusDom = document.getElementById('deviceStatusChart');
+                if (deviceStatusDom) {
+                    deviceStatusChart = echarts.init(deviceStatusDom);
+                    const option = {
+                        title: { text: '设备状态分布', textStyle: { color: '#f1f5f9', fontSize: 14 }, left: 'center' },
+                        tooltip: { trigger: 'item' },
+                        series: [{
+                            type: 'pie',
+                            radius: '60%',
+                            data: [
+                                { value: 0, name: '在线', itemStyle: { color: '#10b981' } },
+                                { value: 0, name: '离线', itemStyle: { color: '#ef4444' } }
+                            ],
+                            label: { color: '#f1f5f9' }
+                        }],
+                        backgroundColor: 'transparent'
+                    };
+                    deviceStatusChart.setOption(option);
+                }
+
+                // 效率对比图
+                const efficiencyDom = document.getElementById('efficiencyChart');
+                if (efficiencyDom) {
+                    efficiencyChart = echarts.init(efficiencyDom);
+                    const option = {
+                        tooltip: { trigger: 'axis' },
+                        xAxis: {
+                            type: 'category',
+                            data: ['备份', '健康检查', '配置管理', '故障排查'],
+                            axisLabel: { color: '#94a3b8' }
+                        },
+                        yAxis: { type: 'value', name: '时间(分钟)', axisLabel: { color: '#94a3b8' } },
+                        series: [
+                            {
+                                name: '手动操作',
+                                type: 'bar',
+                                data: [30, 20, 15, 60],
+                                itemStyle: { color: '#ef4444' }
+                            },
+                            {
+                                name: '平台自动化',
+                                type: 'bar',
+                                data: [2, 1, 2, 5],
+                                itemStyle: { color: '#10b981' }
+                            }
+                        ],
+                        backgroundColor: 'transparent'
+                    };
+                    efficiencyChart.setOption(option);
+                }
+            }
+
+            // 更新监控统计
+            function updateMonitoringStats(stats) {
+                if (monitorTotal) monitorTotal.textContent = stats.total || '-';
+                if (monitorOnline) monitorOnline.textContent = stats.online || '-';
+                if (monitorOffline) monitorOffline.textContent = stats.offline || '-';
+                if (monitorHealthRate) monitorHealthRate.textContent = stats.health_rate || '-';
+            }
+
+            // 添加监控日志
+            function addMonitoringLog(message, type = 'info') {
+                if (!monitoringLog) return;
+
+                const timestamp = new Date().toLocaleTimeString();
+                const colors = {
+                    'info': 'text-info',
+                    'success': 'text-success',
+                    'warning': 'text-warning',
+                    'danger': 'text-danger'
+                };
+
+                const logEntry = document.createElement('div');
+                logEntry.className = `small ${colors[type] || 'text-muted'}`;
+                logEntry.innerHTML = `<i class="fas fa-clock me-1"></i>[${timestamp}] ${message}`;
+
+                monitoringLog.insertBefore(logEntry, monitoringLog.firstChild);
+
+                // 只保留最近 50 条日志
+                while (monitoringLog.children.length > 50) {
+                    monitoringLog.removeChild(monitoringLog.lastChild);
+                }
+            }
+
+            // WebSocket 连接
+            let socket = null;
+
+            function connectWebSocket() {
+                socket = io();
+
+                socket.on('connect', function() {
+                    console.log('WebSocket 连接成功');
+                    addMonitoringLog('WebSocket 连接成功', 'success');
+                });
+
+                socket.on('disconnect', function() {
+                    console.log('WebSocket 断开');
+                    addMonitoringLog('WebSocket 连接断开', 'warning');
+                });
+
+                socket.on('monitoring_update', function(data) {
+                    console.log('收到监控更新:', data);
+                    addMonitoringLog(`监控更新：${data.devices.length} 台设备`);
+
+                    // 更新图表数据
+                    if (monitoringChart) {
+                        const now = new Date().toLocaleTimeString();
+                        const option = monitoringChart.getOption();
+                        option.xAxis[0].data.push(now);
+                        option.series[0].data.push(data.devices.filter(d => d.status === 'online').length);
+                        option.series[1].data.push(data.devices.filter(d => d.status === 'offline').length);
+
+                        // 只保留最近 20 个数据点
+                        if (option.xAxis[0].data.length > 20) {
+                            option.xAxis[0].data.shift();
+                            option.series[0].data.shift();
+                            option.series[1].data.shift();
+                        }
+
+                        monitoringChart.setOption(option);
+                    }
+                });
+
+                socket.on('monitoring_stats', function(data) {
+                    console.log('收到监控统计:', data);
+                    updateMonitoringStats(data);
+
+                    // 更新饼图
+                    if (deviceStatusChart) {
+                        deviceStatusChart.setOption({
+                            series: [{
+                                data: [
+                                    { value: data.online || 0, name: '在线' },
+                                    { value: data.offline || 0, name: '离线' }
+                                ]
+                            }]
+                        });
+                    }
+                });
+
+                socket.on('monitoring_status', function(data) {
+                    console.log('监控状态:', data);
+                    updateMonitoringStatus(data.status);
+                    addMonitoringLog(data.message, data.status === 'running' ? 'success' : 'info');
+                });
+            }
+
+            // 更新监控状态显示
+            function updateMonitoringStatus(status) {
+                if (!statusBadge) return;
+
+                const statusMap = {
+                    'running': { class: 'bg-success', text: '监控中' },
+                    'stopped': { class: 'bg-secondary', text: '已停止' },
+                    'already_running': { class: 'bg-warning', text: '监控中' }
+                };
+
+                const statusInfo = statusMap[status] || { class: 'bg-secondary', text: '未知' };
+                statusBadge.className = `badge ${statusInfo.class}`;
+                statusBadge.textContent = statusInfo.text;
+
+                // 更新按钮状态
+                if (startBtn) startBtn.disabled = (status === 'running');
+                if (stopBtn) stopBtn.disabled = (status !== 'running');
+            }
+
+            // 绑定事件
+            if (startBtn) {
+                startBtn.addEventListener('click', function() {
+                    const interval = parseInt(intervalSelect.value) || 60;
+                    if (socket) {
+                        socket.emit('start_monitoring', { interval: interval });
+                    }
+                });
+            }
+
+            if (stopBtn) {
+                stopBtn.addEventListener('click', function() {
+                    if (socket) {
+                        socket.emit('stop_monitoring');
+                    }
+                });
+            }
+
+            // 初始化
+            initCharts();
+            connectWebSocket();
+
+            // 窗口大小变化时重绘图表
+            window.addEventListener('resize', function() {
+                if (monitoringChart) monitoringChart.resize();
+                if (deviceStatusChart) deviceStatusChart.resize();
+                if (efficiencyChart) efficiencyChart.resize();
+            });
+        }
+
+        // 初始化实时监控
+        initRealTimeMonitoring();
     </script>
 </body>
 </html>

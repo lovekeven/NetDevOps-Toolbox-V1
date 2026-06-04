@@ -8,8 +8,15 @@ nornir==3.3.0
 nornir-netmiko==1.0.1
 psutil==5.9.8
 
+# WebSocket 实时通信
+flask-socketio==5.6.1
+python-socketio==5.16.2
+
 # 定时任务
 APScheduler==3.10.4
+
+# SNMP 拓扑发现
+pysnmp==4.4.12
 
 # 阿里云SDK（可选，如果需要阿里云功能请取消注释）
 # aliyun-python-sdk-core==2.15.2

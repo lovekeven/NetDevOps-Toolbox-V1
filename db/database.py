@@ -127,6 +127,100 @@ class DatabaseManager:
                 create_time TEXT NOT NULL     -- 档案卡创建时间
             );
             """,
+            # 新增：配置版本管理表（中优先级 #6）
+            """
+            CREATE TABLE IF NOT EXISTS config_versions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hostname TEXT NOT NULL,             -- 设备主机名
+                config_content TEXT NOT NULL,       -- 配置内容
+                config_hash TEXT NOT NULL,          -- 配置哈希值（用于快速对比）
+                version_number INTEGER NOT NULL,    -- 版本号
+                backup_path TEXT,                   -- 备份文件路径
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_by TEXT DEFAULT 'system',   -- 创建者（system/user）
+                comment TEXT,                       -- 版本备注
+                FOREIGN KEY (hostname) REFERENCES devices (hostname)
+            );
+            """,
+            # 新增：配置合规检查规则表
+            """
+            CREATE TABLE IF NOT EXISTS compliance_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rule_name TEXT NOT NULL,            -- 规则名称
+                rule_type TEXT NOT NULL,            -- 规则类型（password/encryption/aaa/snmp等）
+                pattern TEXT NOT NULL,              -- 匹配模式（正则表达式）
+                expected_value TEXT,                -- 期望值
+                severity TEXT DEFAULT 'warning',    -- 严重程度（critical/warning/info）
+                description TEXT,                   -- 规则描述
+                enabled INTEGER DEFAULT 1,          -- 是否启用
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """,
+            # 新增：合规检查结果表
+            """
+            CREATE TABLE IF NOT EXISTS compliance_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hostname TEXT NOT NULL,             -- 设备主机名
+                rule_id INTEGER NOT NULL,           -- 规则ID
+                rule_name TEXT NOT NULL,            -- 规则名称
+                passed INTEGER NOT NULL,            -- 是否通过（0/1）
+                found_value TEXT,                   -- 发现的值
+                check_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (hostname) REFERENCES devices (hostname),
+                FOREIGN KEY (rule_id) REFERENCES compliance_rules (id)
+            );
+            """,
+            # ============================================================
+            # 网络拓扑可视化相关表（一期新增）
+            # ============================================================
+            # 拓扑节点表：存储发现的网络设备
+            """
+            CREATE TABLE IF NOT EXISTS topology_nodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_id TEXT UNIQUE NOT NULL,       -- 节点唯一标识（IP或设备名）
+                name TEXT NOT NULL,                 -- 设备名称
+                ip_address TEXT,                    -- IP 地址
+                device_type TEXT DEFAULT 'switch',  -- 设备类型：router/switch/firewall/pc/ap
+                vendor TEXT,                        -- 厂商：huawei/h3c/cisco
+                model TEXT,                         -- 型号
+                status TEXT DEFAULT 'online',       -- 状态：online/offline/unknown
+                layer TEXT DEFAULT 'access',        -- 网络层级：core/aggregation/access
+                sys_descr TEXT,                     -- 系统描述（SNMP sysDescr）
+                sys_name TEXT,                      -- 系统名称（SNMP sysName）
+                x REAL DEFAULT 0,                   -- 前端 X 坐标（用于保存布局）
+                y REAL DEFAULT 0,                   -- 前端 Y 坐标
+                discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """,
+            # 拓扑链路表：存储设备间的连接关系
+            """
+            CREATE TABLE IF NOT EXISTS topology_links (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_node TEXT NOT NULL,          -- 源节点 ID
+                target_node TEXT NOT NULL,          -- 目标节点 ID
+                source_port TEXT,                   -- 源端口名
+                target_port TEXT,                   -- 目标端口名
+                bandwidth TEXT,                     -- 带宽
+                status TEXT DEFAULT 'up',           -- 链路状态：up/down
+                link_type TEXT DEFAULT 'ethernet',  -- 链路类型：ethernet/fiber/wireless
+                discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(source_node, target_node, source_port, target_port)
+            );
+            """,
+            # 拓扑快照表：保存历史拓扑用于对比
+            """
+            CREATE TABLE IF NOT EXISTS topology_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_name TEXT,                 -- 快照名称
+                nodes_data TEXT NOT NULL,           -- 节点数据（JSON）
+                links_data TEXT NOT NULL,           -- 链路数据（JSON）
+                device_count INTEGER DEFAULT 0,     -- 设备数量
+                link_count INTEGER DEFAULT 0,       -- 链路数量
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_by TEXT DEFAULT 'system'
+            );
+            """,
         ]
         cursor = self.conn.cursor()
         try:
@@ -422,6 +516,427 @@ class DatabaseManager:
 
     def __del__(self):
         self.close()
+
+    # ============================================================
+    # 配置版本管理功能（中优先级 #6）
+    # ============================================================
+
+    def save_config_version(self, hostname, config_content, backup_path=None, created_by='system', comment=None):
+        """
+        保存配置版本
+        :param hostname: 设备主机名
+        :param config_content: 配置内容
+        :param backup_path: 备份文件路径
+        :param created_by: 创建者（system/user）
+        :param comment: 版本备注
+        :return: 版本ID
+        """
+        import hashlib
+        config_hash = hashlib.md5(config_content.encode('utf-8')).hexdigest()
+
+        # 获取当前最大版本号
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT MAX(version_number) FROM config_versions WHERE hostname = ?", (hostname,))
+        result = cursor.fetchone()
+        max_version = result[0] if result[0] else 0
+        new_version = max_version + 1
+
+        sql = """
+        INSERT INTO config_versions (hostname, config_content, config_hash, version_number, backup_path, created_by, comment)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+        params = (hostname, config_content, config_hash, new_version, backup_path, created_by, comment)
+
+        try:
+            cursor.execute(sql, params)
+            self.conn.commit()
+            version_id = cursor.lastrowid
+            logger.info(f"配置版本保存成功：设备={hostname}，版本={new_version}，ID={version_id}")
+            return version_id
+        except sqlite3.Error as e:
+            logger.error(f"保存配置版本失败：{e}")
+            self.conn.rollback()
+            raise
+
+    def get_config_versions(self, hostname, limit=10):
+        """
+        获取设备的配置版本列表
+        :param hostname: 设备主机名
+        :param limit: 返回记录数
+        :return: 版本列表
+        """
+        sql = """
+        SELECT id, hostname, config_hash, version_number, backup_path, created_at, created_by, comment
+        FROM config_versions
+        WHERE hostname = ?
+        ORDER BY version_number DESC
+        LIMIT ?
+        """
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (hostname, limit))
+            results = cursor.fetchall()
+            versions = [dict(record) for record in results]
+            logger.info(f"查询到 {len(versions)} 个配置版本：设备={hostname}")
+            return versions
+        except sqlite3.Error as e:
+            logger.error(f"查询配置版本失败：{e}")
+            raise
+
+    def get_config_content(self, version_id):
+        """
+        获取指定版本的配置内容
+        :param version_id: 版本ID
+        :return: 配置内容
+        """
+        sql = "SELECT config_content FROM config_versions WHERE id = ?"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (version_id,))
+            result = cursor.fetchone()
+            if result:
+                return result[0]
+            return None
+        except sqlite3.Error as e:
+            logger.error(f"获取配置内容失败：{e}")
+            raise
+
+    def compare_configs(self, version_id1, version_id2):
+        """
+        对比两个配置版本
+        :param version_id1: 版本ID1
+        :param version_id2: 版本ID2
+        :return: 对比结果
+        """
+        config1 = self.get_config_content(version_id1)
+        config2 = self.get_config_content(version_id2)
+
+        if config1 is None or config2 is None:
+            return None
+
+        # 简单的diff对比
+        lines1 = config1.splitlines()
+        lines2 = config2.splitlines()
+
+        added = []
+        removed = []
+        unchanged = []
+
+        # 使用difflib进行对比
+        import difflib
+        diff = list(difflib.unified_diff(lines1, lines2, lineterm=''))
+
+        for line in diff:
+            if line.startswith('+') and not line.startswith('+++'):
+                added.append(line[1:])
+            elif line.startswith('-') and not line.startswith('---'):
+                removed.append(line[1:])
+
+        return {
+            'version_id1': version_id1,
+            'version_id2': version_id2,
+            'added': added,
+            'removed': removed,
+            'total_added': len(added),
+            'total_removed': len(removed),
+            'is_identical': len(added) == 0 and len(removed) == 0
+        }
+
+    # ============================================================
+    # 合规检查功能（中优先级 #6）
+    # ============================================================
+
+    def add_compliance_rule(self, rule_name, rule_type, pattern, expected_value=None, severity='warning', description=None):
+        """
+        添加合规检查规则
+        :param rule_name: 规则名称
+        :param rule_type: 规则类型
+        :param pattern: 匹配模式（正则表达式）
+        :param expected_value: 期望值
+        :param severity: 严重程度
+        :param description: 规则描述
+        :return: 规则ID
+        """
+        sql = """
+        INSERT INTO compliance_rules (rule_name, rule_type, pattern, expected_value, severity, description)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """
+        params = (rule_name, rule_type, pattern, expected_value, severity, description)
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            self.conn.commit()
+            rule_id = cursor.lastrowid
+            logger.info(f"合规规则添加成功：{rule_name}，ID={rule_id}")
+            return rule_id
+        except sqlite3.Error as e:
+            logger.error(f"添加合规规则失败：{e}")
+            self.conn.rollback()
+            raise
+
+    def get_compliance_rules(self, rule_type=None, enabled_only=True):
+        """
+        获取合规检查规则
+        :param rule_type: 规则类型（可选）
+        :param enabled_only: 是否只返回启用的规则
+        :return: 规则列表
+        """
+        sql = "SELECT * FROM compliance_rules WHERE 1=1"
+        params = []
+
+        if rule_type:
+            sql += " AND rule_type = ?"
+            params.append(rule_type)
+
+        if enabled_only:
+            sql += " AND enabled = 1"
+
+        sql += " ORDER BY id"
+
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            results = cursor.fetchall()
+            rules = [dict(record) for record in results]
+            logger.info(f"查询到 {len(rules)} 条合规规则")
+            return rules
+        except sqlite3.Error as e:
+            logger.error(f"查询合规规则失败：{e}")
+            raise
+
+    def save_compliance_result(self, hostname, rule_id, rule_name, passed, found_value=None):
+        """
+        保存合规检查结果
+        :param hostname: 设备主机名
+        :param rule_id: 规则ID
+        :param rule_name: 规则名称
+        :param passed: 是否通过
+        :param found_value: 发现的值
+        """
+        sql = """
+        INSERT INTO compliance_results (hostname, rule_id, rule_name, passed, found_value)
+        VALUES (?, ?, ?, ?, ?)
+        """
+        params = (hostname, rule_id, rule_name, 1 if passed else 0, found_value)
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            self.conn.commit()
+            logger.info(f"合规检查结果保存成功：设备={hostname}，规则={rule_name}，通过={passed}")
+        except sqlite3.Error as e:
+            logger.error(f"保存合规检查结果失败：{e}")
+            self.conn.rollback()
+            raise
+
+    def get_compliance_results(self, hostname=None, limit=100):
+        """
+        获取合规检查结果
+        :param hostname: 设备主机名（可选）
+        :param limit: 返回记录数
+        :return: 结果列表
+        """
+        sql = "SELECT * FROM compliance_results WHERE 1=1"
+        params = []
+
+        if hostname:
+            sql += " AND hostname = ?"
+            params.append(hostname)
+
+        sql += " ORDER BY check_time DESC LIMIT ?"
+        params.append(limit)
+
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            results = cursor.fetchall()
+            records = [dict(record) for record in results]
+            logger.info(f"查询到 {len(records)} 条合规检查结果")
+            return records
+        except sqlite3.Error as e:
+            logger.error(f"查询合规检查结果失败：{e}")
+            raise
+
+    # ============================================================
+    # 拓扑相关方法（一期新增）
+    # ============================================================
+
+    # 保存单个拓扑节点，存在就更新
+    def save_topology_node(self, node_dict):
+        sql = """
+        INSERT OR REPLACE INTO topology_nodes
+        (node_id, name, ip_address, device_type, vendor, model, status, layer, sys_descr, sys_name, x, y, last_seen)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """
+        params = (
+            node_dict.get("node_id"),
+            node_dict.get("name", "未知设备"),
+            node_dict.get("ip_address"),
+            node_dict.get("device_type", "switch"),
+            node_dict.get("vendor"),
+            node_dict.get("model"),
+            node_dict.get("status", "online"),
+            node_dict.get("layer", "access"),
+            node_dict.get("sys_descr"),
+            node_dict.get("sys_name"),
+            node_dict.get("x", 0),
+            node_dict.get("y", 0),
+        )
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            self.conn.commit()
+            logger.info(f"拓扑节点保存成功：{node_dict.get('name')}")
+        except sqlite3.Error as e:
+            logger.error(f"拓扑节点保存失败：{e}")
+            self.conn.rollback()
+            raise
+
+    # 批量保存拓扑节点
+    def batch_save_topology_nodes(self, node_list):
+        if not node_list:
+            return
+        for node in node_list:
+            self.save_topology_node(node)
+        logger.info(f"批量保存拓扑节点完成，共{len(node_list)}个")
+
+    # 获取所有拓扑节点
+    def get_all_topology_nodes(self):
+        sql = "SELECT * FROM topology_nodes ORDER BY layer, name"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql)
+            results = cursor.fetchall()
+            nodes = [dict(r) for r in results]
+            logger.info(f"读取到{len(nodes)}个拓扑节点")
+            return nodes
+        except sqlite3.Error as e:
+            logger.error(f"读取拓扑节点失败：{e}")
+            raise
+
+    # 清空拓扑节点（重新扫描前用）
+    def clear_topology_nodes(self):
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("DELETE FROM topology_nodes")
+            self.conn.commit()
+            logger.info("拓扑节点表已清空")
+        except sqlite3.Error as e:
+            logger.error(f"清空拓扑节点失败：{e}")
+            self.conn.rollback()
+            raise
+
+    # 保存链路，存在就跳过
+    def save_topology_link(self, link_dict):
+        sql = """
+        INSERT OR IGNORE INTO topology_links
+        (source_node, target_node, source_port, target_port, bandwidth, status, link_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+        params = (
+            link_dict.get("source_node"),
+            link_dict.get("target_node"),
+            link_dict.get("source_port"),
+            link_dict.get("target_port"),
+            link_dict.get("bandwidth"),
+            link_dict.get("status", "up"),
+            link_dict.get("link_type", "ethernet"),
+        )
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            self.conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"拓扑链路保存失败：{e}")
+            self.conn.rollback()
+            raise
+
+    # 批量保存链路
+    def batch_save_topology_links(self, link_list):
+        if not link_list:
+            return
+        for link in link_list:
+            self.save_topology_link(link)
+        logger.info(f"批量保存拓扑链路完成，共{len(link_list)}条")
+
+    # 获取所有拓扑链路
+    def get_all_topology_links(self):
+        sql = "SELECT * FROM topology_links"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql)
+            results = cursor.fetchall()
+            links = [dict(r) for r in results]
+            logger.info(f"读取到{len(links)}条拓扑链路")
+            return links
+        except sqlite3.Error as e:
+            logger.error(f"读取拓扑链路失败：{e}")
+            raise
+
+    # 清空拓扑链路
+    def clear_topology_links(self):
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("DELETE FROM topology_links")
+            self.conn.commit()
+            logger.info("拓扑链路表已清空")
+        except sqlite3.Error as e:
+            logger.error(f"清空拓扑链路失败：{e}")
+            self.conn.rollback()
+            raise
+
+    # 保存拓扑快照
+    def save_topology_snapshot(self, snapshot_name, nodes_data, links_data):
+        import json
+        sql = """
+        INSERT INTO topology_snapshots
+        (snapshot_name, nodes_data, links_data, device_count, link_count)
+        VALUES (?, ?, ?, ?, ?)
+        """
+        nodes_json = json.dumps(nodes_data, ensure_ascii=False)
+        links_json = json.dumps(links_data, ensure_ascii=False)
+        params = (snapshot_name, nodes_json, links_json, len(nodes_data), len(links_data))
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            self.conn.commit()
+            snapshot_id = cursor.lastrowid
+            logger.info(f"拓扑快照保存成功：{snapshot_name}，ID={snapshot_id}")
+            return snapshot_id
+        except sqlite3.Error as e:
+            logger.error(f"保存拓扑快照失败：{e}")
+            self.conn.rollback()
+            raise
+
+    # 获取拓扑快照列表
+    def get_topology_snapshots(self, limit=20):
+        sql = "SELECT id, snapshot_name, device_count, link_count, created_at FROM topology_snapshots ORDER BY created_at DESC LIMIT ?"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (limit,))
+            results = cursor.fetchall()
+            snapshots = [dict(r) for r in results]
+            return snapshots
+        except sqlite3.Error as e:
+            logger.error(f"查询拓扑快照失败：{e}")
+            raise
+
+    # 获取某个快照的完整数据
+    def get_topology_snapshot_detail(self, snapshot_id):
+        import json
+        sql = "SELECT * FROM topology_snapshots WHERE id = ?"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (snapshot_id,))
+            result = cursor.fetchone()
+            if result:
+                snapshot = dict(result)
+                snapshot["nodes_data"] = json.loads(snapshot["nodes_data"])
+                snapshot["links_data"] = json.loads(snapshot["links_data"])
+                return snapshot
+            return None
+        except sqlite3.Error as e:
+            logger.error(f"获取拓扑快照详情失败：{e}")
+            raise
 
 
 db_manager = DatabaseManager()

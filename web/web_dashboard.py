@@ -13,6 +13,7 @@ from db.database import db_manager
 
 # 导入下载模块
 from flask import jsonify, Flask, render_template, request, send_from_directory, send_file
+from flask_socketio import SocketIO, emit
 
 # 1.jsonify就是为了返回JSON格式的数据
 from core.health_check.health_checker import check_single_device
@@ -61,9 +62,18 @@ from netmiko import ConnectHandler
 # 引入多线程模块
 import threading
 
+# 引入拓扑模块
+import asyncio
+from core.topology.snmp_collector import SNMPCollector, PYSNMP_AVAILABLE
+from core.topology.topology_builder import TopologyBuilder
+
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'netdevops-secret-key'
+
+# 初始化 WebSocket
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # 设备清单路径
 CONFIG_PATH = os.path.join(ROOT_DIR, "config", "nornir_inventory.yaml")
@@ -785,6 +795,164 @@ def hybrid_dashboard():
     return render_template("hybrid_dashboard.html")
 
 
+# ============================================================
+# 对接真实阿里云增强功能（质变级优化 #4）
+# ============================================================
+
+@app.route("/api/v1/aliyun/ecs", methods=["GET"])
+def get_aliyun_ecs_instances():
+    """获取阿里云 ECS 实例列表"""
+    try:
+        ALIYUN_AK = os.getenv("ALIYUN_AK")
+        ALIYUN_SK = os.getenv("ALIYUN_SK")
+        ALIYUN_REGION_ID = os.getenv("ALIYUN_REGION_ID", "cn-hangzhou")
+
+        if not ALIYUN_AK or not ALIYUN_SK:
+            return jsonify({
+                "code": 1,
+                "msg": "未配置阿里云凭证，请设置 ALIYUN_AK 和 ALIYUN_SK 环境变量",
+                "data": None
+            }), 400
+
+        client = AliyunCloudClient(ALIYUN_AK, ALIYUN_SK, ALIYUN_REGION_ID)
+        instances = client.get_all_instances()
+
+        return jsonify({
+            "code": 0,
+            "msg": f"获取成功，共 {len(instances)} 个 ECS 实例",
+            "data": {
+                "region": ALIYUN_REGION_ID,
+                "instances": instances,
+                "count": len(instances)
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取阿里云 ECS 实例失败：{str(e)}")
+        return jsonify({"code": 1, "msg": f"获取失败：{str(e)}", "data": None}), 500
+
+
+@app.route("/api/v1/aliyun/vpc", methods=["GET"])
+def get_aliyun_vpc_list():
+    """获取阿里云 VPC 列表"""
+    try:
+        ALIYUN_AK = os.getenv("ALIYUN_AK")
+        ALIYUN_SK = os.getenv("ALIYUN_SK")
+        ALIYUN_REGION_ID = os.getenv("ALIYUN_REGION_ID", "cn-hangzhou")
+
+        if not ALIYUN_AK or not ALIYUN_SK:
+            return jsonify({
+                "code": 1,
+                "msg": "未配置阿里云凭证",
+                "data": None
+            }), 400
+
+        client = AliyunCloudClient(ALIYUN_AK, ALIYUN_SK, ALIYUN_REGION_ID)
+        vpcs = client.get_vpcs()
+
+        return jsonify({
+            "code": 0,
+            "msg": f"获取成功，共 {len(vpcs)} 个 VPC",
+            "data": {
+                "region": ALIYUN_REGION_ID,
+                "vpcs": [vpc.to_dict() for vpc in vpcs],
+                "count": len(vpcs)
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取阿里云 VPC 失败：{str(e)}")
+        return jsonify({"code": 1, "msg": f"获取失败：{str(e)}", "data": None}), 500
+
+
+@app.route("/api/v1/aliyun/security-groups", methods=["GET"])
+def get_aliyun_security_groups():
+    """获取阿里云安全组列表"""
+    try:
+        ALIYUN_AK = os.getenv("ALIYUN_AK")
+        ALIYUN_SK = os.getenv("ALIYUN_SK")
+        ALIYUN_REGION_ID = os.getenv("ALIYUN_REGION_ID", "cn-hangzhou")
+
+        if not ALIYUN_AK or not ALIYUN_SK:
+            return jsonify({
+                "code": 1,
+                "msg": "未配置阿里云凭证",
+                "data": None
+            }), 400
+
+        client = AliyunCloudClient(ALIYUN_AK, ALIYUN_SK, ALIYUN_REGION_ID)
+        security_groups = client.get_all_security_groups()
+
+        return jsonify({
+            "code": 0,
+            "msg": f"获取成功，共 {len(security_groups)} 个安全组",
+            "data": {
+                "region": ALIYUN_REGION_ID,
+                "security_groups": [sg.to_dict() for sg in security_groups],
+                "count": len(security_groups)
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取阿里云安全组失败：{str(e)}")
+        return jsonify({"code": 1, "msg": f"获取失败：{str(e)}", "data": None}), 500
+
+
+@app.route("/api/v1/aliyun/all-resources", methods=["GET"])
+def get_aliyun_all_resources():
+    """获取阿里云所有资源（VPC + ECS + 安全组）"""
+    try:
+        ALIYUN_AK = os.getenv("ALIYUN_AK")
+        ALIYUN_SK = os.getenv("ALIYUN_SK")
+        ALIYUN_REGION_ID = os.getenv("ALIYUN_REGION_ID", "cn-hangzhou")
+
+        if not ALIYUN_AK or not ALIYUN_SK:
+            return jsonify({
+                "code": 1,
+                "msg": "未配置阿里云凭证",
+                "data": None
+            }), 400
+
+        client = AliyunCloudClient(ALIYUN_AK, ALIYUN_SK, ALIYUN_REGION_ID)
+
+        # 并发获取所有资源
+        vpcs = []
+        instances = []
+        security_groups = []
+
+        try:
+            vpcs = client.get_vpcs()
+        except Exception as e:
+            logger.warning(f"获取 VPC 失败：{e}")
+
+        try:
+            instances = client.get_all_instances()
+        except Exception as e:
+            logger.warning(f"获取 ECS 失败：{e}")
+
+        try:
+            security_groups = client.get_all_security_groups()
+        except Exception as e:
+            logger.warning(f"获取安全组失败：{e}")
+
+        return jsonify({
+            "code": 0,
+            "msg": "获取成功",
+            "data": {
+                "region": ALIYUN_REGION_ID,
+                "summary": {
+                    "vpc_count": len(vpcs),
+                    "ecs_count": len(instances),
+                    "security_group_count": len(security_groups),
+                    "total": len(vpcs) + len(instances) + len(security_groups)
+                },
+                "vpcs": [vpc.to_dict() for vpc in vpcs],
+                "instances": instances,
+                "security_groups": [sg.to_dict() for sg in security_groups]
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取阿里云所有资源失败：{str(e)}")
+        return jsonify({"code": 1, "msg": f"获取失败：{str(e)}", "data": None}), 500
+
+
 # 第十七个API接口：档案卡的页面，从数据库读取
 @app.route("/api/device_cards")
 def check_physical_device_cards():
@@ -1344,16 +1512,826 @@ def delete_device(device_name):
         return jsonify({"code": 2, "msg": f"删除失败：{str(e)}"})
 
 
+# ============================================================
+# 用户自定义命令功能（质变级优化 #1）
+# ============================================================
+
+# 命令白名单 - 防止注入攻击，只允许安全的查询命令
+COMMAND_WHITELIST = {
+    # H3C / HP Comware 命令
+    "h3c": {
+        "display": [
+            "display interface brief",           # 接口简要信息
+            "display interface",                 # 接口详细信息
+            "display ip interface brief",        # IP接口简要信息
+            "display ip routing-table",          # 路由表
+            "display arp",                       # ARP表
+            "display mac-address",               # MAC地址表
+            "display vlan",                      # VLAN信息
+            "display vlan brief",                # VLAN简要信息
+            "display current-configuration",     # 当前配置
+            "display version",                   # 版本信息
+            "display device",                    # 设备信息
+            "display cpu-usage",                 # CPU使用率
+            "display memory",                    # 内存使用情况
+            "display environment",               # 环境信息（温度、电源、风扇）
+            "display power",                     # 电源状态
+            "display fan",                       # 风扇状态
+            "display temperature",               # 温度信息
+            "display logbuffer",                 # 日志缓冲区
+            "display trapbuffer",                # Trap缓冲区
+            "display ospf peer",                 # OSPF邻居
+            "display ospf brief",                # OSPF简要信息
+            "display bgp peer",                  # BGP邻居
+            "display bgp routing-table",         # BGP路由表
+            "display stp",                       # STP信息
+            "display stp brief",                 # STP简要信息
+            "display link-aggregation summary",  # 链路聚合摘要
+            "display port-security",             # 端口安全
+            "display dhcp snooping",             # DHCP Snooping
+            "display acl all",                   # 所有ACL
+            "display ip pool",                   # IP地址池
+            "display users",                     # 在线用户
+            "display clock",                     # 系统时间
+            "display startup",                   # 启动配置
+            "display saved-configuration",       # 保存的配置
+        ],
+        "ping": [
+            "ping",                              # Ping命令（需要参数）
+        ],
+        "tracert": [
+            "tracert",                           # Traceroute命令（需要参数）
+        ],
+    },
+    # Cisco IOS 命令
+    "cisco": {
+        "show": [
+            "show ip interface brief",
+            "show interfaces",
+            "show ip route",
+            "show arp",
+            "show mac address-table",
+            "show vlan",
+            "show vlan brief",
+            "show running-config",
+            "show version",
+            "show processes cpu",
+            "show memory",
+            "show environment all",
+            "show power",
+            "show fans",
+            "show temperature",
+            "show logging",
+            "show ip ospf neighbor",
+            "show ip bgp summary",
+            "show spanning-tree",
+            "show etherchannel summary",
+            "show ip dhcp binding",
+            "show access-lists",
+            "show users",
+            "show clock",
+            "show startup-config",
+        ],
+        "ping": ["ping"],
+        "traceroute": ["traceroute"],
+    },
+    # 华为命令
+    "huawei": {
+        "display": [
+            "display interface brief",
+            "display interface",
+            "display ip interface brief",
+            "display ip routing-table",
+            "display arp",
+            "display mac-address",
+            "display vlan",
+            "display current-configuration",
+            "display version",
+            "display device",
+            "display cpu-usage",
+            "display memory",
+            "display environment",
+            "display power",
+            "display fan",
+            "display temperature",
+            "display logbuffer",
+            "display ospf peer",
+            "display bgp peer",
+            "display stp",
+            "display link-aggregation summary",
+            "display users",
+            "display clock",
+        ],
+        "ping": ["ping"],
+        "tracert": ["tracert"],
+    },
+}
+
+# 命令分类（用于前端展示）
+COMMAND_CATEGORIES = {
+    "接口相关": ["display interface brief", "display interface", "display ip interface brief",
+                   "show ip interface brief", "show interfaces"],
+    "路由相关": ["display ip routing-table", "show ip route"],
+    "地址表": ["display arp", "display mac-address", "show arp", "show mac address-table"],
+    "VLAN信息": ["display vlan", "display vlan brief", "show vlan", "show vlan brief"],
+    "系统信息": ["display version", "show version", "display device", "display clock"],
+    "性能监控": ["display cpu-usage", "display memory", "show processes cpu", "show memory"],
+    "环境状态": ["display environment", "display power", "display fan", "display temperature",
+                   "show environment all", "show power", "show fans"],
+    "路由协议": ["display ospf peer", "display bgp peer", "show ip ospf neighbor", "show ip bgp summary"],
+    "生成树": ["display stp", "display stp brief", "show spanning-tree"],
+    "配置管理": ["display current-configuration", "display saved-configuration", "show running-config",
+                   "show startup-config"],
+    "日志信息": ["display logbuffer", "display trapbuffer", "show logging"],
+    "安全相关": ["display port-security", "display dhcp snooping", "display acl all",
+                   "show access-lists", "show ip dhcp binding"],
+    "链路聚合": ["display link-aggregation summary", "show etherchannel summary"],
+    "在线用户": ["display users", "show users"],
+}
+
+
+def validate_command(command, vendor="h3c"):
+    """
+    验证用户输入的命令是否在白名单中
+    返回：(is_valid, error_message, normalized_command)
+    """
+    if not command or not command.strip():
+        return False, "命令不能为空", None
+
+    command = command.strip().lower()
+
+    # 获取对应厂商的命令白名单
+    vendor_commands = COMMAND_WHITELIST.get(vendor.lower())
+    if not vendor_commands:
+        return False, f"不支持的设备厂商：{vendor}", None
+
+    # 检查命令是否在白名单中
+    for cmd_prefix, cmd_list in vendor_commands.items():
+        for allowed_cmd in cmd_list:
+            # 完全匹配 或 用户输入以白名单命令开头（允许带参数）
+            if command == allowed_cmd.lower() or command.startswith(allowed_cmd.lower() + " "):
+                return True, None, command
+
+    return False, f"命令 '{command}' 不在安全白名单中，不允许执行", None
+
+
+@app.route("/api/v1/command/whitelist", methods=["GET"])
+def get_command_whitelist():
+    """获取命令白名单（供前端展示可用命令）"""
+    try:
+        vendor = request.args.get("vendor", "h3c").lower()
+        categories = request.args.get("categories", "true").lower()
+
+        if categories == "true":
+            # 返回分类后的命令
+            return jsonify({
+                "code": 0,
+                "msg": "获取成功",
+                "data": {
+                    "vendor": vendor,
+                    "categories": COMMAND_CATEGORIES,
+                    "whitelist": COMMAND_WHITELIST.get(vendor, {}),
+                }
+            })
+        else:
+            # 返回原始白名单
+            return jsonify({
+                "code": 0,
+                "msg": "获取成功",
+                "data": {
+                    "vendor": vendor,
+                    "whitelist": COMMAND_WHITELIST.get(vendor, {}),
+                }
+            })
+    except Exception as e:
+        logger.error(f"获取命令白名单失败：{str(e)}")
+        return jsonify({"code": 1, "msg": f"获取失败：{str(e)}", "data": None}), 500
+
+
+@app.route("/api/v1/command/execute", methods=["POST"])
+def execute_custom_command():
+    """
+    执行用户自定义命令
+    请求体：
+    {
+        "device_name": "SW1",
+        "command": "display interface brief",
+        "vendor": "h3c"  # 可选，默认从设备配置读取
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"code": 1, "msg": "请求数据为空", "data": None}), 400
+
+        device_name = data.get("device_name")
+        command = data.get("command")
+        vendor = data.get("vendor", "h3c")
+
+        if not device_name:
+            return jsonify({"code": 1, "msg": "设备名称不能为空", "data": None}), 400
+        if not command:
+            return jsonify({"code": 1, "msg": "命令不能为空", "data": None}), 400
+
+        # 验证命令安全性
+        is_valid, error_msg, normalized_cmd = validate_command(command, vendor)
+        if not is_valid:
+            logger.warning(f"安全警告：用户尝试执行不安全命令 '{command}'，设备：{device_name}")
+            return jsonify({"code": 2, "msg": error_msg, "data": None}), 403
+
+        # 获取设备信息
+        devices = get_devices()
+        target_device = next((d for d in devices if d["device_name"] == device_name), None)
+        if not target_device:
+            return jsonify({"code": 1, "msg": f"设备 {device_name} 未找到", "data": None}), 404
+
+        # 准备连接参数
+        device_copy = target_device.copy()
+        device_copy.pop("device_name", None)
+        device_copy.pop("vendor", None)
+
+        # 执行命令
+        logger.info(f"用户执行自定义命令：设备={device_name}，命令={normalized_cmd}")
+        start_time = datetime.now()
+
+        connection = ConnectHandler(**device_copy, timeout=10)
+        try:
+            output = connection.send_command_timing(normalized_cmd, delay_factor=2)
+            end_time = datetime.now()
+            execution_time = (end_time - start_time).total_seconds()
+
+            logger.info(f"命令执行成功：设备={device_name}，耗时={execution_time:.2f}秒")
+
+            return jsonify({
+                "code": 0,
+                "msg": "命令执行成功",
+                "data": {
+                    "device_name": device_name,
+                    "command": normalized_cmd,
+                    "output": output,
+                    "execution_time": f"{execution_time:.2f}秒",
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                }
+            })
+        finally:
+            connection.disconnect()
+
+    except Exception as e:
+        logger.error(f"执行自定义命令失败：{str(e)}")
+        return jsonify({"code": 1, "msg": f"执行失败：{str(e)}", "data": None}), 500
+
+
+@app.route("/api/v1/command/batch-execute", methods=["POST"])
+def batch_execute_command():
+    """
+    批量执行命令（多台设备）
+    请求体：
+    {
+        "device_names": ["SW1", "SW2", "SW3"],
+        "command": "display interface brief",
+        "vendor": "h3c"
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"code": 1, "msg": "请求数据为空", "data": None}), 400
+
+        device_names = data.get("device_names", [])
+        command = data.get("command")
+        vendor = data.get("vendor", "h3c")
+
+        if not device_names:
+            return jsonify({"code": 1, "msg": "设备列表不能为空", "data": None}), 400
+        if not command:
+            return jsonify({"code": 1, "msg": "命令不能为空", "data": None}), 400
+
+        # 验证命令安全性
+        is_valid, error_msg, normalized_cmd = validate_command(command, vendor)
+        if not is_valid:
+            logger.warning(f"安全警告：用户尝试批量执行不安全命令 '{command}'")
+            return jsonify({"code": 2, "msg": error_msg, "data": None}), 403
+
+        # 获取设备列表
+        all_devices = get_devices()
+        target_devices = [d for d in all_devices if d["device_name"] in device_names]
+
+        if not target_devices:
+            return jsonify({"code": 1, "msg": "未找到指定设备", "data": None}), 404
+
+        # 并发执行命令
+        results = []
+        logger.info(f"批量执行命令：设备数={len(target_devices)}，命令={normalized_cmd}")
+
+        def execute_on_device(device):
+            device_copy = device.copy()
+            device_copy.pop("device_name", None)
+            device_copy.pop("vendor", None)
+
+            try:
+                connection = ConnectHandler(**device_copy, timeout=10)
+                try:
+                    start_time = datetime.now()
+                    output = connection.send_command_timing(normalized_cmd, delay_factor=2)
+                    end_time = datetime.now()
+                    execution_time = (end_time - start_time).total_seconds()
+
+                    return {
+                        "device_name": device["device_name"],
+                        "status": "成功",
+                        "output": output,
+                        "execution_time": f"{execution_time:.2f}秒",
+                    }
+                finally:
+                    connection.disconnect()
+            except Exception as e:
+                return {
+                    "device_name": device["device_name"],
+                    "status": "失败",
+                    "output": None,
+                    "error": str(e),
+                }
+
+        # 使用线程池并发执行
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(execute_on_device, dev): dev for dev in target_devices}
+            for future in as_completed(futures):
+                results.append(future.result())
+
+        # 统计结果
+        success_count = sum(1 for r in results if r["status"] == "成功")
+        fail_count = sum(1 for r in results if r["status"] == "失败")
+
+        logger.info(f"批量执行完成：成功={success_count}，失败={fail_count}")
+
+        return jsonify({
+            "code": 0,
+            "msg": f"批量执行完成：成功 {success_count} 台，失败 {fail_count} 台",
+            "data": {
+                "command": normalized_cmd,
+                "total": len(results),
+                "success": success_count,
+                "failed": fail_count,
+                "results": results,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"批量执行命令失败：{str(e)}")
+        return jsonify({"code": 1, "msg": f"执行失败：{str(e)}", "data": None}), 500
+
+
+# ============================================================
+# 实时监控 WebSocket 功能（中优先级 #7）
+# ============================================================
+
+# 存储监控任务
+monitoring_tasks = {}
+monitoring_thread = None
+is_monitoring = False
+
+
+def device_monitoring_task(interval=60):
+    """
+    设备监控任务（后台线程）
+    :param interval: 监控间隔（秒）
+    """
+    global is_monitoring
+    logger.info(f"启动设备监控任务，间隔：{interval}秒")
+
+    while is_monitoring:
+        try:
+            devices = get_devices()
+            results = []
+
+            for device in devices:
+                try:
+                    # 测试连接
+                    device_copy = device.copy()
+                    device_copy.pop("device_name", None)
+                    device_copy.pop("vendor", None)
+
+                    start_time = datetime.now()
+                    connection = ConnectHandler(**device_copy, timeout=5)
+                    connection.disconnect()
+                    end_time = datetime.now()
+                    response_time = (end_time - start_time).total_seconds()
+
+                    results.append({
+                        "device_name": device["device_name"],
+                        "host": device["host"],
+                        "status": "online",
+                        "response_time": f"{response_time:.2f}秒",
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+                except Exception as e:
+                    results.append({
+                        "device_name": device["device_name"],
+                        "host": device["host"],
+                        "status": "offline",
+                        "error": str(e)[:100],
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+
+            # 通过 WebSocket 推送监控结果
+            socketio.emit('monitoring_update', {
+                'devices': results,
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'interval': interval
+            })
+
+            # 统计信息
+            online_count = sum(1 for r in results if r["status"] == "online")
+            offline_count = sum(1 for r in results if r["status"] == "offline")
+
+            socketio.emit('monitoring_stats', {
+                'total': len(results),
+                'online': online_count,
+                'offline': offline_count,
+                'health_rate': f"{(online_count / len(results) * 100):.1f}%" if results else "N/A"
+            })
+
+            logger.info(f"监控完成：在线={online_count}，离线={offline_count}")
+
+        except Exception as e:
+            logger.error(f"监控任务异常：{e}")
+
+        # 等待下一次监控
+        socketio.sleep(interval)
+
+
+@socketio.on('connect')
+def handle_connect():
+    """客户端连接"""
+    logger.info(f"WebSocket 客户端连接：{request.sid}")
+    emit('connection_response', {'status': 'connected', 'message': '连接成功'})
+
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """客户端断开"""
+    logger.info(f"WebSocket 客户端断开：{request.sid}")
+
+
+@socketio.on('start_monitoring')
+def handle_start_monitoring(data):
+    """开始监控"""
+    global is_monitoring, monitoring_thread
+
+    interval = data.get('interval', 60)
+    logger.info(f"收到开始监控请求，间隔：{interval}秒")
+
+    if is_monitoring:
+        emit('monitoring_status', {'status': 'already_running', 'message': '监控已在运行中'})
+        return
+
+    is_monitoring = True
+    monitoring_thread = socketio.start_background_task(target=device_monitoring_task, interval=interval)
+
+    emit('monitoring_status', {'status': 'started', 'message': f'监控已启动，间隔：{interval}秒'})
+
+
+@socketio.on('stop_monitoring')
+def handle_stop_monitoring():
+    """停止监控"""
+    global is_monitoring
+    logger.info("收到停止监控请求")
+
+    is_monitoring = False
+    emit('monitoring_status', {'status': 'stopped', 'message': '监控已停止'})
+
+
+@socketio.on('get_monitoring_status')
+def handle_get_monitoring_status():
+    """获取监控状态"""
+    emit('monitoring_status', {
+        'status': 'running' if is_monitoring else 'stopped',
+        'is_monitoring': is_monitoring
+    })
+
+
+@app.route("/api/v1/monitoring/start", methods=["POST"])
+def start_monitoring():
+    """启动监控（HTTP API）"""
+    try:
+        data = request.get_json() or {}
+        interval = data.get('interval', 60)
+
+        # 通知所有 WebSocket 客户端
+        socketio.emit('start_monitoring', {'interval': interval})
+
+        return jsonify({
+            "code": 0,
+            "msg": f"监控启动请求已发送，间隔：{interval}秒",
+            "data": {"interval": interval}
+        })
+    except Exception as e:
+        logger.error(f"启动监控失败：{e}")
+        return jsonify({"code": 1, "msg": f"启动失败：{str(e)}", "data": None}), 500
+
+
+@app.route("/api/v1/monitoring/stop", methods=["POST"])
+def stop_monitoring():
+    """停止监控（HTTP API）"""
+    try:
+        socketio.emit('stop_monitoring')
+
+        return jsonify({
+            "code": 0,
+            "msg": "监控停止请求已发送",
+            "data": None
+        })
+    except Exception as e:
+        logger.error(f"停止监控失败：{e}")
+        return jsonify({"code": 1, "msg": f"停止失败：{str(e)}", "data": None}), 500
+
+
+# ============================================================
+# 配置对比与回滚 API（中优先级 #6）
+# ============================================================
+
+@app.route("/api/v1/config/versions/<hostname>", methods=["GET"])
+def get_config_versions(hostname):
+    """获取设备的配置版本列表"""
+    try:
+        limit = request.args.get("limit", 10, type=int)
+        versions = db_manager.get_config_versions(hostname, limit)
+
+        return jsonify({
+            "code": 0,
+            "msg": f"获取成功，共 {len(versions)} 个版本",
+            "data": {
+                "hostname": hostname,
+                "versions": versions
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取配置版本失败：{e}")
+        return jsonify({"code": 1, "msg": f"获取失败：{str(e)}", "data": None}), 500
+
+
+@app.route("/api/v1/config/compare", methods=["POST"])
+def compare_configs():
+    """对比两个配置版本"""
+    try:
+        data = request.get_json()
+        version_id1 = data.get("version_id1")
+        version_id2 = data.get("version_id2")
+
+        if not version_id1 or not version_id2:
+            return jsonify({"code": 1, "msg": "请提供两个版本ID", "data": None}), 400
+
+        result = db_manager.compare_configs(version_id1, version_id2)
+
+        if result is None:
+            return jsonify({"code": 1, "msg": "版本不存在", "data": None}), 404
+
+        return jsonify({
+            "code": 0,
+            "msg": "对比完成",
+            "data": result
+        })
+    except Exception as e:
+        logger.error(f"配置对比失败：{e}")
+        return jsonify({"code": 1, "msg": f"对比失败：{str(e)}", "data": None}), 500
+
+
+@app.route("/api/v1/config/content/<int:version_id>", methods=["GET"])
+def get_config_content(version_id):
+    """获取指定版本的配置内容"""
+    try:
+        content = db_manager.get_config_content(version_id)
+
+        if content is None:
+            return jsonify({"code": 1, "msg": "版本不存在", "data": None}), 404
+
+        return jsonify({
+            "code": 0,
+            "msg": "获取成功",
+            "data": {
+                "version_id": version_id,
+                "content": content
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取配置内容失败：{e}")
+        return jsonify({"code": 1, "msg": f"获取失败：{str(e)}", "data": None}), 500
+
+
+# ============================================================
+# 效率对比数据 API（中优先级 #10）
+# ============================================================
+
+@app.route("/api/v1/efficiency/stats", methods=["GET"])
+def get_efficiency_stats():
+    """获取效率对比数据"""
+    try:
+        # 从数据库获取实际数据
+        backup_records = db_manager.get_recent_backups(limit=100)
+        health_records = db_manager.get_health_check_history(limit=100)
+
+        # 计算效率数据
+        backup_stats = {
+            "total_backups": len(backup_records),
+            "avg_duration": 0,
+            "success_rate": 0,
+            "time_saved": 0
+        }
+
+        if backup_records:
+            durations = [r.get("duration", 0) for r in backup_records if r.get("duration")]
+            if durations:
+                backup_stats["avg_duration"] = sum(durations) / len(durations)
+
+            success_count = sum(1 for r in backup_records if r.get("status") == "success")
+            backup_stats["success_rate"] = (success_count / len(backup_records)) * 100
+
+            # 假设手动备份每台需要5分钟，自动化每台需要30秒
+            backup_stats["time_saved"] = len(backup_records) * 4.5  # 分钟
+
+        health_stats = {
+            "total_checks": len(health_records),
+            "avg_duration": 0,
+            "success_rate": 0,
+            "time_saved": 0
+        }
+
+        if health_records:
+            success_count = sum(1 for r in health_records if r.get("check_status") == "成功")
+            health_stats["success_rate"] = (success_count / len(health_records)) * 100
+
+            # 假设手动检查每台需要3分钟，自动化每台需要20秒
+            health_stats["time_saved"] = len(health_records) * 2.67  # 分钟
+
+        return jsonify({
+            "code": 0,
+            "msg": "获取成功",
+            "data": {
+                "backup": backup_stats,
+                "health_check": health_stats,
+                "efficiency_comparison": {
+                    "manual_backup_time": "5分钟/台",
+                    "auto_backup_time": "30秒/台",
+                    "manual_health_check_time": "3分钟/台",
+                    "auto_health_check_time": "20秒/台",
+                    "backup_efficiency": "10倍提升",
+                    "health_check_efficiency": "9倍提升"
+                }
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取效率数据失败：{e}")
+        return jsonify({"code": 1, "msg": f"获取失败：{str(e)}", "data": None}), 500
+
+
+# ============================================================
+# 拓扑相关 API（一期新增）
+# ============================================================
+
+# 获取当前拓扑数据（从数据库读取）
+@app.route("/api/v1/topology/data")
+def get_topology_data():
+    try:
+        nodes = db_manager.get_all_topology_nodes()
+        links = db_manager.get_all_topology_links()
+        return jsonify({
+            "code": 0,
+            "msg": "success",
+            "data": {
+                "nodes": nodes,
+                "links": links,
+                "metadata": {
+                    "device_count": len(nodes),
+                    "link_count": len(links),
+                }
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取拓扑数据失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 触发拓扑扫描（SNMP 采集）
+@app.route("/api/v1/topology/scan", methods=["POST"])
+def scan_topology():
+    """
+    触发拓扑扫描
+    POST 参数：seed_ip（种子设备IP）, community（SNMP团体名，默认public）
+    """
+    try:
+        data = request.get_json() or {}
+        seed_ip = data.get("seed_ip")
+        community = data.get("community", "public")
+
+        if not seed_ip:
+            return jsonify({"code": 1, "msg": "缺少种子设备IP", "data": None}), 400
+
+        if not PYSNMP_AVAILABLE:
+            return jsonify({"code": 1, "msg": "pysnmp 没装，SNMP 功能用不了", "data": None}), 500
+
+        # 用 asyncio 跑 SNMP 采集
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            collector = SNMPCollector(seed_ip, community=community)
+            collected_data = loop.run_until_complete(collector.collect_all())
+        finally:
+            loop.close()
+
+        # 用拓扑构建器处理数据
+        builder = TopologyBuilder()
+        builder.build_from_lldp(seed_ip, collected_data)
+
+        # 保存到数据库
+        db_manager.clear_topology_nodes()
+        db_manager.clear_topology_links()
+
+        nodes_list = builder.get_nodes_list()
+        links_list = builder.get_links_list()
+
+        db_manager.batch_save_topology_nodes(nodes_list)
+        db_manager.batch_save_topology_links(links_list)
+
+        logger.info(f"拓扑扫描完成：{len(nodes_list)} 个节点，{len(links_list)} 条链路")
+
+        return jsonify({
+            "code": 0,
+            "msg": "扫描完成",
+            "data": {
+                "nodes": nodes_list,
+                "links": links_list,
+                "metadata": {
+                    "device_count": len(nodes_list),
+                    "link_count": len(links_list),
+                    "seed_ip": seed_ip,
+                }
+            }
+        })
+    except Exception as e:
+        logger.error(f"拓扑扫描失败：{e}")
+        return jsonify({"code": 1, "msg": f"扫描失败：{str(e)}", "data": None}), 500
+
+
+# 保存当前拓扑为快照
+@app.route("/api/v1/topology/snapshot", methods=["POST"])
+def save_snapshot():
+    """保存当前拓扑快照"""
+    try:
+        data = request.get_json() or {}
+        snapshot_name = data.get("name", f"快照_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+
+        nodes = db_manager.get_all_topology_nodes()
+        links = db_manager.get_all_topology_links()
+
+        snapshot_id = db_manager.save_topology_snapshot(snapshot_name, nodes, links)
+
+        return jsonify({
+            "code": 0,
+            "msg": "快照保存成功",
+            "data": {"snapshot_id": snapshot_id, "name": snapshot_name}
+        })
+    except Exception as e:
+        logger.error(f"保存快照失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 获取快照列表
+@app.route("/api/v1/topology/snapshots")
+def get_snapshots():
+    try:
+        snapshots = db_manager.get_topology_snapshots()
+        return jsonify({"code": 0, "msg": "success", "data": snapshots})
+    except Exception as e:
+        logger.error(f"获取快照列表失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 获取某个快照详情
+@app.route("/api/v1/topology/snapshot/<int:snapshot_id>")
+def get_snapshot_detail(snapshot_id):
+    try:
+        snapshot = db_manager.get_topology_snapshot_detail(snapshot_id)
+        if snapshot:
+            return jsonify({"code": 0, "msg": "success", "data": snapshot})
+        return jsonify({"code": 1, "msg": "快照不存在", "data": None}), 404
+    except Exception as e:
+        logger.error(f"获取快照详情失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
 if __name__ == "__main__":
     logger.info("调度器正在准备加载任务请稍后.......")
     init_scheduler()
 
-    app.run(
+    # 使用 socketio 运行，支持 WebSocket
+    # allow_unsafe_werkzeug=True 允许在开发模式下使用 Werkzeug
+    socketio.run(
+        app,
         host="0.0.0.0",
         port=8080,
         debug=True,
+        allow_unsafe_werkzeug=True
     )
-    # host参数，本质上要求传入一个「字符串（str）类型」的值，用来指定 Flask 服务绑定的 IP 地址。0.0.0.0是一个 IP 地址格式的字符串
-    # 这行代码永远执行不到！因为上面的app.run()不会结束（除非手动停服务）因为 app.run() 是「阻塞式」的
-    # init_scheduler()
-    # logger.info('调度器正在准备加载任务请稍后.......')
