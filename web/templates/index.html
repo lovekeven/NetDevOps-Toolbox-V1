@@ -64,6 +64,38 @@
             padding: 20px;
         }
 
+        /* Tab 导航样式 */
+        #mainTabs {
+            background: var(--card-background);
+            border-radius: 12px 12px 0 0;
+            padding: 8px 16px 0;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+        }
+
+        #mainTabs .nav-link {
+            padding: 10px 20px;
+            margin-right: 4px;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            border: 1px solid transparent;
+            border-bottom: none;
+        }
+
+        #mainTabs .nav-link:hover {
+            background: rgba(79, 70, 229, 0.1);
+            color: var(--primary-color) !important;
+        }
+
+        #mainTabs .nav-link.active {
+            background: var(--card-background);
+            color: var(--primary-color) !important;
+            border-color: var(--border-color);
+            border-bottom: 2px solid var(--primary-color) !important;
+            margin-bottom: -1px;
+        }
+
         /* 标题区域 */
         .header-section {
             text-align: center;
@@ -924,8 +956,32 @@
             <p>智能网络设备自动化运维平台</p>
         </div>
 
-        <!-- 网络拓扑可视化卡片（二期：双模切换） -->
-        <div class="card mb-4">
+        <!-- Tab 导航 -->
+        <ul class="nav nav-tabs mb-4" id="mainTabs" style="border-bottom: 2px solid var(--border-color);">
+            <li class="nav-item">
+                <button class="nav-link active" id="tab-overview" onclick="switchTab('overview')" style="color: var(--text-primary); background: transparent; border: none;">
+                    <i class="fas fa-tachometer-alt me-1"></i>系统概览
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="tab-topology" onclick="switchTab('topology')" style="color: var(--text-primary); background: transparent; border: none;">
+                    <i class="fas fa-project-diagram me-1"></i>拓扑管理
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="tab-monitoring" onclick="switchTab('monitoring')" style="color: var(--text-primary); background: transparent; border: none;">
+                    <i class="fas fa-chart-area me-1"></i>监控告警
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="tab-tools" onclick="switchTab('tools')" style="color: var(--text-primary); background: transparent; border: none;">
+                    <i class="fas fa-terminal me-1"></i>运维工具
+                </button>
+            </li>
+        </ul>
+
+        <!-- 网络拓扑可视化卡片（拓扑管理 Tab） -->
+        <div class="card mb-4" data-tab="topology">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-project-diagram text-primary me-2"></i>网络拓扑可视化</h5>
                 <div class="d-flex gap-2 align-items-center">
@@ -1038,7 +1094,7 @@
         </div>
 
         <!-- 网络工具箱卡片（二期新增） -->
-        <div class="card mb-4">
+        <div class="card mb-4" data-tab="topology">
             <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-tools text-warning me-2"></i>网络工具箱</h5>
             </div>
@@ -1139,7 +1195,7 @@
         </div>
 
         <!-- 实时监控状态卡片 -->
-        <div class="card mb-4">
+        <div class="card mb-4" data-tab="monitoring">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-chart-area text-success me-2"></i>实时监控仪表盘</h5>
                 <div class="d-flex gap-2">
@@ -1213,8 +1269,8 @@
             </div>
         </div>
 
-        <!-- 顶部卡片网格 -->
-        <div class="row mb-4">
+        <!-- 顶部卡片网格（系统概览 Tab） -->
+        <div class="row mb-4" data-tab="overview">
             <!-- API服务状态卡片 -->
             <div class="col-md-6 col-lg-4">
                 <div class="card h-100">
@@ -1334,8 +1390,8 @@
             </div>
         </div>
 
-        <!-- 系统健康检查卡片 -->
-        <div class="row mb-4">
+        <!-- 系统健康检查卡片（系统概览 Tab） -->
+        <div class="row mb-4" data-tab="overview">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
@@ -1502,8 +1558,8 @@
             </div>
         </div>
 
-        <!-- 设备列表卡片 -->
-        <div class="card">
+        <!-- 设备列表卡片（系统概览 Tab） -->
+        <div class="card" data-tab="overview">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-network-wired text-secondary me-2"></i>设备状态总览</h5>
             </div>
@@ -1609,7 +1665,7 @@
         </div>
 
         <!-- 用户自定义命令卡片（质变级优化 #1） -->
-        <div class="card mb-4">
+        <div class="card mb-4" data-tab="tools">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-terminal text-success me-2"></i>自定义命令执行终端</h5>
                 <div class="d-flex gap-2">
@@ -4253,6 +4309,38 @@
 
         // 初始化自定义命令功能
         initCustomCommandFunction();
+
+        // ============================================================
+        // Tab 切换功能
+        // ============================================================
+        function switchTab(tabName) {
+            // 隐藏所有卡片
+            document.querySelectorAll('[data-tab]').forEach(el => {
+                el.style.display = 'none';
+            });
+
+            // 显示当前 Tab 的卡片
+            document.querySelectorAll(`[data-tab="${tabName}"]`).forEach(el => {
+                el.style.display = '';
+            });
+
+            // 更新 Tab 按钮样式
+            document.querySelectorAll('#mainTabs .nav-link').forEach(btn => {
+                btn.classList.remove('active');
+                btn.style.borderBottom = 'none';
+            });
+
+            const activeBtn = document.getElementById(`tab-${tabName}`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+                activeBtn.style.borderBottom = '2px solid var(--primary-color)';
+            }
+        }
+
+        // 初始化：默认显示系统概览
+        document.addEventListener('DOMContentLoaded', function() {
+            switchTab('overview');
+        });
 
         // ============================================================
         // 网络拓扑可视化功能（二期：双模切换 + 工具箱）
