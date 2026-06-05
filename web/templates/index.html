@@ -902,6 +902,9 @@
     </style>
 </head>
 <body>
+    <!-- Toast 通知容器（故障告警用） -->
+    <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 350px;"></div>
+
     <div class="container">
         <!-- 导航 -->
         <nav class="navbar navbar-expand-lg navbar-dark mb-4" style="background-color: var(--card-background); border: 1px solid var(--border-color); border-radius: 12px;">
@@ -993,6 +996,15 @@
                     </button>
                     <button class="btn btn-sm btn-outline-secondary" onclick="exportTopologyJSON('topology')">
                         <i class="fas fa-file-code me-1"></i>导出JSON
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="checkDeviceAlerts()">
+                        <i class="fas fa-bell me-1"></i>告警检测
+                    </button>
+                    <button class="btn btn-sm btn-outline-success" onclick="batchBackupDevices()">
+                        <i class="fas fa-database me-1"></i>批量备份
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning" id="editModeBtn" onclick="toggleEditMode()">
+                        <i class="fas fa-edit me-1"></i>编辑模式
                     </button>
                 </div>
 
@@ -4467,6 +4479,189 @@
             .catch(e => {
                 document.getElementById('lldpResult').innerHTML = '❌ 请求失败: ' + e.message;
             });
+        }
+
+        // ============================================================
+        // 三期功能：告警检测 + 批量备份 + Toast 通知
+        // ============================================================
+
+        // Toast 通知函数
+        function showToast(message, type = 'info', duration = 5000) {
+            const container = document.getElementById('toastContainer');
+            const colors = {
+                success: '#10b981',
+                error: '#ef4444',
+                warning: '#f59e0b',
+                info: '#3b82f6'
+            };
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-times-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            };
+
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                background: #1e293b; border-left: 4px solid ${colors[type]}; color: #f1f5f9;
+                padding: 12px 16px; margin-bottom: 8px; border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center;
+                animation: slideIn 0.3s ease-out;
+            `;
+            toast.innerHTML = `
+                <i class="fas ${icons[type]}" style="color: ${colors[type]}; margin-right: 10px; font-size: 16px;"></i>
+                <span style="flex: 1; font-size: 14px;">${message}</span>
+                <i class="fas fa-times" style="cursor: pointer; opacity: 0.6;" onclick="this.parentElement.remove()"></i>
+            `;
+            container.appendChild(toast);
+
+            // 自动消失
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // 告警检测：检查拓扑中设备的在线状态
+        function checkDeviceAlerts() {
+            showToast('正在检测设备状态...', 'info');
+
+            fetch('/api/v1/topology/data')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.code !== 0 || !data.data.nodes.length) {
+                        showToast('没有拓扑数据，请先扫描', 'warning');
+                        return;
+                    }
+
+                    const nodes = data.data.nodes;
+                    const offlineDevices = nodes.filter(n => n.status === 'offline' || n.status === 'unknown');
+
+                    if (offlineDevices.length === 0) {
+                        showToast(`✅ 所有 ${nodes.length} 台设备正常`, 'success');
+                    } else {
+                        offlineDevices.forEach(d => {
+                            showToast(`⚠️ 设备离线: ${d.name} (${d.ip_address})`, 'error', 8000);
+                        });
+                        showToast(`共 ${offlineDevices.length}/${nodes.length} 台设备异常`, 'warning', 8000);
+                    }
+                })
+                .catch(e => showToast('检测失败: ' + e.message, 'error'));
+        }
+
+        // 批量备份：备份所有已配置的设备
+        function batchBackupDevices() {
+            if (!confirm('确定要批量备份所有设备配置吗？')) return;
+
+            showToast('开始批量备份...', 'info');
+
+            fetch('/api/backup/all', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.code === 0) {
+                        showToast(`✅ 批量备份完成: ${data.data.success} 成功, ${data.data.failed} 失败`, 'success', 8000);
+                    } else {
+                        showToast('备份失败: ' + data.msg, 'error');
+                    }
+                })
+                .catch(e => showToast('备份请求失败: ' + e.message, 'error'));
+        }
+
+        // 添加 CSS 动画
+        const alertStyle = document.createElement('style');
+        alertStyle.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(alertStyle);
+
+        // ============================================================
+        // 三期功能：拓扑编辑模式
+        // ============================================================
+        let isEditMode = false;
+
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('editModeBtn');
+
+            if (isEditMode) {
+                btn.className = 'btn btn-sm btn-warning';
+                btn.innerHTML = '<i class="fas fa-edit me-1"></i>退出编辑';
+                showToast('编辑模式已开启：双击空白处添加设备，双击设备删除', 'info', 5000);
+
+                // 启用 vis.js 编辑交互
+                if (topologyInstance && topologyInstance.network) {
+                    topologyInstance.network.setOptions({
+                        interaction: { dragNodes: true },
+                        manipulation: {
+                            enabled: true,
+                            addNode: function(data, callback) {
+                                // 弹出添加节点对话框
+                                const name = prompt('设备名称:', 'New-Device');
+                                if (!name) { callback(null); return; }
+                                const ip = prompt('IP 地址:', '');
+                                const type = prompt('设备类型 (router/switch/firewall/pc):', 'switch');
+
+                                data.label = name;
+                                data.device_type = type || 'switch';
+                                data.ip_address = ip || '';
+                                data.status = 'online';
+                                data.title = `${name}\nIP: ${ip || 'N/A'}`;
+
+                                callback(data);
+                                showToast(`已添加设备: ${name}`, 'success');
+                            },
+                            addEdge: function(data, callback) {
+                                if (data.from === data.to) { callback(null); return; }
+                                callback(data);
+                            },
+                            deleteNode: function(data, callback) {
+                                callback(data);
+                                showToast('已删除设备', 'warning');
+                            },
+                            deleteEdge: function(data, callback) {
+                                callback(data);
+                            }
+                        }
+                    });
+                }
+            } else {
+                btn.className = 'btn btn-sm btn-outline-warning';
+                btn.innerHTML = '<i class="fas fa-edit me-1"></i>编辑模式';
+
+                // 关闭编辑交互
+                if (topologyInstance && topologyInstance.network) {
+                    topologyInstance.network.setOptions({
+                        interaction: { dragNodes: false },
+                        manipulation: { enabled: false }
+                    });
+                }
+                showToast('编辑模式已关闭', 'info');
+            }
+        }
+
+        // 保存自定义拓扑布局（保存节点位置）
+        function saveTopologyLayout() {
+            if (!topologyInstance || !topologyInstance.network) return;
+
+            const positions = topologyInstance.network.getPositions();
+            const nodes = topologyInstance.nodes.get();
+
+            // 更新节点的 x, y 坐标
+            nodes.forEach(node => {
+                if (positions[node.id]) {
+                    node.x = positions[node.id].x;
+                    node.y = positions[node.id].y;
+                }
+            });
+
+            showToast('拓扑布局已保存', 'success');
         }
 
         // ============================================================

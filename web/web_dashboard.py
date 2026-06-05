@@ -248,6 +248,64 @@ def device_backup(device_name):
         return jsonify(return_message), 500
 
 
+# 批量备份所有设备
+@app.route("/api/backup/all", methods=["POST"])
+def batch_backup_all():
+    """批量备份所有设备配置"""
+    devices = get_devices()
+    if not devices:
+        return jsonify({"code": 1, "msg": "没有设备", "data": None}), 400
+
+    success_count = 0
+    failed_count = 0
+    results = []
+
+    for dev in devices:
+        device_name = dev["device_name"]
+        try:
+            dev_copy = dev.copy()
+            if "device_name" in dev_copy:
+                del dev_copy["device_name"]
+                del dev_copy["vendor"]
+
+            start_time = datetime.now()
+            backup_path = backup_single_device(dev_copy)
+            end_time = datetime.now()
+
+            if isinstance(backup_path, str):
+                db_manager.log_backup(
+                    hostname=device_name,
+                    backup_path=backup_path,
+                    status="success",
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+                success_count += 1
+                results.append({"device": device_name, "status": "成功"})
+            else:
+                raise Exception("备份失败")
+        except Exception as e:
+            db_manager.log_backup(
+                hostname=device_name,
+                backup_path="N/A",
+                status="failed",
+                error_message=str(e)[:100],
+                start_time=datetime.now(),
+            )
+            failed_count += 1
+            results.append({"device": device_name, "status": "失败", "error": str(e)[:50]})
+
+    return jsonify({
+        "code": 0,
+        "msg": f"批量备份完成: {success_count} 成功, {failed_count} 失败",
+        "data": {
+            "success": success_count,
+            "failed": failed_count,
+            "results": results
+        }
+    })
+
+
 def check_internal_service_health():
     return "healthy", "API服务运行正常"
 

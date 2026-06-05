@@ -109,33 +109,34 @@ class NetworkTopology {
         const type = device_type || device.type || 'switch';
         const isOnline = (status || 'online') === 'online';
 
-        // 设备类型 -> 样式映射表
+        // 设备类型样式映射（图标 + 颜色）
         const DEVICE_STYLES = {
-            router:   { shape: 'diamond',  online: '#8b5cf6', offline: '#6b7280', hlOnline: '#a78bfa', hlOffline: '#8b5cf6', size: 35 },
-            firewall: { shape: 'triangle', online: '#f59e0b', offline: '#6b7280', hlOnline: '#fbbf24', hlOffline: '#f59e0b', size: 30 },
-            pc:       { shape: 'dot',      online: '#10b981', offline: '#ef4444', hlOnline: '#34d399', hlOffline: '#10b981', size: 20 },
-            ap:       { shape: 'dot',      online: '#10b981', offline: '#ef4444', hlOnline: '#34d399', hlOffline: '#10b981', size: 20 },
-            cloud:    { shape: 'icon',     online: 'transparent', offline: 'transparent', hlOnline: 'transparent', hlOffline: 'transparent', size: 50 },
-            switch:   { shape: 'box',      online: '#3b82f6', offline: '#6b7280', hlOnline: '#60a5fa', hlOffline: '#3b82f6', size: 30 },
+            router:   { shape: 'icon', icon: '', color: '#8b5cf6', offline: '#6b7280', size: 40 },
+            switch:   { shape: 'icon', icon: '', color: '#3b82f6', offline: '#6b7280', size: 35 },
+            firewall: { shape: 'icon', icon: '', color: '#f59e0b', offline: '#6b7280', size: 35 },
+            pc:       { shape: 'icon', icon: '', color: '#10b981', offline: '#ef4444', size: 25 },
+            server:   { shape: 'icon', icon: '', color: '#6366f1', offline: '#6b7280', size: 30 },
+            ap:       { shape: 'icon', icon: '', color: '#10b981', offline: '#ef4444', size: 25 },
+            cloud:    { shape: 'icon', icon: '', color: '#3b82f6', offline: '#6b7280', size: 50 },
+            printer:  { shape: 'icon', icon: '', color: '#8b5cf6', offline: '#6b7280', size: 25 },
+            camera:   { shape: 'icon', icon: '', color: '#f59e0b', offline: '#6b7280', size: 25 },
+            phone:    { shape: 'icon', icon: '', color: '#10b981', offline: '#ef4444', size: 25 },
         };
 
         const style = DEVICE_STYLES[type] || DEVICE_STYLES.switch;
-        let icon;
-        if (type === 'cloud') {
-            icon = { face: 'FontAwesome', code: '', size: 50, color: '#3b82f6' };
-        }
 
-        const color = {
-            background: isOnline ? style.online : style.offline,
-            border: isOnline ? style.hlOnline : style.hlOffline,
-            highlight: { background: isOnline ? style.hlOnline : style.hlOffline, border: isOnline ? style.online : style.offline }
+        const icon = {
+            face: 'FontAwesome',
+            code: style.icon,
+            size: Math.round(style.size * 0.8),
+            color: isOnline ? style.color : style.offline
         };
 
         return {
             id: id,
             label: name || id,
             shape: style.shape,
-            color: color,
+            color: { background: 'transparent', border: 'transparent' },
             icon: icon,
             size: style.size,
             title: this.generateTooltip(device),
@@ -145,6 +146,15 @@ class NetworkTopology {
                 strokeWidth: 3,
                 strokeColor: '#000000'
             },
+            shadow: {
+                enabled: true,
+                color: 'rgba(0,0,0,0.3)',
+                size: 10,
+                x: 5,
+                y: 5
+            }
+        };
+    }},
             shadow: {
                 enabled: true,
                 color: 'rgba(0,0,0,0.3)',
