@@ -98,6 +98,86 @@ class ReportGenerator:
         if device_name is None:
             return "请指定要分析的设备名称"
         helthly_record = self.db.get_health_check_history(device_name=device_name, days=days)
+
+    def analyze_health_and_suggest(self, device_name, health_data):
+        """
+        分析健康数据并给出智能建议（中优先级 #8）
+        :param device_name: 设备名称
+        :param health_data: 健康检查数据
+        :return: AI 分析结果和建议
+        """
+        prompt = f"""你是一名资深的网络运维专家。请根据以下设备健康检查数据，分析问题并给出具体的运维建议。
+
+        【设备名称】：{device_name}
+
+        【健康检查数据】：
+        - 检查时间：{health_data.get('check_time', 'N/A')}
+        - 设备状态：{health_data.get('status', 'N/A')}
+        - CPU使用率：{health_data.get('CPU_usage', 'N/A')}
+        - 内存使用率：{health_data.get('memory_usage', 'N/A')}
+        - 接口状态：UP={health_data.get('up_interface', 0)}，DOWN={health_data.get('down_interface', 0)}，总计={health_data.get('total_interface', 0)}
+        - 健康问题：{health_data.get('device_health_issues', '无')}
+        - 错误信息：{health_data.get('error_message', '无')}
+
+        请用中文分析并给出建议，包括：
+        1. **问题诊断**：分析当前存在的问题及其可能原因
+        2. **风险评估**：评估问题的严重程度（高/中/低）
+        3. **处理建议**：给出具体的处理步骤和命令建议
+        4. **预防措施**：如何避免类似问题再次发生
+
+        注意：
+        - 如果有具体的命令建议，请用 [COMMAND:xxx] 格式标记，例如 [COMMAND:display interface brief]
+        - 建议要具体、可操作，不要泛泛而谈
+        """
+
+        logger.info(f"正在为 {device_name} 生成智能建议...")
+        try:
+            analysis = self.use_deepseek_api(prompt)
+            logger.info(f"智能建议生成成功：{device_name}")
+
+            # 解析建议中的命令
+            import re
+            commands = re.findall(r'\[COMMAND:(.*?)\]', analysis)
+
+            return {
+                "device_name": device_name,
+                "analysis": analysis,
+                "suggested_commands": commands,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+        except Exception as e:
+            logger.error(f"智能建议生成失败：{e}")
+            raise
+
+    def analyze_multiple_devices(self, devices_health_data):
+        """
+        批量分析多台设备的健康状态
+        :param devices_health_data: 多台设备的健康数据列表
+        :return: 综合分析报告
+        """
+        prompt = f"""你是一名资深的网络运维专家。请根据以下多台设备的健康检查数据，生成综合分析报告。
+
+        【设备健康数据】：
+        {json.dumps(devices_health_data, indent=2, ensure_ascii=False)}
+
+        请用中文生成报告，包括：
+        1. **整体概况**：所有设备的健康状态统计
+        2. **重点关注**：需要立即处理的设备和问题
+        3. **趋势分析**：是否有设备状态持续恶化
+        4. **批量建议**：可以批量执行的优化操作
+        5. **优先级排序**：按紧急程度排序的处理建议
+
+        报告要求：专业、清晰、有条理，便于运维人员快速决策。
+        """
+
+        logger.info("正在生成批量设备分析报告...")
+        try:
+            report = self.use_deepseek_api(prompt)
+            logger.info("批量分析报告生成成功")
+            return report
+        except Exception as e:
+            logger.error(f"批量分析报告生成失败：{e}")
+            raise
         if not helthly_record:
             return f"设备{device_name}没有健康检查历史记录"
         prompt = f"""

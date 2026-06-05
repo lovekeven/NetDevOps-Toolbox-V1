@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetDevOps 智能运维平台</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- AOS 动画库 -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --dark: #0f172a;
+            --dark-2: #1e293b;
+            --dark-3: #334155;
+            --light: #f8fafc;
+            --light-2: #e2e8f0;
+            --light-3: #cbd5e1;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --radius-sm: 6px;
+            --radius: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: var(--dark);
+            color: var(--light);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--dark-2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--dark-3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary);
+        }
+
+        /* 侧边导航 */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 280px;
+            background: var(--dark-2);
+            border-right: 1px solid var(--glass-border);
+            z-index: 1000;
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition);
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 12px 24px;
+            border-bottom: 1px solid var(--glass-border);
+            margin-bottom: 24px;
+        }
+
+        .sidebar-logo i {
+            font-size: 28px;
+            color: var(--primary);
+        }
+
+        .sidebar-logo h1 {
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-light), var(--info));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            color: var(--light-3);
+            text-decoration: none;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            background: var(--glass);
+            color: var(--light);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .nav-item span {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .nav-section {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--secondary);
+            padding: 16px 16px 8px;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            margin-left: 280px;
+            padding: 24px 32px;
+            min-height: 100vh;
+        }
+
+        /* 顶部栏 */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            padding: 16px 24px;
+            background: var(--dark-2);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--glass-border);
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .topbar-title h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .topbar-title p {
+            font-size: 13px;
+            color: var(--secondary);
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .topbar-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            color: var(--light);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .topbar-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .topbar-btn.primary {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .topbar-btn.primary:hover {
+            background: var(--primary-dark);
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--dark-2);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+        }
+
+        .stat-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .stat-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .stat-card-icon.blue {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--info);
+        }
+
+        .stat-card-icon.green {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .stat-card-icon.yellow {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .stat-card-icon.red {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .stat-card-label {
+            font-size: 13px;
+            color: var(--secondary);
+            margin-bottom: 8px;
+        }
+
+        .stat-card-value {
+            font-size: 32px;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .stat-card-change {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+        }
+
+        .stat-card-change.up {
+            color: var(--success);
+        }
+
+        .stat-card-change.down {
+            color: var(--danger);
+        }
+
+        /* 卡片通用样式 */
+        .card {
+            background: var(--dark-2);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            border-color: var(--primary);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title i {
+            color: var(--primary);
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        .card-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--glass-border);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* 设备表格 */
+        .device-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .device-table th {
+            background: var(--dark-3);
+            padding: 12px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--secondary);
+            text-align: left;
+        }
+
+        .device-table th:first-child {
+            border-radius: var(--radius) 0 0 var(--radius);
+        }
+
+        .device-table th:last-child {
+            border-radius: 0 var(--radius) var(--radius) 0;
+        }
+
+        .device-table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--glass-border);
+            font-size: 14px;
+        }
+
+        .device-table tr:hover td {
+            background: var(--glass);
+        }
+
+        .device-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* 状态标签 */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-badge.online {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .status-badge.offline {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .status-badge.warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--dark-3);
+            color: var(--light);
+        }
+
+        .btn-secondary:hover {
+            background: var(--secondary);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: var(--dark);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--light-3);
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn-ghost:hover {
+            background: var(--glass);
+            color: var(--light);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            border-radius: var(--radius);
+        }
+
+        /* 操作按钮组 */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* 表单控件 */
+        .form-control {
+            background: var(--dark-3);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            color: var(--light);
+            padding: 10px 14px;
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .form-control::placeholder {
+            color: var(--secondary);
+        }
+
+        .form-select {
+            background: var(--dark-3);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            color: var(--light);
+            padding: 10px 14px;
+            font-size: 14px;
+        }
+
+        /* 拓扑图容器 */
+        .topology-container {
+            background: var(--dark-3);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .topology-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--dark-2);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .topology-canvas {
+            height: 500px;
+            background: radial-gradient(circle at center, var(--dark-2), var(--dark));
+        }
+
+        .topology-legend {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            background: var(--dark-2);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            display: flex;
+            gap: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--light-3);
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        /* 监控图表 */
+        .monitoring-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .chart-container {
+            background: var(--dark-2);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .chart-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .chart-canvas {
+            height: 200px;
+        }
+
+        /* 终端样式 */
+        .terminal {
+            background: #0d1117;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #161b22;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .terminal-dot.red { background: #ff5f56; }
+        .terminal-dot.yellow { background: #ffbd2e; }
+        .terminal-dot.green { background: #27c93f; }
+
+        .terminal-title {
+            flex: 1;
+            text-align: center;
+            font-size: 12px;
+            color: var(--secondary);
+        }
+
+        .terminal-body {
+            padding: 16px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #58a6ff;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .terminal-input {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #161b22;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .terminal-prompt {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .terminal-input input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--light);
+            font-family: inherit;
+            font-size: inherit;
+        }
+
+        .terminal-input input:focus {
+            outline: none;
+        }
+
+        /* 模态框 */
+        .modal-content {
+            background: var(--dark-2);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--glass-border);
+            padding: 20px 24px;
+        }
+
+        .modal-title {
+            font-weight: 600;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            border-top: 1px solid var(--glass-border);
+            padding: 16px 24px;
+        }
+
+        .btn-close {
+            filter: invert(1);
+        }
+
+        /* 加载动画 */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--glass-border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 脉冲动画 */
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 淡入动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* 工具提示 */
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 6px 12px;
+            background: var(--dark-3);
+            color: var(--light);
+            font-size: 12px;
+            border-radius: var(--radius);
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: var(--transition);
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+            bottom: calc(100% + 8px);
+        }
+
+        /* 响应式 */
+        @media (max-width: 1200px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .monitoring-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边导航 -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <i class="fas fa-network-wired"></i>
+            <h1>NetDevOps</h1>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">概览</div>
+            <a class="nav-item active" href="#dashboard">
+                <i class="fas fa-th-large"></i>
+                <span>仪表盘</span>
+            </a>
+            <a class="nav-item" href="#topology">
+                <i class="fas fa-project-diagram"></i>
+                <span>网络拓扑</span>
+            </a>
+            <a class="nav-item" href="#monitoring">
+                <i class="fas fa-chart-line"></i>
+                <span>实时监控</span>
+            </a>
+
+            <div class="nav-section">设备管理</div>
+            <a class="nav-item" href="#devices">
+                <i class="fas fa-server"></i>
+                <span>设备列表</span>
+            </a>
+            <a class="nav-item" href="#health-check">
+                <i class="fas fa-heartbeat"></i>
+                <span>健康检查</span>
+            </a>
+            <a class="nav-item" href="#backup">
+                <i class="fas fa-database"></i>
+                <span>配置备份</span>
+            </a>
+            <a class="nav-item" href="#commands">
+                <i class="fas fa-terminal"></i>
+                <span>命令终端</span>
+            </a>
+
+            <div class="nav-section">云资源</div>
+            <a class="nav-item" href="#cloud">
+                <i class="fas fa-cloud"></i>
+                <span>阿里云</span>
+            </a>
+            <a class="nav-item" href="#hybrid">
+                <i class="fas fa-layer-group"></i>
+                <span>混合管理</span>
+            </a>
+
+            <div class="nav-section">智能分析</div>
+            <a class="nav-item" href="#ai-report">
+                <i class="fas fa-robot"></i>
+                <span>AI 报告</span>
+            </a>
+            <a class="nav-item" href="#efficiency">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>效率分析</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 顶部栏 -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <div class="topbar-title">
+                    <h2>仪表盘</h2>
+                    <p>欢迎回来，管理员</p>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <button class="topbar-btn" onclick="refreshAll()">
+                    <i class="fas fa-sync-alt"></i>
+                    刷新数据
+                </button>
+                <button class="topbar-btn primary" onclick="showQuickActions()">
+                    <i class="fas fa-bolt"></i>
+                    快速操作
+                </button>
+            </div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card" data-aos="fade-up" data-aos-delay="0">
+                <div class="stat-card-header">
+                    <div>
+                        <div class="stat-card-label">设备总数</div>
+                        <div class="stat-card-value">6</div>
+                    </div>
+                    <div class="stat-card-icon blue">
+                        <i class="fas fa-server"></i>
+                    </div>
+                </div>
+                <div class="stat-card-change up">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>全部在线</span>
+                </div>
+            </div>
+
+            <div class="stat-card" data-aos="fade-up" data-aos-delay="100">
+                <div class="stat-card-header">
+                    <div>
+                        <div class="stat-card-label">在线设备</div>
+                        <div class="stat-card-value text-success">4</div>
+                    </div>
+                    <div class="stat-card-icon green">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+                <div class="stat-card-change up">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>66.7% 在线率</span>
+                </div>
+            </div>
+
+            <div class="stat-card" data-aos="fade-up" data-aos-delay="200">
+                <div class="stat-card-header">
+                    <div>
+                        <div class="stat-card-label">今日检查</div>
+                        <div class="stat-card-value">12</div>
+                    </div>
+                    <div class="stat-card-icon yellow">
+                        <i class="fas fa-heartbeat"></i>
+                    </div>
+                </div>
+                <div class="stat-card-change up">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>较昨日 +3</span>
+                </div>
+            </div>
+
+            <div class="stat-card" data-aos="fade-up" data-aos-delay="300">
+                <div class="stat-card-header">
+                    <div>
+                        <div class="stat-card-label">云资源</div>
+                        <div class="stat-card-value">8</div>
+                    </div>
+                    <div class="stat-card-icon red">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                </div>
+                <div class="stat-card-change">
+                    <span>VPC + ECS + 安全组</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 网络拓扑 -->
+        <div class="card" data-aos="fade-up">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-project-diagram"></i>
+                    网络拓扑
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-ghost btn-sm" onclick="refreshTopology()">
+                        <i class="fas fa-sync-alt"></i>
+                        刷新
+                    </button>
+                    <button class="btn btn-ghost btn-sm" onclick="autoLayoutTopology()">
+                        <i class="fas fa-magic"></i>
+                        自动布局
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="topology-container">
+                    <div id="topologyCanvas" class="topology-canvas"></div>
+                    <div class="topology-legend">
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: #3b82f6;"></div>
+                            <span>云资源</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: #f59e0b;"></div>
+                            <span>核心交换机</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: #10b981;"></div>
+                            <span>在线设备</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: #ef4444;"></div>
+                            <span>离线设备</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 实时监控 -->
+        <div class="monitoring-grid" data-aos="fade-up">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title">CPU 使用率</div>
+                    <div class="chart-value">23%</div>
+                </div>
+                <div id="cpuChart" class="chart-canvas"></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title">内存使用率</div>
+                    <div class="chart-value">45%</div>
+                </div>
+                <div id="memoryChart" class="chart-canvas"></div>
+            </div>
+        </div>
+
+        <!-- 设备列表 -->
+        <div class="card" data-aos="fade-up">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-server"></i>
+                    设备列表
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-primary btn-sm" onclick="batchHealthCheck()">
+                        <i class="fas fa-heartbeat"></i>
+                        批量检查
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="showAddDeviceModal()">
+                        <i class="fas fa-plus"></i>
+                        添加设备
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <table class="device-table">
+                    <thead>
+                        <tr>
+                            <th>设备名称</th>
+                            <th>IP 地址</th>
+                            <th>厂商</th>
+                            <th>状态</th>
+                            <th>最后检查</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="width: 36px; height: 36px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-network-wired" style="color: var(--primary);"></i>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 600;">SW1</div>
+                                        <div style="font-size: 12px; color: var(--secondary);">核心交换机</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><code style="background: var(--dark-3); padding: 4px 8px; border-radius: 4px;">192.168.56.10</code></td>
+                            <td><span class="status-badge" style="background: rgba(59, 130, 246, 0.1); color: var(--info);">H3C</span></td>
+                            <td><span class="status-badge online"><span class="status-dot"></span> 在线</span></td>
+                            <td style="color: var(--secondary);">2 分钟前</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-ghost btn-sm" onclick="healthCheck('SW1')">
+                                        <i class="fas fa-heartbeat"></i>
+                                    </button>
+                                    <button class="btn btn-ghost btn-sm" onclick="backupDevice('SW1')">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    <button class="btn btn-ghost btn-sm" onclick="showDeviceDetail('SW1')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <!-- 更多设备行... -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 命令终端 -->
+        <div class="card" data-aos="fade-up">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-terminal"></i>
+                    命令终端
+                </div>
+                <div class="action-buttons">
+                    <select class="form-select" style="width: 150px; padding: 6px 12px; font-size: 13px;">
+                        <option>SW1 (H3C)</option>
+                        <option>SW2 (Cisco)</option>
+                        <option>R1 (Huawei)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="terminal">
+                    <div class="terminal-header">
+                        <div class="terminal-dot red"></div>
+                        <div class="terminal-dot yellow"></div>
+                        <div class="terminal-dot green"></div>
+                        <div class="terminal-title">NetDevOps Terminal</div>
+                    </div>
+                    <div class="terminal-body" id="terminalOutput">
+                        <div style="color: var(--success);">Welcome to NetDevOps Terminal</div>
+                        <div style="color: var(--secondary);">Type 'help' for available commands</div>
+                        <br>
+                    </div>
+                    <div class="terminal-input">
+                        <span class="terminal-prompt">$</span>
+                        <input type="text" id="terminalInput" placeholder="输入命令..." onkeypress="handleTerminalInput(event)">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- AOS 动画库 -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <!-- vis.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.6/dist/vis-network.min.js"></script>
+
+    <script>
+        // 初始化 AOS 动画
+        AOS.init({
+            duration: 800,
+            once: true
+        });
+
+        // 初始化拓扑图
+        function initTopology() {
+            const container = document.getElementById('topologyCanvas');
+            const nodes = new vis.DataSet([
+                { id: 'cloud', label: '阿里云', shape: 'icon', icon: { face: 'FontAwesome', code: '', size: 50, color: '#3b82f6' }, x: 0, y: -100 },
+                { id: 'core', label: '核心交换机', shape: 'box', color: { background: '#f59e0b', border: '#d97706' }, font: { color: '#fff' }, x: 0, y: 0 },
+                { id: 'sw1', label: 'SW1', shape: 'dot', color: { background: '#10b981', border: '#059669' }, font: { color: '#fff' }, x: -200, y: 100 },
+                { id: 'sw2', label: 'SW2', shape: 'dot', color: { background: '#10b981', border: '#059669' }, font: { color: '#fff' }, x: -100, y: 100 },
+                { id: 'r1', label: 'R1', shape: 'dot', color: { background: '#10b981', border: '#059669' }, font: { color: '#fff' }, x: 0, y: 100 },
+                { id: 'r2', label: 'R2', shape: 'dot', color: { background: '#ef4444', border: '#dc2626' }, font: { color: '#fff' }, x: 100, y: 100 },
+            ]);
+
+            const edges = new vis.DataSet([
+                { from: 'cloud', to: 'core', color: { color: '#3b82f6' }, dashes: true },
+                { from: 'core', to: 'sw1', color: { color: '#10b981' } },
+                { from: 'core', to: 'sw2', color: { color: '#10b981' } },
+                { from: 'core', to: 'r1', color: { color: '#10b981' } },
+                { from: 'core', to: 'r2', color: { color: '#ef4444', opacity: 0.5 } },
+            ]);
+
+            const options = {
+                physics: {
+                    enabled: true,
+                    barnesHut: {
+                        gravitationalConstant: -2000,
+                        centralGravity: 0.3,
+                        springLength: 200
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200
+                }
+            };
+
+            new vis.Network(container, { nodes, edges }, options);
+        }
+
+        // 初始化图表
+        function initCharts() {
+            // CPU 图表
+            const cpuChart = echarts.init(document.getElementById('cpuChart'));
+            cpuChart.setOption({
+                grid: { top: 10, right: 10, bottom: 30, left: 40 },
+                xAxis: {
+                    type: 'category',
+                    data: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
+                    axisLine: { lineStyle: { color: '#334155' } },
+                    axisLabel: { color: '#94a3b8' }
+                },
+                yAxis: {
+                    type: 'value',
+                    max: 100,
+                    axisLine: { lineStyle: { color: '#334155' } },
+                    axisLabel: { color: '#94a3b8' },
+                    splitLine: { lineStyle: { color: '#1e293b' } }
+                },
+                series: [{
+                    data: [15, 23, 18, 35, 28, 23],
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'none',
+                    lineStyle: { color: '#6366f1', width: 2 },
+                    areaStyle: {
+                        color: {
+                            type: 'linear',
+                            x: 0, y: 0, x2: 0, y2: 1,
+                            colorStops: [
+                                { offset: 0, color: 'rgba(99, 102, 241, 0.3)' },
+                                { offset: 1, color: 'rgba(99, 102, 241, 0)' }
+                            ]
+                        }
+                    }
+                }]
+            });
+
+            // 内存图表
+            const memoryChart = echarts.init(document.getElementById('memoryChart'));
+            memoryChart.setOption({
+                grid: { top: 10, right: 10, bottom: 30, left: 40 },
+                xAxis: {
+                    type: 'category',
+                    data: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
+                    axisLine: { lineStyle: { color: '#334155' } },
+                    axisLabel: { color: '#94a3b8' }
+                },
+                yAxis: {
+                    type: 'value',
+                    max: 100,
+                    axisLine: { lineStyle: { color: '#334155' } },
+                    axisLabel: { color: '#94a3b8' },
+                    splitLine: { lineStyle: { color: '#1e293b' } }
+                },
+                series: [{
+                    data: [42, 45, 48, 52, 47, 45],
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'none',
+                    lineStyle: { color: '#10b981', width: 2 },
+                    areaStyle: {
+                        color: {
+                            type: 'linear',
+                            x: 0, y: 0, x2: 0, y2: 1,
+                            colorStops: [
+                                { offset: 0, color: 'rgba(16, 185, 129, 0.3)' },
+                                { offset: 1, color: 'rgba(16, 185, 129, 0)' }
+                            ]
+                        }
+                    }
+                }]
+            });
+
+            // 响应式
+            window.addEventListener('resize', () => {
+                cpuChart.resize();
+                memoryChart.resize();
+            });
+        }
+
+        // 终端命令处理
+        function handleTerminalInput(event) {
+            if (event.key === 'Enter') {
+                const input = document.getElementById('terminalInput');
+                const output = document.getElementById('terminalOutput');
+                const command = input.value.trim();
+
+                if (command) {
+                    // 显示命令
+                    output.innerHTML += `<div><span style="color: var(--success);">$</span> ${command}</div>`;
+
+                    // 模拟命令执行
+                    setTimeout(() => {
+                        if (command === 'help') {
+                            output.innerHTML += `<div style="color: var(--info);">可用命令：</div>`;
+                            output.innerHTML += `<div>  show version - 显示设备版本</div>`;
+                            output.innerHTML += `<div>  show interface - 显示接口状态</div>`;
+                            output.innerHTML += `<div>  show ip route - 显示路由表</div>`;
+                            output.innerHTML += `<div>  clear - 清空终端</div>`;
+                        } else if (command === 'clear') {
+                            output.innerHTML = '';
+                        } else {
+                            output.innerHTML += `<div style="color: var(--warning);">命令执行中...</div>`;
+                            setTimeout(() => {
+                                output.innerHTML += `<div style="color: var(--success);">命令执行完成</div>`;
+                            }, 1000);
+                        }
+                        output.scrollTop = output.scrollHeight;
+                    }, 500);
+                }
+
+                input.value = '';
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initTopology();
+            initCharts();
+        });
+
+        // 刷新所有数据
+        function refreshAll() {
+            location.reload();
+        }
+
+        // 显示快速操作
+        function showQuickActions() {
+            alert('快速操作菜单');
+        }
+
+        // 刷新拓扑
+        function refreshTopology() {
+            initTopology();
+        }
+
+        // 自动布局拓扑
+        function autoLayoutTopology() {
+            initTopology();
+        }
+
+        // 批量健康检查
+        function batchHealthCheck() {
+            alert('开始批量健康检查...');
+        }
+
+        // 显示添加设备模态框
+        function showAddDeviceModal() {
+            alert('添加设备');
+        }
+
+        // 健康检查
+        function healthCheck(deviceName) {
+            alert(`开始检查 ${deviceName}...`);
+        }
+
+        // 备份设备
+        function backupDevice(deviceName) {
+            alert(`开始备份 ${deviceName}...`);
+        }
+
+        // 显示设备详情
+        function showDeviceDetail(deviceName) {
+            alert(`显示 ${deviceName} 详情`);
+        }
+    </script>
+</body>
+</html>

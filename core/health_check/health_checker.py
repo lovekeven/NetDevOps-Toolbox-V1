@@ -17,6 +17,106 @@ from utils.models import get_global_physical_cards
 # 引入数据库
 from db.database import db_manager
 
+# ============================================================
+# 多厂商命令映射（质变级优化 #3）
+# ============================================================
+VENDOR_COMMANDS = {
+    "h3c": {
+        "interface": "display interface brief",
+        "cpu": "display cpu-usage",
+        "memory": "display memory",
+        "version": "display version",
+        "routing": "display ip routing-table",
+        "arp": "display arp",
+        "mac": "display mac-address",
+        "vlan": "display vlan brief",
+        "ospf": "display ospf peer brief",
+        "bgp": "display bgp peer",
+        "environment": "display environment",
+        "power": "display power",
+        "fan": "display fan",
+        "stp": "display stp brief",
+        "link_agg": "display link-aggregation summary",
+        "config": "display current-configuration",
+    },
+    "cisco": {
+        "interface": "show ip interface brief",
+        "cpu": "show processes cpu",
+        "memory": "show memory",
+        "version": "show version",
+        "routing": "show ip route",
+        "arp": "show arp",
+        "mac": "show mac address-table",
+        "vlan": "show vlan brief",
+        "ospf": "show ip ospf neighbor",
+        "bgp": "show ip bgp summary",
+        "environment": "show environment all",
+        "power": "show power",
+        "fan": "show fans",
+        "stp": "show spanning-tree",
+        "link_agg": "show etherchannel summary",
+        "config": "show running-config",
+    },
+    "huawei": {
+        "interface": "display interface brief",
+        "cpu": "display cpu-usage",
+        "memory": "display memory",
+        "version": "display version",
+        "routing": "display ip routing-table",
+        "arp": "display arp",
+        "mac": "display mac-address",
+        "vlan": "display vlan brief",
+        "ospf": "display ospf peer brief",
+        "bgp": "display bgp peer",
+        "environment": "display environment",
+        "power": "display power",
+        "fan": "display fan",
+        "stp": "display stp brief",
+        "link_agg": "display link-aggregation summary",
+        "config": "display current-configuration",
+    },
+    "default": {
+        "interface": "display interface brief",
+        "cpu": "display cpu-usage",
+        "memory": "display memory",
+        "version": "display version",
+        "routing": "display ip routing-table",
+        "arp": "display arp",
+        "mac": "display mac-address",
+        "vlan": "display vlan brief",
+        "ospf": "display ospf peer brief",
+        "bgp": "display bgp peer",
+        "environment": "display environment",
+        "power": "display power",
+        "fan": "display fan",
+        "stp": "display stp brief",
+        "link_agg": "display link-aggregation summary",
+        "config": "display current-configuration",
+    },
+}
+
+
+def get_vendor_command(vendor, command_type):
+    """
+    根据厂商类型获取对应的命令
+    :param vendor: 厂商名称（h3c/cisco/huawei）
+    :param command_type: 命令类型（interface/cpu/memory/version等）
+    :return: 对应厂商的命令字符串
+    """
+    vendor = vendor.lower() if vendor else "default"
+    # 厂商名称映射
+    vendor_map = {
+        "hclcloud": "h3c",
+        "华三h3c": "h3c",
+        "h3c": "h3c",
+        "cisco": "cisco",
+        "华为": "huawei",
+        "huawei": "huawei",
+    }
+    vendor_key = vendor_map.get(vendor, "default")
+    commands = VENDOR_COMMANDS.get(vendor_key, VENDOR_COMMANDS["default"])
+    return commands.get(command_type, commands.get("interface", "display interface brief"))
+
 
 # 第一步：定义可以读取yml文件的函数
 def read_devices_yml(filename=CONFIG_PATH, yaml_connect=None):
@@ -54,10 +154,12 @@ def read_devices_yml(filename=CONFIG_PATH, yaml_connect=None):
 
 
 # 第二步：检查接口的状态
-def check_interface_status(connections):
+def check_interface_status(connections, vendor=None):
     error_message = ""
     try:
-        output_interfaces = connections.send_command_timing("display interface brief", delay_factor=2)
+        # 使用多厂商命令映射
+        interface_cmd = get_vendor_command(vendor, "interface")
+        output_interfaces = connections.send_command_timing(interface_cmd, delay_factor=2)
         # 1.send_command() 不支持 timeout 和 read_timeout 参数，传递后触发报错，跟那个device_name一样
         up_interface = 0
         down_interface = 0
@@ -75,20 +177,22 @@ def check_interface_status(connections):
 
 
 # 第三步：检查CPU使用率
-def check_cpu_usage(connections):
+def check_cpu_usage(connections, vendor=None):
     error_message = ""
     try:
+        # 使用多厂商命令映射
+        cpu_cmd = get_vendor_command(vendor, "cpu")
         # 增加延迟时间，确保命令完成
-        output_cpu_usage = connections.send_command_timing("display cpu-usage", delay_factor=5)
+        output_cpu_usage = connections.send_command_timing(cpu_cmd, delay_factor=5)
         # 添加调试日志
         logger.info(f"CPU输出原始内容: {repr(output_cpu_usage)}")
-        
+
         # 如果输出为空或太短，重试一次
         if not output_cpu_usage or len(output_cpu_usage.strip()) < 10:
             logger.warning("CPU输出为空，重试一次...")
-            output_cpu_usage = connections.send_command_timing("display cpu-usage", delay_factor=5)
+            output_cpu_usage = connections.send_command_timing(cpu_cmd, delay_factor=5)
             logger.info(f"CPU输出重试后: {repr(output_cpu_usage)}")
-        
+
         # 从输出中提取CPU使用率（格式：14% in last 5 seconds）
         match = re.search(r"(\d+)%\s+in last 5 seconds", output_cpu_usage)
         if match:
@@ -108,17 +212,19 @@ def check_cpu_usage(connections):
 
 
 # 第四步：检查内存使用率
-def check_memory_usage(connections):
+def check_memory_usage(connections, vendor=None):
     error_message = ""
     try:
+        # 使用多厂商命令映射
+        memory_cmd = get_vendor_command(vendor, "memory")
         # 使用 display memory 命令获取内存信息
-        output_memory_usage = connections.send_command_timing("display memory", delay_factor=3)
+        output_memory_usage = connections.send_command_timing(memory_cmd, delay_factor=3)
         logger.info(f"内存输出原始内容: {repr(output_memory_usage[:150])}")
-        
+
         # 内存输出格式：
         #              Total      Used      Free    Shared   Buffers    Cached   FreeRatio
         # Mem:        382808    291956     90852         0         4    189092       23.8%
-        
+
         # 匹配Mem行的数据：Mem: Total Used Free ... FreeRatio
         match = re.search(r"Mem:\s+(\d+)\s+(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+\.?\d*)%", output_memory_usage)
         if match:
@@ -128,7 +234,7 @@ def check_memory_usage(connections):
             used_ratio = 100 - free_ratio
             logger.info(f"内存匹配成功: 总内存={total_kb}, 已用={used_kb}, 空闲率={free_ratio}%, 使用率={used_ratio:.1f}%")
             return f"{used_ratio:.1f}%", error_message
-        
+
         # 备用匹配：直接查找最后一个百分比（FreeRatio）
         matches = re.findall(r"(\d+\.?\d*)%", output_memory_usage)
         if matches:
@@ -136,7 +242,7 @@ def check_memory_usage(connections):
             used_ratio = 100 - free_ratio
             logger.info(f"内存备用匹配成功: 空闲率={free_ratio}%, 使用率={used_ratio:.1f}%")
             return f"{used_ratio:.1f}%", error_message
-            
+
         logger.error("并未查询到内存使用率！")
         return "N/A", error_message
     except Exception as e:
@@ -146,16 +252,18 @@ def check_memory_usage(connections):
 
 
 # 补充检查设备版本信息
-def check_device_version(connections):
+def check_device_version(connections, vendor=None):
     error_message = ""
     try:
+        # 使用多厂商命令映射
+        version_cmd = get_vendor_command(vendor, "version")
         # 增加延迟时间，确保版本信息完整返回
-        version_result = connections.send_command_timing("display version", delay_factor=5)
+        version_result = connections.send_command_timing(version_cmd, delay_factor=5)
         if not version_result or version_result.strip() == "":
             # 尝试禁用分页后再查询
             connections.send_command_timing("screen-length disable", delay_factor=1)
-            version_result = connections.send_command_timing("display version", delay_factor=5)
-        
+            version_result = connections.send_command_timing(version_cmd, delay_factor=5)
+
         if not version_result or version_result.strip() == "":
             logger.warning("版本信息查询为空")
             return "未知", error_message
@@ -172,6 +280,319 @@ def check_device_version(connections):
         logger.error(f"错误：【子功能】检查版本信息出错！ {e}")
         error_message = "检查版本信息失败"
         return "未知", error_message
+
+
+# ============================================================
+# 扩展健康检查功能（质变级优化 #2）
+# ============================================================
+
+# 检查路由表
+def check_routing_table(connections, vendor=None):
+    """检查设备路由表，返回路由数量和关键路由信息"""
+    error_message = ""
+    try:
+        # 使用多厂商命令映射
+        routing_cmd = get_vendor_command(vendor, "routing")
+        output = connections.send_command_timing(routing_cmd, delay_factor=3)
+        if not output or len(output.strip()) < 10:
+            return {"route_count": 0, "routes": [], "error": "路由表为空或查询失败"}
+
+        # 统计路由数量（排除表头和空行）
+        lines = output.split("\n")
+        route_count = 0
+        routes = []
+        for line in lines:
+            line = line.strip()
+            # 路由条目通常以数字开头（如 192.168.1.0/24）
+            if line and not line.startswith("Destination") and not line.startswith("---") and not line.startswith("Total"):
+                if "/" in line or "Static" in line or "O " in line or "S " in line:
+                    route_count += 1
+                    # 提取前5条路由作为示例
+                    if len(routes) < 5:
+                        routes.append(line[:100])  # 截取前100字符
+
+        return {"route_count": route_count, "routes": routes, "error": error_message}
+    except Exception as e:
+        logger.error(f"错误：检查路由表出错 {e}")
+        return {"route_count": 0, "routes": [], "error": "检查路由表失败"}
+
+
+# 检查ARP表
+def check_arp_table(connections, vendor=None):
+    """检查设备ARP表，返回ARP条目数量"""
+    error_message = ""
+    try:
+        # 使用多厂商命令映射
+        arp_cmd = get_vendor_command(vendor, "arp")
+        output = connections.send_command_timing(arp_cmd, delay_factor=3)
+        if not output or len(output.strip()) < 10:
+            return {"arp_count": 0, "entries": [], "error": "ARP表为空或查询失败"}
+
+        # 统计ARP条目数量
+        lines = output.split("\n")
+        arp_count = 0
+        entries = []
+        for line in lines:
+            line = line.strip()
+            # ARP条目通常包含IP地址和MAC地址
+            if line and not line.startswith("IP Address") and not line.startswith("---") and not line.startswith("Total"):
+                if ":" in line or "-" in line:  # MAC地址格式
+                    arp_count += 1
+                    if len(entries) < 5:
+                        entries.append(line[:100])
+
+        return {"arp_count": arp_count, "entries": entries, "error": error_message}
+    except Exception as e:
+        logger.error(f"错误：检查ARP表出错 {e}")
+        return {"arp_count": 0, "entries": [], "error": "检查ARP表失败"}
+
+
+# 检查MAC地址表
+def check_mac_address_table(connections, vendor=None):
+    """检查设备MAC地址表，返回MAC条目数量"""
+    error_message = ""
+    try:
+        # 使用多厂商命令映射
+        mac_cmd = get_vendor_command(vendor, "mac")
+        output = connections.send_command_timing(mac_cmd, delay_factor=3)
+        if not output or len(output.strip()) < 10:
+            return {"mac_count": 0, "entries": [], "error": "MAC地址表为空或查询失败"}
+
+        # 统计MAC条目数量
+        lines = output.split("\n")
+        mac_count = 0
+        entries = []
+        for line in lines:
+            line = line.strip()
+            # MAC条目通常包含MAC地址和VLAN信息
+            if line and not line.startswith("MAC Address") and not line.startswith("---") and not line.startswith("Total"):
+                if "-" in line or ":" in line:  # MAC地址格式
+                    mac_count += 1
+                    if len(entries) < 5:
+                        entries.append(line[:100])
+
+        return {"mac_count": mac_count, "entries": entries, "error": error_message}
+    except Exception as e:
+        logger.error(f"错误：检查MAC地址表出错 {e}")
+        return {"mac_count": 0, "entries": [], "error": "检查MAC地址表失败"}
+
+
+# 检查VLAN信息
+def check_vlan_info(connections, vendor=None):
+    """检查设备VLAN信息，返回VLAN列表"""
+    error_message = ""
+    try:
+        # 使用多厂商命令映射
+        vlan_cmd = get_vendor_command(vendor, "vlan")
+        output = connections.send_command_timing(vlan_cmd, delay_factor=3)
+        if not output or len(output.strip()) < 10:
+            return {"vlan_count": 0, "vlans": [], "error": "VLAN信息为空或查询失败"}
+
+        # 统计VLAN数量
+        lines = output.split("\n")
+        vlan_count = 0
+        vlans = []
+        for line in lines:
+            line = line.strip()
+            # VLAN条目通常以VLAN ID开头
+            if line and not line.startswith("VLAN ID") and not line.startswith("---") and not line.startswith("Total"):
+                if line.startswith("1") or line.startswith("2") or line.startswith("3") or line.startswith("4") or line.startswith("5"):
+                    vlan_count += 1
+                    if len(vlans) < 10:
+                        vlans.append(line[:80])
+
+        return {"vlan_count": vlan_count, "vlans": vlans, "error": error_message}
+    except Exception as e:
+        logger.error(f"错误：检查VLAN信息出错 {e}")
+        return {"vlan_count": 0, "vlans": [], "error": "检查VLAN信息失败"}
+
+
+# 检查OSPF邻居
+def check_ospf_neighbors(connections, vendor=None):
+    """检查设备OSPF邻居状态"""
+    error_message = ""
+    try:
+        # 使用多厂商命令映射
+        ospf_cmd = get_vendor_command(vendor, "ospf")
+        output = connections.send_command_timing(ospf_cmd, delay_factor=3)
+        if not output or len(output.strip()) < 10:
+            return {"ospf_count": 0, "neighbors": [], "error": "OSPF邻居为空或查询失败"}
+
+        # 统计OSPF邻居数量
+        lines = output.split("\n")
+        ospf_count = 0
+        neighbors = []
+        for line in lines:
+            line = line.strip()
+            # OSPF邻居条目通常包含Router ID
+            if line and not line.startswith("Area") and not line.startswith("---") and not line.startswith("Total"):
+                if "Full" in line or "2-Way" in line or "Init" in line:
+                    ospf_count += 1
+                    if len(neighbors) < 5:
+                        neighbors.append(line[:100])
+
+        return {"ospf_count": ospf_count, "neighbors": neighbors, "error": error_message}
+    except Exception as e:
+        logger.error(f"错误：检查OSPF邻居出错 {e}")
+        return {"ospf_count": 0, "neighbors": [], "error": "检查OSPF邻居失败"}
+
+
+# 检查BGP邻居
+def check_bgp_neighbors(connections, vendor=None):
+    """检查设备BGP邻居状态"""
+    error_message = ""
+    try:
+        # 使用多厂商命令映射
+        bgp_cmd = get_vendor_command(vendor, "bgp")
+        output = connections.send_command_timing(bgp_cmd, delay_factor=3)
+        if not output or len(output.strip()) < 10:
+            return {"bgp_count": 0, "neighbors": [], "error": "BGP邻居为空或查询失败"}
+
+        # 统计BGP邻居数量
+        lines = output.split("\n")
+        bgp_count = 0
+        neighbors = []
+        for line in lines:
+            line = line.strip()
+            # BGP邻居条目通常包含Peer地址
+            if line and not line.startswith("Peer") and not line.startswith("---") and not line.startswith("Total"):
+                if "Established" in line or "Active" in line or "Connect" in line or "Idle" in line:
+                    bgp_count += 1
+                    if len(neighbors) < 5:
+                        neighbors.append(line[:100])
+
+        return {"bgp_count": bgp_count, "neighbors": neighbors, "error": error_message}
+    except Exception as e:
+        logger.error(f"错误：检查BGP邻居出错 {e}")
+        return {"bgp_count": 0, "neighbors": [], "error": "检查BGP邻居失败"}
+
+
+# 检查设备环境信息（温度、电源、风扇）
+def check_environment_info(connections, vendor=None):
+    """检查设备环境信息，包括温度、电源、风扇状态"""
+    error_message = ""
+    result = {
+        "temperature": {"status": "未知", "value": "N/A", "error": ""},
+        "power": {"status": "未知", "count": 0, "error": ""},
+        "fan": {"status": "未知", "count": 0, "error": ""},
+    }
+
+    try:
+        # 检查温度
+        try:
+            # 使用多厂商命令映射
+            env_cmd = get_vendor_command(vendor, "environment")
+            temp_output = connections.send_command_timing(env_cmd, delay_factor=3)
+            if temp_output and len(temp_output.strip()) > 10:
+                # 提取温度信息
+                lines = temp_output.split("\n")
+                for line in lines:
+                    if "Temperature" in line or "温度" in line:
+                        # 尝试提取温度值
+                        import re
+                        temp_match = re.search(r"(\d+)\s*°?[Cc]", line)
+                        if temp_match:
+                            temp_value = int(temp_match.group(1))
+                            result["temperature"]["value"] = f"{temp_value}°C"
+                            result["temperature"]["status"] = "正常" if temp_value < 60 else "警告" if temp_value < 80 else "危险"
+                        break
+        except Exception as e:
+            result["temperature"]["error"] = f"温度检查失败: {str(e)[:50]}"
+
+        # 检查电源
+        try:
+            # 使用多厂商命令映射
+            power_cmd = get_vendor_command(vendor, "power")
+            power_output = connections.send_command_timing(power_cmd, delay_factor=3)
+            if power_output and len(power_output.strip()) > 10:
+                lines = power_output.split("\n")
+                power_count = 0
+                for line in lines:
+                    if "Normal" in line or "正常" in line:
+                        power_count += 1
+                result["power"]["count"] = power_count
+                result["power"]["status"] = "正常" if power_count > 0 else "异常"
+        except Exception as e:
+            result["power"]["error"] = f"电源检查失败: {str(e)[:50]}"
+
+        # 检查风扇
+        try:
+            # 使用多厂商命令映射
+            fan_cmd = get_vendor_command(vendor, "fan")
+            fan_output = connections.send_command_timing(fan_cmd, delay_factor=3)
+            if fan_output and len(fan_output.strip()) > 10:
+                lines = fan_output.split("\n")
+                fan_count = 0
+                for line in lines:
+                    if "Normal" in line or "正常" in line:
+                        fan_count += 1
+                result["fan"]["count"] = fan_count
+                result["fan"]["status"] = "正常" if fan_count > 0 else "异常"
+        except Exception as e:
+            result["fan"]["error"] = f"风扇检查失败: {str(e)[:50]}"
+
+        return result
+    except Exception as e:
+        logger.error(f"错误：检查环境信息出错 {e}")
+        return {"temperature": {"status": "未知", "value": "N/A", "error": str(e)},
+                "power": {"status": "未知", "count": 0, "error": str(e)},
+                "fan": {"status": "未知", "count": 0, "error": str(e)}}
+
+
+# 检查STP（生成树）状态
+def check_stp_status(connections, vendor=None):
+    """检查设备STP状态"""
+    error_message = ""
+    try:
+        # 使用多厂商命令映射
+        stp_cmd = get_vendor_command(vendor, "stp")
+        output = connections.send_command_timing(stp_cmd, delay_factor=3)
+        if not output or len(output.strip()) < 10:
+            return {"stp_status": "未知", "root_bridge": "N/A", "error": "STP信息为空或查询失败"}
+
+        # 提取STP状态
+        lines = output.split("\n")
+        stp_status = "未知"
+        root_bridge = "N/A"
+        for line in lines:
+            if "Root Bridge" in line or "根桥" in line:
+                root_bridge = line.strip()[:80]
+            if "CIST" in line or "MSTP" in line or "STP" in line:
+                stp_status = "运行中"
+
+        return {"stp_status": stp_status, "root_bridge": root_bridge, "error": error_message}
+    except Exception as e:
+        logger.error(f"错误：检查STP状态出错 {e}")
+        return {"stp_status": "未知", "root_bridge": "N/A", "error": "检查STP状态失败"}
+
+
+# 检查链路聚合状态
+def check_link_aggregation(connections, vendor=None):
+    """检查设备链路聚合状态"""
+    error_message = ""
+    try:
+        # 使用多厂商命令映射
+        link_agg_cmd = get_vendor_command(vendor, "link_agg")
+        output = connections.send_command_timing(link_agg_cmd, delay_factor=3)
+        if not output or len(output.strip()) < 10:
+            return {"agg_count": 0, "agg_groups": [], "error": "链路聚合信息为空或查询失败"}
+
+        # 统计链路聚合组数量
+        lines = output.split("\n")
+        agg_count = 0
+        agg_groups = []
+        for line in lines:
+            line = line.strip()
+            if line and not line.startswith("Aggregation") and not line.startswith("---") and not line.startswith("Total"):
+                if "Selected" in line or "Unselected" in line:
+                    agg_count += 1
+                    if len(agg_groups) < 5:
+                        agg_groups.append(line[:100])
+
+        return {"agg_count": agg_count, "agg_groups": agg_groups, "error": error_message}
+    except Exception as e:
+        logger.error(f"错误：检查链路聚合出错 {e}")
+        return {"agg_count": 0, "agg_groups": [], "error": "检查链路聚合失败"}
 
 
 # 第五步对单个设备进行检查（改造后：绑定全局卡片+统一样式，对齐并发框架）
@@ -325,6 +746,110 @@ def check_single_device(device_info):
         # 列表空时设为["无"]（和并发一致），保证前端展示统一
         device_health_issues = device_health_issues if device_health_issues else ["无"]
 
+        # ============================================================
+        # 扩展健康检查项目（质变级优化 #2）
+        # ============================================================
+        # 检查路由表
+        try:
+            routing_result = check_routing_table(connections)
+            results["routing_table"] = routing_result
+            if routing_result.get("error"):
+                results["error_message"] += f"路由表检查失败；"
+        except Exception as e:
+            results["error_message"] += f"路由表检查异常 {e}；"
+            results["routing_table"] = {"route_count": 0, "routes": [], "error": str(e)}
+
+        # 检查ARP表
+        try:
+            arp_result = check_arp_table(connections)
+            results["arp_table"] = arp_result
+            if arp_result.get("error"):
+                results["error_message"] += f"ARP表检查失败；"
+        except Exception as e:
+            results["error_message"] += f"ARP表检查异常 {e}；"
+            results["arp_table"] = {"arp_count": 0, "entries": [], "error": str(e)}
+
+        # 检查MAC地址表
+        try:
+            mac_result = check_mac_address_table(connections)
+            results["mac_address_table"] = mac_result
+            if mac_result.get("error"):
+                results["error_message"] += f"MAC地址表检查失败；"
+        except Exception as e:
+            results["error_message"] += f"MAC地址表检查异常 {e}；"
+            results["mac_address_table"] = {"mac_count": 0, "entries": [], "error": str(e)}
+
+        # 检查VLAN信息
+        try:
+            vlan_result = check_vlan_info(connections)
+            results["vlan_info"] = vlan_result
+            if vlan_result.get("error"):
+                results["error_message"] += f"VLAN信息检查失败；"
+        except Exception as e:
+            results["error_message"] += f"VLAN信息检查异常 {e}；"
+            results["vlan_info"] = {"vlan_count": 0, "vlans": [], "error": str(e)}
+
+        # 检查OSPF邻居
+        try:
+            ospf_result = check_ospf_neighbors(connections)
+            results["ospf_neighbors"] = ospf_result
+            if ospf_result.get("error"):
+                results["error_message"] += f"OSPF邻居检查失败；"
+        except Exception as e:
+            results["error_message"] += f"OSPF邻居检查异常 {e}；"
+            results["ospf_neighbors"] = {"ospf_count": 0, "neighbors": [], "error": str(e)}
+
+        # 检查BGP邻居
+        try:
+            bgp_result = check_bgp_neighbors(connections)
+            results["bgp_neighbors"] = bgp_result
+            if bgp_result.get("error"):
+                results["error_message"] += f"BGP邻居检查失败；"
+        except Exception as e:
+            results["error_message"] += f"BGP邻居检查异常 {e}；"
+            results["bgp_neighbors"] = {"bgp_count": 0, "neighbors": [], "error": str(e)}
+
+        # 检查环境信息（温度、电源、风扇）
+        try:
+            env_result = check_environment_info(connections)
+            results["environment"] = env_result
+            # 检查温度是否过高
+            if env_result.get("temperature", {}).get("status") == "危险":
+                device_health_issues.append("设备温度过高")
+            elif env_result.get("temperature", {}).get("status") == "警告":
+                device_health_issues.append("设备温度偏高")
+            # 检查电源状态
+            if env_result.get("power", {}).get("status") == "异常":
+                device_health_issues.append("电源异常")
+            # 检查风扇状态
+            if env_result.get("fan", {}).get("status") == "异常":
+                device_health_issues.append("风扇异常")
+        except Exception as e:
+            results["error_message"] += f"环境信息检查异常 {e}；"
+            results["environment"] = {"temperature": {"status": "未知", "value": "N/A", "error": str(e)},
+                                      "power": {"status": "未知", "count": 0, "error": str(e)},
+                                      "fan": {"status": "未知", "count": 0, "error": str(e)}}
+
+        # 检查STP状态
+        try:
+            stp_result = check_stp_status(connections)
+            results["stp_status"] = stp_result
+            if stp_result.get("error"):
+                results["error_message"] += f"STP状态检查失败；"
+        except Exception as e:
+            results["error_message"] += f"STP状态检查异常 {e}；"
+            results["stp_status"] = {"stp_status": "未知", "root_bridge": "N/A", "error": str(e)}
+
+        # 检查链路聚合
+        try:
+            agg_result = check_link_aggregation(connections)
+            results["link_aggregation"] = agg_result
+            if agg_result.get("error"):
+                results["error_message"] += f"链路聚合检查失败；"
+        except Exception as e:
+            results["error_message"] += f"链路聚合检查异常 {e}；"
+            results["link_aggregation"] = {"agg_count": 0, "agg_groups": [], "error": str(e)}
+
         # 7. 更新检查结果，保留原有逻辑
         results.update(
             {
@@ -339,11 +864,6 @@ def check_single_device(device_info):
                 "memory_usage": memory_usage,
                 "version": version_result,
                 "device_health_issues": device_health_issues,  # 补更：健康问题列表
-                # "error_message": (
-                #     results["error_message"] + ";" + ";".join(device_health_issues)
-                #     if device_health_issues != ["无"]
-                #     else results["error_message"]
-                # 补更：从列表拼接错误信息，和并发一致
             }
         )
         # 检查结果插入数据库
