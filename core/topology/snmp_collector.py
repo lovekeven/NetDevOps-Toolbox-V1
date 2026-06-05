@@ -204,55 +204,47 @@ class SNMPCollector:
         """
         neighbors = []
 
-        # 先用标准 MIB 试试
-        rem_sys_name_list = await self.snmp_walk(OID_LLDP_REM_SYS_NAME)
-        rem_port_id_list = await self.snmp_walk(OID_LLDP_REM_PORT_ID)
+        # MIB 回退列表：按优先级尝试不同厂商的私有 MIB
+        # 格式：(系统名OID, 端口ID OID, 厂商标识)
+        MIB_FALLBACKS = [
+            (OID_LLDP_REM_SYS_NAME, OID_LLDP_REM_PORT_ID, "标准"),
+            (OID_HW_LLDP_REM_SYS_NAME, OID_HW_LLDP_REM_PORT_ID, "华为"),
+            (OID_H3C_LLDP_REM_SYS_NAME, OID_LLDP_REM_PORT_ID, "H3C"),
+            (OID_CISCO_LLDP_REM_SYS_NAME, OID_LLDP_REM_PORT_ID, "Cisco"),
+        ]
+
+        rem_sys_name_list = []
+        rem_port_id_list = []
+
+        for name_oid, port_oid, vendor_name in MIB_FALLBACKS:
+            rem_sys_name_list = await self.snmp_walk(name_oid)
+            if rem_sys_name_list:
+                rem_port_id_list = await self.snmp_walk(port_oid)
+                logger.info(f"使用 {vendor_name} MIB 获取到 LLDP 数据 [{self.ip}]")
+                break
+
+        # 管理地址用标准 MIB（各厂商通用）
         rem_man_addr_list = await self.snmp_walk(OID_LLDP_REM_MAN_ADDR)
-
-        # 标准 MIB 没数据的话，试试华为私有 MIB
-        if not rem_sys_name_list:
-            logger.info(f"标准 LLDP MIB 没数据，试试华为私有 MIB [{self.ip}]")
-            rem_sys_name_list = await self.snmp_walk(OID_HW_LLDP_REM_SYS_NAME)
-            rem_port_id_list = await self.snmp_walk(OID_HW_LLDP_REM_PORT_ID)
-
-        # 还没数据，试 H3C
-        if not rem_sys_name_list:
-            logger.info(f"华为 MIB 没数据，试试 H3C 私有 MIB [{self.ip}]")
-            rem_sys_name_list = await self.snmp_walk(OID_H3C_LLDP_REM_SYS_NAME)
-
-        # 还是没有，试 Cisco
-        if not rem_sys_name_list:
-            logger.info(f"H3C MIB 没数据，试试 Cisco 私有 MIB [{self.ip}]")
-            rem_sys_name_list = await self.snmp_walk(OID_CISCO_LLDP_REM_SYS_NAME)
 
         if not rem_sys_name_list:
             logger.warning(f"LLDP 邻居表为空 [{self.ip}]，可能设备没开 LLDP 或者不支持")
             return neighbors
 
         # 解析邻居数据
-        # LLDP 表的索引结构比较复杂，一般是 lldpRemTimeMark.lldpRemLocalPortNum.lldpRemIndex
-        # 我们按索引来匹配远端名、远端端口、远端地址
+        # LLDP 表索引：lldpRemTimeMark.lldpRemLocalPortNum.lldpRemIndex
+        # 取末尾3段作为 key 来匹配同一邻居的不同属性
+        def _extract_index(oid, segments=3):
+            """从 OID 提取索引 key"""
+            parts = oid.split('.')
+            return '.'.join(parts[-segments:]) if len(parts) >= segments else parts[-1]
 
-        # 先把数据按索引存起来
-        name_dict = {}
-        for oid, val in rem_sys_name_list:
-            # 从 OID 末尾提取索引
-            index = oid.split('.')[-3:] if '.' in oid else [oid]
-            key = '.'.join(index[-3:]) if len(index) >= 3 else oid.split('.')[-1]
-            name_dict[key] = str(val)
+        name_dict = { _extract_index(oid): str(val) for oid, val in rem_sys_name_list }
+        port_dict = { _extract_index(oid): str(val) for oid, val in rem_port_id_list }
 
-        port_dict = {}
-        for oid, val in rem_port_id_list:
-            index = oid.split('.')[-3:] if '.' in oid else [oid]
-            key = '.'.join(index[-3:]) if len(index) >= 3 else oid.split('.')[-1]
-            port_dict[key] = str(val)
-
+        # 管理地址的索引更长，取最后5段
         addr_dict = {}
         for oid, val in rem_man_addr_list:
-            # 管理地址的 OID 更长，取最后几段
-            parts = oid.split('.')
-            key = '.'.join(parts[-5:]) if len(parts) >= 5 else oid
-            # 把 bytes 转成 IP
+            key = _extract_index(oid, segments=5)
             if isinstance(val, bytes):
                 addr_dict[key] = '.'.join(str(b) for b in val)
             else:

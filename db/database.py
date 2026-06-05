@@ -791,13 +791,39 @@ class DatabaseManager:
             self.conn.rollback()
             raise
 
-    # 批量保存拓扑节点
+    # 批量保存拓扑节点（用单个事务，比逐条 commit 快很多）
     def batch_save_topology_nodes(self, node_list):
         if not node_list:
             return
-        for node in node_list:
-            self.save_topology_node(node)
-        logger.info(f"批量保存拓扑节点完成，共{len(node_list)}个")
+        sql = """
+        INSERT OR REPLACE INTO topology_nodes
+        (node_id, name, ip_address, device_type, vendor, model, status, layer, sys_descr, sys_name, x, y, last_seen)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """
+        cursor = self.conn.cursor()
+        try:
+            for node in node_list:
+                params = (
+                    node.get("node_id"),
+                    node.get("name", "未知设备"),
+                    node.get("ip_address"),
+                    node.get("device_type", "switch"),
+                    node.get("vendor"),
+                    node.get("model"),
+                    node.get("status", "online"),
+                    node.get("layer", "access"),
+                    node.get("sys_descr"),
+                    node.get("sys_name"),
+                    node.get("x", 0),
+                    node.get("y", 0),
+                )
+                cursor.execute(sql, params)
+            self.conn.commit()
+            logger.info(f"批量保存拓扑节点完成，共{len(node_list)}个")
+        except sqlite3.Error as e:
+            logger.error(f"批量保存拓扑节点失败：{e}")
+            self.conn.rollback()
+            raise
 
     # 获取所有拓扑节点
     def get_all_topology_nodes(self):
@@ -850,13 +876,34 @@ class DatabaseManager:
             self.conn.rollback()
             raise
 
-    # 批量保存链路
+    # 批量保存链路（用单个事务）
     def batch_save_topology_links(self, link_list):
         if not link_list:
             return
-        for link in link_list:
-            self.save_topology_link(link)
-        logger.info(f"批量保存拓扑链路完成，共{len(link_list)}条")
+        sql = """
+        INSERT OR IGNORE INTO topology_links
+        (source_node, target_node, source_port, target_port, bandwidth, status, link_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+        cursor = self.conn.cursor()
+        try:
+            for link in link_list:
+                params = (
+                    link.get("source_node"),
+                    link.get("target_node"),
+                    link.get("source_port"),
+                    link.get("target_port"),
+                    link.get("bandwidth"),
+                    link.get("status", "up"),
+                    link.get("link_type", "ethernet"),
+                )
+                cursor.execute(sql, params)
+            self.conn.commit()
+            logger.info(f"批量保存拓扑链路完成，共{len(link_list)}条")
+        except sqlite3.Error as e:
+            logger.error(f"批量保存拓扑链路失败：{e}")
+            self.conn.rollback()
+            raise
 
     # 获取所有拓扑链路
     def get_all_topology_links(self):

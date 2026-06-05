@@ -107,66 +107,37 @@ class NetworkTopology {
         const { node_id, name, device_type, vendor, status, ip_address } = device;
         const id = node_id || device.id;
         const type = device_type || device.type || 'switch';
-        const devStatus = status || 'online';
+        const isOnline = (status || 'online') === 'online';
 
-        let shape, color, icon;
+        // 设备类型 -> 样式映射表
+        const DEVICE_STYLES = {
+            router:   { shape: 'diamond',  online: '#8b5cf6', offline: '#6b7280', hlOnline: '#a78bfa', hlOffline: '#8b5cf6', size: 35 },
+            firewall: { shape: 'triangle', online: '#f59e0b', offline: '#6b7280', hlOnline: '#fbbf24', hlOffline: '#f59e0b', size: 30 },
+            pc:       { shape: 'dot',      online: '#10b981', offline: '#ef4444', hlOnline: '#34d399', hlOffline: '#10b981', size: 20 },
+            ap:       { shape: 'dot',      online: '#10b981', offline: '#ef4444', hlOnline: '#34d399', hlOffline: '#10b981', size: 20 },
+            cloud:    { shape: 'icon',     online: 'transparent', offline: 'transparent', hlOnline: 'transparent', hlOffline: 'transparent', size: 50 },
+            switch:   { shape: 'box',      online: '#3b82f6', offline: '#6b7280', hlOnline: '#60a5fa', hlOffline: '#3b82f6', size: 30 },
+        };
 
-        switch (type) {
-            case 'router':
-                shape = 'diamond';
-                color = {
-                    background: devStatus === 'online' ? '#8b5cf6' : '#6b7280',
-                    border: devStatus === 'online' ? '#7c3aed' : '#4b5563',
-                    highlight: { background: '#a78bfa', border: '#8b5cf6' }
-                };
-                break;
-
-            case 'firewall':
-                shape = 'triangle';
-                color = {
-                    background: devStatus === 'online' ? '#f59e0b' : '#6b7280',
-                    border: devStatus === 'online' ? '#d97706' : '#4b5563',
-                    highlight: { background: '#fbbf24', border: '#f59e0b' }
-                };
-                break;
-
-            case 'pc':
-            case 'ap':
-                shape = 'dot';
-                color = {
-                    background: devStatus === 'online' ? '#10b981' : '#ef4444',
-                    border: devStatus === 'online' ? '#059669' : '#dc2626',
-                    highlight: { background: '#34d399', border: '#10b981' }
-                };
-                break;
-
-            case 'cloud':
-                shape = 'icon';
-                icon = {
-                    face: 'FontAwesome',
-                    code: '',
-                    size: 50,
-                    color: '#3b82f6'
-                };
-                color = { background: 'transparent', border: 'transparent' };
-                break;
-
-            default: // switch
-                shape = 'box';
-                color = {
-                    background: devStatus === 'online' ? '#3b82f6' : '#6b7280',
-                    border: devStatus === 'online' ? '#2563eb' : '#4b5563',
-                    highlight: { background: '#60a5fa', border: '#3b82f6' }
-                };
+        const style = DEVICE_STYLES[type] || DEVICE_STYLES.switch;
+        let icon;
+        if (type === 'cloud') {
+            icon = { face: 'FontAwesome', code: '', size: 50, color: '#3b82f6' };
         }
+
+        const color = {
+            background: isOnline ? style.online : style.offline,
+            border: isOnline ? style.hlOnline : style.hlOffline,
+            highlight: { background: isOnline ? style.hlOnline : style.hlOffline, border: isOnline ? style.online : style.offline }
+        };
 
         return {
             id: id,
             label: name || id,
-            shape: shape,
+            shape: style.shape,
             color: color,
             icon: icon,
-            size: type === 'cloud' ? 50 : type === 'router' ? 35 : 30,
+            size: style.size,
             title: this.generateTooltip(device),
             font: {
                 color: '#ffffff',

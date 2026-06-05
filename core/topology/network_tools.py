@@ -7,8 +7,6 @@ import sys
 import os
 import subprocess
 import socket
-import struct
-import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

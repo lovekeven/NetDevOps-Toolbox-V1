@@ -26,17 +26,21 @@ class TopologyBuilder:
         # 存放最终结果
         self.nodes = {}      # {node_id: node_dict}
         self.links = []      # [link_dict, ...]
+        self._link_set = set()  # 链路去重用，O(1) 查找
         self.visited = set() # 已访问的设备，防止死循环
 
     # -----------------------------------------------------------
     # 设备分类
     # -----------------------------------------------------------
 
-    def classify_device(self, sys_descr, vendor):
+    def classify_device(self, sys_descr, vendor=''):
         """
         根据系统描述判断设备类型
         简单粗暴的关键词匹配，够用了
         """
+        if not sys_descr:
+            return 'switch'
+
         descr_lower = sys_descr.lower()
 
         # 路由器关键词
@@ -52,7 +56,7 @@ class TopologyBuilder:
                 return 'firewall'
 
         # 交换机关键词（大部分都是交换机）
-        switch_keywords = ['switch', 's57', 's67', 's77', 's127', 's93', 'catalyst', ' nexus']
+        switch_keywords = ['switch', 's57', 's67', 's77', 's127', 's93', 'catalyst', 'nexus']
         for kw in switch_keywords:
             if kw in descr_lower:
                 return 'switch'
@@ -108,16 +112,12 @@ class TopologyBuilder:
         添加一条链路，自动去重
         A->B 和 B->A 算同一条
         """
-        # 统一排序，保证 A-B 和 B-A 是同一个 key
+        # 用 set 做 O(1) 去重，比遍历 list 快多了
         pair = tuple(sorted([source, target]))
+        if pair in self._link_set:
+            return
 
-        # 检查是否已存在
-        for link in self.links:
-            existing_pair = tuple(sorted([link['source_node'], link['target_node']]))
-            if existing_pair == pair:
-                # 已存在，跳过
-                return
-
+        self._link_set.add(pair)
         self.links.append({
             'source_node': source,
             'target_node': target,
