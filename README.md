@@ -1,36 +1,59 @@
 # NetDevOps-Toolbox-V1
-## ✨ 最新进展：项目已升级为智能数据化系统（V7.2）！
-- **日期**：2026年3月8日
-- **里程碑**：新增Docker容器化部署，GitHub Actions自动化CI/CD，支持阿里云镜像仓库一键拉取
+## ✨ 最新进展：项目已升级为智能数据化系统（V8.0）！
+- **日期**：2026年6月5日
+- **里程碑**：新增网络拓扑可视化功能，支持传统网络 SNMP 探测和 SDN 控制器对接
 - **核心功能**：
-    - 🗃️ **数据持久化**：集成SQLite数据库，扩展设备检查健康状态，物理设备档案卡数据表，实现设备/系统/服务数据全量存储与追溯。
-    - 🤖 **AI智能分析**：接入大模型API，可根据自动生成智能运维报告，并且一键发送到邮箱。
-    - ⚡ **专业并发框架**：优化Nornir框架逻辑，根据实际情况判断设备是否健康。
-    - 📈 **系统可观测性**：完成全维度监控体系建设（系统级指标/API服务/Nornir框架/Web仪表盘），支持实时状态查询与阈值告警。
-    - 🌐 **API能力扩展**：主要新增添加设备，和删除设备以及发送邮件的API接口。
-    - 🐳 **容器化部署**：支持Docker一键部署，无需克隆项目，直接拉取镜像即可运行。
-    - 🔄 **自动化CI/CD**：GitHub Actions自动构建并推送镜像到阿里云容器镜像服务。
-- **技术栈**：Python, Flask, SQLite, Nornir, Netmiko, AI API, RESTful API, psutil（系统监控）
-- **体验地址**：Docker 一键部署 `docker pull crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/zhuangdedocker/wangjianzhuangdedocker:latest`，即可在浏览器访问 `http://localhost:8080`（点击「检查系统服务状态」体验监控功能）
+    - 🗺️ **网络拓扑可视化**：支持 SNMP+LLDP 自动发现网络拓扑，可视化展示设备连接关系
+    - 🔀 **双模切换**：传统网络探测模式 / SDN 控制器模式（Ryu）一键切换
+    - 🛠️ **网络工具箱**：Ping、端口扫描、网段扫描、Traceroute、LLDP 查询
+    - 🚨 **故障告警**：设备离线自动弹窗告警，Toast 通知
+    - 💾 **批量备份**：一键批量备份所有设备配置
+    - ✏️ **拓扑编辑**：支持手动添加/删除设备，自定义拓扑布局
+    - 🎨 **专业图标**：10种设备类型 FontAwesome 图标（路由器/交换机/防火墙/PC/服务器等）
+    - 🗃️ **数据持久化**：集成SQLite数据库，拓扑快照、设备档案卡、备份记录全量存储
+    - 🤖 **AI智能分析**：接入大模型API，自动生成智能运维报告
+    - 📈 **系统可观测性**：全维度监控体系建设，支持实时状态查询与阈值告警
+    - 🐳 **容器化部署**：支持Docker一键部署
+- **技术栈**：Python, Flask, SQLite, Nornir, Netmiko, pysnmp, vis.js, AI API, psutil
+- **体验地址**：Docker 一键部署 `docker pull crpi-wxw6k2suvvg9fa0s.cn-hangzhou.personal.cr.aliyuncs.com/zhuangdedocker/wangjianzhuangdedocker:latest`，即可在浏览器访问 `http://localhost:8080`
 ## 一，项目描述
 这是一款基于 Python 开发的网络设备自动化运维工具，能批量完成网络设备的配置备份和健康状态检查（接口、CPU、内存），通过Web仪表盘统一操作，解决传统手动运维效率低、易出错的问题。同时在前端增加云网络，和混合云平台
 ## 二，功能特性
-- 自动化备份：支持批量备份指定/所有设备的接口配置，文件按IP+时间戳归档，支持在前端页面下载备份结果，并且可以按天数，记录数查询备份历史
-- 健康检查：自动统计设备接口UP/DOWN数量、CPU使用率、内存使用率，同样也支持按天数，记录数查询备份历史
-- 异常提示：连接失败时精准提示原因（认证失败、超时、IP不可达等），并且在后端改为多线程处理，加载页面慢的原因，后端在判断设备是否连接成功
-- 配置灵活：设备信息通过前端“添加设备按钮”，直接添加用户所需设备，并且支持删除设备
-- AI分析：升级AI分析报告，可以分别对备份历史，和健康历史进行AI分析。对设备健康历史分析时，增加对单个设备那些天数的历史分析，和对所有设备的历史分析，增加灵活性
-- 邮件发送：AI分析完毕后，支持一键发送到邮箱（指定邮箱发送可视化还在开发中），和每周自动发送邮箱
-- 档案卡查询：档案卡接入数据库，显示最后一次的检查状态，和检查时间。方便用户查询和管理
-- 云网络引入：可以切换模拟和真实API模式，对接真实阿里云
-- 混合云平台：支持真实物理设备和真实云资源的查看，根据资源ID的查询，并且可以直观看到所关注的资源的健康（后端判断健康同样判断真实数据，具体详情还在开发中），
+
+### 🗺️ 网络拓扑可视化（V8.0 新增）
+- **SNMP 拓扑发现**：输入种子设备IP，通过 SNMP+LLDP 自动发现全网设备和链路
+- **双模切换**：支持传统网络探测模式和 SDN 控制器模式（Ryu）
+- **网络工具箱**：Ping 连通测试、TCP 端口扫描、网段存活扫描、Traceroute 路径追踪、LLDP 邻居查询
+- **故障告警**：设备离线自动弹窗告警，Toast 通知提醒
+- **拓扑编辑**：支持手动添加/删除设备，拖拽调整布局
+- **快照管理**：保存拓扑快照，支持历史对比
+- **导出功能**：支持导出 PNG 图片和 JSON 数据
+- **设备图标**：10种设备类型专业图标（路由器/交换机/防火墙/PC/服务器/AP/云/打印机/摄像头/电话）
+
+### 🛠️ 基础运维功能
+- **自动化备份**：支持批量备份指定/所有设备的配置，文件按IP+时间戳归档
+- **健康检查**：自动统计设备接口UP/DOWN数量、CPU使用率、内存使用率
+- **异常提示**：连接失败时精准提示原因（认证失败、超时、IP不可达等）
+- **配置灵活**：设备信息通过前端添加和删除
+
+### 🤖 智能分析
+- **AI分析报告**：接入大模型API，自动生成智能运维报告
+- **邮件发送**：支持一键发送报告到邮箱，和每周自动发送
+
+### ☁️ 云网络与混合云
+- **云网络引入**：可以切换模拟和真实API模式，对接真实阿里云
+- **混合云平台**：支持真实物理设备和真实云资源的统一管理
 ## 三，技术栈
-- 核心语言：Python 3.8+
-- 网络设备连接：Netmiko
-- 配置文件解析：PyYAML
-- 命令行参数：argparse
-- 后端服务器搭建：flask
-- 发送API请求：requests
+- **核心语言**：Python 3.8+
+- **Web框架**：Flask + Flask-SocketIO
+- **数据库**：SQLite
+- **网络设备连接**：Netmiko + Nornir
+- **SNMP采集**：pysnmp
+- **前端可视化**：vis.js（拓扑图）+ ECharts（图表）
+- **系统监控**：psutil
+- **AI集成**：DeepSeek API
+- **云服务**：阿里云 SDK
+- **容器化**：Docker + GitHub Actions CI/CD
 ## 四，安装与使用
 
 ### 1. 环境部署方式（二选一，按需选择）
@@ -98,76 +121,50 @@
 
 ## 五，项目结构
 
-- NetDevOps-Toolbox-V1/ # 项目根目录
-  - ├── web/ # Web模块（新增，推荐使用）
-  - │   ├── __init__.py
-  - │   ├── web_dashboard.py # WEB仪表盘脚本（推荐）
-  - ├── main.py # 统一调度中心（命令行方式，备选）
-  - ├── config/ # 配置文件目录（新增）
-  - │   ├── devices.yaml # 设备信息配置文件
-  - │   ├── nornir_config.yaml # Nornir主配置文件
-  - │   ├── nornir_inventory.yaml # Nornir框架下的设备清单
-  - │   ├── cloud_resources.yaml # 云资源配置（新增）
-  - │   └── emali_config.py # 邮件配置（新增）
-  - ├── core/ # 核心功能模块（新增）
-  - │   ├── AI/ # AI智能分析模块
-  - │   │   └── report_generator.py # 调用AI大模型
-  - │   ├── api/ # API模块
-  - │   │   └── api_checker.py # 查询云端服务器和设备
-  - │   ├── backup/ # 备份功能模块
-  - │   │   └── backup_handler.py # 备份功能核心脚本
-  - │   ├── cloud/ # 云网络概念模块（新增）
-  - │   │   ├── real_providers/ # 真实云服务提供商（新增）
-  - │   │   │   ├── __init__.py
-  - │   │   │   └── ali_client.py # 阿里云客户端（新增）
-  - │   │   └── concept_simulator.py # 云网络概念模拟器
-  - │   ├── Email/ # 邮件发送模块（新增）
-  - │   │   └── auto_send_report.py # 自动发送报告（新增）
-  - │   ├── health_check/ # 健康检查模块
-  - │   │   └── health_checker.py # 健康检查功能核心脚本
-  - │   ├── hybrid_manager/ # 混合云管理模块（新增）
-  - │   │   └── hybrid_manager.py # 混合云资源管理（新增）
-  - │   ├── monitoring/ # 系统监控模块
-  - │   │   └── monitoring.py # 系统指标收集
-  - │   ├── nornir/ # Nornir并发模块
-  - │   │   └── nornir_tasks.py # Nornir并发执行任务
-  - │   └── __init__.py
-  - ├── db/ # 数据库模块（新增）
-  - │   ├── __init__.py
-  - │   ├── database.py # 数据库连接脚本
-  - ├── depoly/ # 部署相关（新增）
-  - │   ├── Dockerfile
-  - │   └── requirements.txt
-  - ├── docs/ # 文档目录（新增）
-  - │   ├── CHANGELOG.md # 项目演进历史
-  - │   └── PROJECT_JOURNEY.md # 项目演进和优化日志
-  - ├── reports/ # 报告目录（新增）
-  - │   └── __init__.py
-  - ├── tests/ # 测试目录（新增）
-  - │   ├── __init__.py
-  - │   ├── test_device_reader.py # 测试函数脚本
-  - │   ├── test_hybrid_manager.py # 测试混合云管理器（新增）
-  - │   ├── test_integration.py # 测试统一模型整合
-  - │   └── test_models.py # 测试数据模型（新增）
-  - ├── utils/ # 工具模块（新增）
-  - │   ├── __init__.py
-  - │   ├── models.py # 统一数据模型定义
-  - │   ├── log_setup.py # 创建日志配置模块
-  - │   ├── retry_decorator.py # 装饰器模块
-  - │   ├── aliyun_time.py # 阿里云时间工具（新增）
-  - │   ├── email_sender.py # 邮件发送工具（新增）
-  - │   └── valid_ipv4.py # IP地址验证工具（新增）
-  - ├── netdevops.db # 数据库（自动生成）
-  - ├── backupN1/ # 备份文件归档目录（自动生成）
-  - │   ├── 192.168.91.111__配置__20240520-143025.txt
-  - │   └── 192.168.91.112__配置__20240520-143030.txt
-  - ├── logs/ # 日志文件归档目录（自动生成）
-  - │   ├── backup.log
-  - │   ├── health_check.log
-  - │   └── ...
-  - ├── README.md # 项目说明文档（本文件）
-  - ├── LICENSE # 开源许可证（MIT）
-  └── requirements.txt # 项目依赖
+```
+NetDevOps-Toolbox-V1/
+├── web/                          # Web 模块
+│   ├── web_dashboard.py          # Web 仪表盘主程序
+│   ├── static/js/
+│   │   └── topology.js           # 拓扑可视化模块
+│   └── templates/
+│       └── index.html            # 前端页面
+├── core/                         # 核心功能模块
+│   ├── topology/                 # 网络拓扑模块（V8.0 新增）
+│   │   ├── snmp_collector.py     # SNMP 采集器
+│   │   ├── sdn_collector.py      # SDN 控制器采集器（Ryu）
+│   │   ├── topology_builder.py   # 拓扑算法构建器
+│   │   └── network_tools.py      # 网络工具集（Ping/端口/Traceroute）
+│   ├── AI/                       # AI 智能分析模块
+│   ├── backup/                   # 备份功能模块
+│   ├── health_check/             # 健康检查模块
+│   ├── cloud/                    # 云网络模块
+│   ├── monitoring/               # 系统监控模块
+│   └── nornir/                   # Nornir 并发模块
+├── db/
+│   └── database.py               # 数据库管理（SQLite）
+├── config/                       # 配置文件目录
+├── utils/                        # 工具模块
+├── docs/                         # 文档目录
+├── main.py                       # 命令行调度中心
+├── Dockerfile                    # Docker 部署文件
+├── requirements.txt              # 项目依赖
+└── README.md                     # 项目说明文档
+```
+
+### 数据库表结构
+| 表名 | 说明 |
+|------|------|
+| devices | 设备信息表 |
+| backup_records | 备份记录表 |
+| health_check_records | 健康检查记录表 |
+| physical_device_cards | 物理设备档案卡 |
+| topology_nodes | 拓扑节点表 |
+| topology_links | 拓扑链路表 |
+| topology_snapshots | 拓扑快照表 |
+| system_metrics | 系统指标表 |
+| config_versions | 配置版本表 |
+| compliance_rules | 合规检查规则表 |
 
 
 ### 致谢
@@ -181,5 +178,5 @@
 
 这次优化的很多，隔了这么长时间优化项目，感觉都不是自己做的了，哈哈，太厉害了！ —— 2026.3.7
 
-
+网络拓扑可视化功能完成！支持 SNMP 拓扑发现、SDN 控制器对接、网络工具箱，三期迭代开发，终于搞定了！ —— 2026.6.5
 
