@@ -15,17 +15,21 @@ from utils.log_setup import setup_logger
 
 logger = setup_logger("snmp_collector", "topology.log")
 
-# pysnmp 相关导入
+# pysnmp 相关导入（兼容 4.x 和 6.x 版本）
 try:
-    from pysnmp.hlapi.v3arch.asyncio import (
-        get_cmd, next_cmd, bulk_cmd,
+    from pysnmp.hlapi.asyncio.cmdgen import (
+        getCmd, nextCmd, bulkCmd,
         SnmpEngine, CommunityData, UsmUserData,
         UdpTransportTarget, ContextData,
         ObjectType, ObjectIdentity,
         usmHMACMD5AuthProtocol, usmHMACSHAAuthProtocol,
         usmDESPrivProtocol, usmAesCfb128Protocol,
-        OctetString
     )
+    from pysnmp.proto.rfc1902 import OctetString
+    # 适配：把驼峰命名映射成下划线命名，方便后面代码用
+    get_cmd = getCmd
+    next_cmd = nextCmd
+    bulk_cmd = bulkCmd
     PYSNMP_AVAILABLE = True
 except ImportError:
     PYSNMP_AVAILABLE = False
