@@ -221,6 +221,21 @@ class DatabaseManager:
                 created_by TEXT DEFAULT 'system'
             );
             """,
+            # 命令执行历史表：保存每次命令执行的结果
+            """
+            CREATE TABLE IF NOT EXISTS command_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                device_name TEXT NOT NULL,              -- 设备名称
+                device_ip TEXT NOT NULL,                -- 设备IP
+                command TEXT NOT NULL,                  -- 执行的命令
+                command_category TEXT,                  -- 命令分类（接口/路由/VLAN等）
+                result TEXT NOT NULL,                   -- 命令执行结果
+                status TEXT DEFAULT 'success',          -- 执行状态：success/failed
+                error_message TEXT,                     -- 错误信息（如果失败）
+                execution_time REAL,                    -- 执行耗时（秒）
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """,
         ]
         cursor = self.conn.cursor()
         try:
@@ -984,6 +999,94 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logger.error(f"获取拓扑快照详情失败：{e}")
             raise
+
+    # ============================================================
+    # 命令执行历史相关方法
+    # ============================================================
+
+    def save_command_history(self, device_name, device_ip, command, command_category, result, status='success', error_message=None, execution_time=None):
+        """保存命令执行历史"""
+        sql = """
+        INSERT INTO command_history
+        (device_name, device_ip, command, command_category, result, status, error_message, execution_time)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (device_name, device_ip, command, command_category, result, status, error_message, execution_time))
+            self.conn.commit()
+            return cursor.lastrowid
+        except sqlite3.Error as e:
+            logger.error(f"保存命令历史失败：{e}")
+            self.conn.rollback()
+            raise
+
+    def get_command_history(self, device_name=None, command=None, limit=50):
+        """获取命令执行历史"""
+        conditions = []
+        params = []
+
+        if device_name:
+            conditions.append("device_name = ?")
+            params.append(device_name)
+        if command:
+            conditions.append("command = ?")
+            params.append(command)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        sql = f"""
+        SELECT id, device_name, device_ip, command, command_category, status, execution_time, created_at
+        FROM command_history
+        WHERE {where_clause}
+        ORDER BY created_at DESC
+        LIMIT ?
+        """
+        params.append(limit)
+
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            results = cursor.fetchall()
+            return [dict(r) for r in results]
+        except sqlite3.Error as e:
+            logger.error(f"查询命令历史失败：{e}")
+            raise
+
+    def get_command_history_detail(self, history_id):
+        """获取命令历史详情（包含完整结果）"""
+        sql = "SELECT * FROM command_history WHERE id = ?"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (history_id,))
+            result = cursor.fetchone()
+            return dict(result) if result else None
+        except sqlite3.Error as e:
+            logger.error(f"获取命令历史详情失败：{e}")
+            raise
+
+    def compare_command_results(self, history_id_1, history_id_2):
+        """对比两次命令执行结果"""
+        result1 = self.get_command_history_detail(history_id_1)
+        result2 = self.get_command_history_detail(history_id_2)
+
+        if not result1 or not result2:
+            return None
+
+        # 简单的行级对比
+        lines1 = result1['result'].splitlines() if result1['result'] else []
+        lines2 = result2['result'].splitlines() if result2['result'] else []
+
+        added = [line for line in lines2 if line not in lines1]
+        removed = [line for line in lines1 if line not in lines2]
+
+        return {
+            'result1': result1,
+            'result2': result2,
+            'added': added,
+            'removed': removed,
+            'added_count': len(added),
+            'removed_count': len(removed),
+        }
 
 
 db_manager = DatabaseManager()

@@ -223,6 +223,167 @@ class TopologyBuilder:
         logger.info(f"拓扑构建完成：{len(self.nodes)} 个节点，{len(self.links)} 条链路")
 
     # -----------------------------------------------------------
+    # 广度优先多层扫描（核心算法）
+    # -----------------------------------------------------------
+
+    async def build_topology_bfs(self, seed_ip, community='public', max_depth=3, snmp_version='v2c',
+                                  username='', auth_protocol='none', auth_password='',
+                                  priv_protocol='none', priv_password=''):
+        """
+        广度优先扫描全网拓扑
+        从种子设备开始，逐层发现邻居的邻居，直到没有新设备
+
+        :param seed_ip: 种子设备IP
+        :param community: SNMP团体名（v2c用）
+        :param max_depth: 最大扫描深度，防止死循环（默认3层）
+        :param snmp_version: SNMP版本 v2c/v3
+        :param username: v3用户名
+        :param auth_protocol: v3认证协议
+        :param auth_password: v3认证密码
+        :param priv_protocol: v3加密协议
+        :param priv_password: v3加密密码
+        """
+        from core.topology.snmp_collector import SNMPCollector
+        import asyncio
+
+        logger.info(f"开始广度优先扫描，种子设备：{seed_ip}，最大深度：{max_depth}")
+
+        # 待扫描队列：(设备IP, 深度)
+        queue = [(seed_ip, 0)]
+
+        while queue:
+            current_ip, depth = queue.pop(0)  # FIFO，广度优先
+
+            # 跳过已访问的设备
+            if current_ip in self.visited:
+                continue
+
+            # 超过最大深度就停
+            if depth >= max_depth:
+                logger.info(f"达到最大深度 {max_depth}，停止扫描 [{current_ip}]")
+                continue
+
+            # 标记为已访问
+            self.visited.add(current_ip)
+            logger.info(f"扫描设备 [{current_ip}]，当前深度：{depth}")
+
+            try:
+                # 创建采集器，根据版本传不同参数
+                if snmp_version == 'v3':
+                    collector = SNMPCollector(
+                        current_ip, version='v3',
+                        username=username,
+                        auth_protocol=auth_protocol,
+                        auth_password=auth_password,
+                        priv_protocol=priv_protocol,
+                        priv_password=priv_password,
+                    )
+                else:
+                    collector = SNMPCollector(current_ip, community=community)
+
+                # 采集这台设备的所有信息
+                collected_data = await collector.collect_all()
+
+                # 把这台设备的信息加入拓扑
+                self._add_device_to_topology(current_ip, collected_data)
+
+                # 把这台设备的邻居加入待扫描队列
+                neighbors = collected_data.get('lldp_neighbors', [])
+                for neighbor in neighbors:
+                    neighbor_ip = neighbor.get('remote_ip', '')
+                    if neighbor_ip and neighbor_ip not in self.visited:
+                        queue.append((neighbor_ip, depth + 1))
+                        logger.info(f"发现新邻居 [{neighbor_ip}]，加入扫描队列（深度 {depth + 1}）")
+
+            except Exception as e:
+                logger.error(f"扫描设备 [{current_ip}] 失败：{e}")
+                continue
+
+        # 扫描完成，更新网络层级
+        self._update_layers()
+
+        logger.info(f"广度优先扫描完成：{len(self.nodes)} 个节点，{len(self.links)} 条链路")
+
+    def _add_device_to_topology(self, device_ip, collected_data):
+        """
+        把一台设备的采集数据加入拓扑
+        和 build_from_lldp 类似，但不重置已有数据
+        """
+        # 1. 添加设备本身
+        device_info = collected_data.get('device_info', {})
+        vendor = collected_data.get('vendor', 'unknown')
+        sys_descr = device_info.get('sys_descr', '')
+        device_type = self.classify_device(sys_descr, vendor)
+
+        self.add_node(
+            node_id=device_ip,
+            name=device_info.get('sys_name', f'Device-{device_ip}'),
+            ip=device_ip,
+            device_type=device_type,
+            vendor=vendor,
+            sys_descr=sys_descr,
+        )
+
+        # 2. 处理 LLDP 邻居
+        neighbors = collected_data.get('lldp_neighbors', [])
+        for neighbor in neighbors:
+            remote_name = neighbor.get('remote_name', '')
+            remote_ip = neighbor.get('remote_ip', '')
+            remote_port = neighbor.get('remote_port', '')
+            local_port = neighbor.get('local_port', '')
+
+            if not remote_name and not remote_ip:
+                continue
+
+            # 用 IP 做节点 ID，没有 IP 就用名字
+            neighbor_id = remote_ip if remote_ip else remote_name
+
+            # 把邻居加到节点列表
+            self.add_node(
+                node_id=neighbor_id,
+                name=remote_name if remote_name else f'Unknown-{neighbor_id}',
+                ip=remote_ip,
+                device_type='switch',  # 默认，等扫描到它再更新
+                vendor='unknown',
+            )
+
+            # 添加链路
+            self.add_link(
+                source=device_ip,
+                target=neighbor_id,
+                source_port=local_port,
+                target_port=remote_port,
+            )
+
+        # 3. 处理 ARP 表（发现终端设备）
+        arp_table = collected_data.get('arp_table', [])
+
+        # LLDP 邻居的 IP 集合
+        lldp_ips = set()
+        for n in neighbors:
+            if n.get('remote_ip'):
+                lldp_ips.add(n['remote_ip'])
+
+        for arp in arp_table:
+            arp_ip = arp.get('ip', '')
+            if arp_ip and arp_ip not in lldp_ips and arp_ip != device_ip:
+                # 不在 LLDP 邻居里，可能是终端
+                self.add_node(
+                    node_id=arp_ip,
+                    name=f'Terminal-{arp_ip}',
+                    ip=arp_ip,
+                    device_type='pc',
+                    vendor='unknown',
+                    status='online',
+                )
+                self.add_link(
+                    source=device_ip,
+                    target=arp_ip,
+                    source_port='',
+                    target_port='',
+                )
+
+    # -----------------------------------------------------------
     # 更新网络层级
     # -----------------------------------------------------------
 
@@ -239,7 +400,158 @@ class TopologyBuilder:
         # 更新层级
         for node_id, node in self.nodes.items():
             count = neighbor_count.get(node_id, 0)
-            node['layer'] = self.guess_layer(node['device_type'], count)
+            node['layer'] = self.guess_layer(device_type=node['device_type'], neighbors_count=count)
+
+    # -----------------------------------------------------------
+    # MAC 双向匹配算法（创新点！）
+    # -----------------------------------------------------------
+
+    def build_links_from_mac_table(self, all_devices_data):
+        """
+        MAC 双向匹配算法
+        当 LLDP 失效时，通过 MAC 地址表反向推导链路
+
+        原理：
+        设备A的MAC表：MAC-X 从端口1学到
+        设备B的MAC表：MAC-X 从端口2学到
+        → 说明 A:1 和 B:2 可能相连
+
+        :param all_devices_data: 所有设备的采集数据 {ip: collected_data}
+        """
+        logger.info("开始 MAC 双向匹配算法...")
+
+        # 1. 收集所有设备的 MAC 表
+        # 格式：{device_ip: [(mac, port), ...]}
+        device_mac_tables = {}
+        for device_ip, data in all_devices_data.items():
+            mac_table = data.get('mac_table', [])
+            if mac_table:
+                device_mac_tables[device_ip] = mac_table
+
+        if not device_mac_tables:
+            logger.info("没有 MAC 表数据，跳过 MAC 匹配")
+            return
+
+        # 2. 建立 MAC → 出现位置的映射
+        # 格式：{mac: [(device_ip, port), ...]}
+        mac_locations = {}
+        for device_ip, mac_entries in device_mac_tables.items():
+            for entry in mac_entries:
+                mac = entry.get('mac', '')
+                port = entry.get('port', 0)
+                if mac:
+                    if mac not in mac_locations:
+                        mac_locations[mac] = []
+                    mac_locations[mac].append((device_ip, port))
+
+        # 3. 找到出现在多台设备上的 MAC，推导链路
+        new_links_count = 0
+        for mac, locations in mac_locations.items():
+            if len(locations) < 2:
+                continue  # 只出现在一台设备上，无法推导
+
+            # MAC 出现在多台设备上，可能是链路
+            # 但需要排除终端设备（PC、手机等）
+            # 终端设备的 MAC 通常只出现在一台交换机的 MAC 表里
+            # 而交换机之间的链路，MAC 会出现在两台交换机的 MAC 表里
+
+            # 简单策略：如果 MAC 出现在 2 台设备上，且这两台设备都是网络设备
+            # 则认为它们之间有链路
+            for i in range(len(locations)):
+                for j in range(i + 1, len(locations)):
+                    device_a, port_a = locations[i]
+                    device_b, port_b = locations[j]
+
+                    # 检查是否都是已知的网络设备（不是终端）
+                    node_a = self.nodes.get(device_a)
+                    node_b = self.nodes.get(device_b)
+
+                    if node_a and node_b:
+                        # 两个都是已知设备，可能是链路
+                        # 检查是否已经有这条链路
+                        pair = tuple(sorted([device_a, device_b]))
+                        if pair not in self._link_set:
+                            # 添加链路
+                            self.add_link(
+                                source=device_a,
+                                target=device_b,
+                                source_port=str(port_a),
+                                target_port=str(port_b),
+                            )
+                            new_links_count += 1
+                            logger.info(f"MAC 匹配发现链路: {device_a}:{port_a} <-> {device_b}:{port_b} (MAC: {mac})")
+
+        # 4. 更新网络层级
+        self._update_layers()
+
+        logger.info(f"MAC 双向匹配完成，新增 {new_links_count} 条链路")
+
+    def build_topology_with_mac_fallback(self, seed_ip, community='public', max_depth=3,
+                                          snmp_version='v2c', username='', auth_protocol='none',
+                                          auth_password='', priv_protocol='none', priv_password=''):
+        """
+        带 MAC 回退的拓扑发现
+        先用 LLDP 发现链路，如果 LLDP 失效，用 MAC 表推导
+
+        这是创新点的核心算法！
+        """
+        from core.topology.snmp_collector import SNMPCollector
+        import asyncio
+
+        logger.info(f"开始带 MAC 回退的拓扑发现，种子：{seed_ip}")
+
+        # 1. 先做 BFS 扫描，收集所有设备的数据
+        all_devices_data = {}  # {ip: collected_data}
+
+        queue = [(seed_ip, 0)]
+        while queue:
+            current_ip, depth = queue.pop(0)
+
+            if current_ip in self.visited:
+                continue
+            if depth >= max_depth:
+                continue
+
+            self.visited.add(current_ip)
+
+            try:
+                # 创建采集器
+                if snmp_version == 'v3':
+                    collector = SNMPCollector(
+                        current_ip, version='v3',
+                        username=username, auth_protocol=auth_protocol,
+                        auth_password=auth_password, priv_protocol=priv_protocol,
+                        priv_password=priv_password,
+                    )
+                else:
+                    collector = SNMPCollector(current_ip, community=community)
+
+                # 采集数据
+                collected_data = await collector.collect_all()
+                all_devices_data[current_ip] = collected_data
+
+                # 把设备加入拓扑
+                self._add_device_to_topology(current_ip, collected_data)
+
+                # 把邻居加入队列
+                neighbors = collected_data.get('lldp_neighbors', [])
+                for neighbor in neighbors:
+                    neighbor_ip = neighbor.get('remote_ip', '')
+                    if neighbor_ip and neighbor_ip not in self.visited:
+                        queue.append((neighbor_ip, depth + 1))
+
+            except Exception as e:
+                logger.error(f"扫描设备 [{current_ip}] 失败：{e}")
+                continue
+
+        # 2. 用 MAC 双向匹配算法补充链路
+        logger.info("LLDP 扫描完成，开始 MAC 双向匹配...")
+        self.build_links_from_mac_table(all_devices_data)
+
+        # 3. 更新网络层级
+        self._update_layers()
+
+        logger.info(f"带 MAC 回退的拓扑发现完成：{len(self.nodes)} 个节点，{len(self.links)} 条链路")
 
     # -----------------------------------------------------------
     # 获取结果

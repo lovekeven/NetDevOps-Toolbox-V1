@@ -69,6 +69,9 @@ from core.topology.topology_builder import TopologyBuilder
 from core.topology.sdn_collector import SDNCollector
 from core.topology.network_tools import NetworkTools
 
+# 引入终端模块
+from core.terminal.web_terminal import terminal_manager
+
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
 app = Flask(__name__)
@@ -1822,6 +1825,28 @@ def execute_custom_command():
 
             logger.info(f"命令执行成功：设备={device_name}，耗时={execution_time:.2f}秒")
 
+            # 自动保存到命令历史
+            try:
+                # 从白名单获取命令分类
+                command_category = 'unknown'
+                for cat, cmds in COMMAND_WHITELIST.get(vendor, {}).items():
+                    if normalized_cmd in cmds:
+                        command_category = cat
+                        break
+
+                history_id = db_manager.save_command_history(
+                    device_name=device_name,
+                    device_ip=target_device.get('host', ''),
+                    command=normalized_cmd,
+                    command_category=command_category,
+                    result=output,
+                    status='success',
+                    execution_time=execution_time,
+                )
+                logger.info(f"命令历史已保存，ID={history_id}")
+            except Exception as e:
+                logger.warning(f"保存命令历史失败：{e}")
+
             return jsonify({
                 "code": 0,
                 "msg": "命令执行成功",
@@ -1831,6 +1856,7 @@ def execute_custom_command():
                     "output": output,
                     "execution_time": f"{execution_time:.2f}秒",
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "history_id": history_id,
                 }
             })
         finally:
@@ -1838,6 +1864,21 @@ def execute_custom_command():
 
     except Exception as e:
         logger.error(f"执行自定义命令失败：{str(e)}")
+
+        # 保存失败记录
+        try:
+            db_manager.save_command_history(
+                device_name=device_name,
+                device_ip=target_device.get('host', '') if 'target_device' in locals() else '',
+                command=command,
+                command_category='unknown',
+                result='',
+                status='failed',
+                error_message=str(e),
+            )
+        except Exception:
+            pass
+
         return jsonify({"code": 1, "msg": f"执行失败：{str(e)}", "data": None}), 500
 
 
@@ -1941,6 +1982,267 @@ def batch_execute_command():
     except Exception as e:
         logger.error(f"批量执行命令失败：{str(e)}")
         return jsonify({"code": 1, "msg": f"执行失败：{str(e)}", "data": None}), 500
+
+
+# ============================================================
+# 命令执行历史 API
+# ============================================================
+
+# 获取命令历史列表
+@app.route("/api/v1/command/history", methods=["GET"])
+def get_command_history_list():
+    """
+    获取命令执行历史列表
+    参数：device_name（可选）, command（可选）, limit（可选，默认50）
+    """
+    try:
+        device_name = request.args.get('device_name')
+        command = request.args.get('command')
+        limit = int(request.args.get('limit', 50))
+
+        history = db_manager.get_command_history(
+            device_name=device_name,
+            command=command,
+            limit=limit,
+        )
+
+        return jsonify({
+            "code": 0,
+            "msg": "success",
+            "data": history
+        })
+    except Exception as e:
+        logger.error(f"获取命令历史失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 获取命令历史详情
+@app.route("/api/v1/command/history/<int:history_id>", methods=["GET"])
+def get_command_history_detail(history_id):
+    """获取命令历史详情（包含完整结果）"""
+    try:
+        detail = db_manager.get_command_history_detail(history_id)
+        if detail:
+            return jsonify({"code": 0, "msg": "success", "data": detail})
+        return jsonify({"code": 1, "msg": "记录不存在", "data": None}), 404
+    except Exception as e:
+        logger.error(f"获取命令历史详情失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 对比两次命令结果
+@app.route("/api/v1/command/compare", methods=["POST"])
+def compare_command_results():
+    """
+    对比两次命令执行结果
+    请求体：{"history_id_1": 1, "history_id_2": 2}
+    """
+    try:
+        data = request.get_json()
+        history_id_1 = data.get("history_id_1")
+        history_id_2 = data.get("history_id_2")
+
+        if not history_id_1 or not history_id_2:
+            return jsonify({"code": 1, "msg": "缺少历史记录ID", "data": None}), 400
+
+        result = db_manager.compare_command_results(history_id_1, history_id_2)
+        if result:
+            return jsonify({"code": 0, "msg": "对比完成", "data": result})
+        return jsonify({"code": 1, "msg": "记录不存在", "data": None}), 404
+    except Exception as e:
+        logger.error(f"对比命令结果失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 下载命令结果
+@app.route("/api/v1/command/download/<int:history_id>", methods=["GET"])
+def download_command_result(history_id):
+    """下载命令执行结果为 TXT 文件"""
+    try:
+        detail = db_manager.get_command_history_detail(history_id)
+        if not detail:
+            return jsonify({"code": 1, "msg": "记录不存在", "data": None}), 404
+
+        # 构造文件内容
+        content = f"""命令执行结果
+====================
+设备：{detail['device_name']} ({detail['device_ip']})
+命令：{detail['command']}
+时间：{detail['created_at']}
+状态：{detail['status']}
+耗时：{detail.get('execution_time', 'N/A')}秒
+
+执行结果：
+====================
+{detail['result']}
+"""
+        if detail.get('error_message'):
+            content += f"\n错误信息：{detail['error_message']}"
+
+        # 返回文件
+        from flask import Response
+        filename = f"{detail['device_name']}_{detail['command'].replace(' ', '_')}_{detail['created_at']}.txt"
+        return Response(
+            content,
+            mimetype='text/plain',
+            headers={'Content-Disposition': f'attachment; filename={filename}'}
+        )
+    except Exception as e:
+        logger.error(f"下载命令结果失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# ============================================================
+# Web 终端 API
+# ============================================================
+
+# 创建终端连接
+@app.route("/api/v1/terminal/connect", methods=["POST"])
+def terminal_connect():
+    """
+    创建终端连接
+    请求体：{"host": "192.168.1.1", "port": 22, "username": "admin", "password": "admin"}
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"code": 1, "msg": "请求数据为空", "data": None}), 400
+
+        host = data.get("host")
+        port = data.get("port", 22)
+        username = data.get("username", "admin")
+        password = data.get("password", "")
+
+        if not host:
+            return jsonify({"code": 1, "msg": "设备IP不能为空", "data": None}), 400
+
+        # 生成会话 ID
+        import uuid
+        session_id = str(uuid.uuid4())
+
+        # 创建终端连接
+        terminal = terminal_manager.create_terminal(
+            session_id=session_id,
+            host=host,
+            port=port,
+            username=username,
+            password=password,
+        )
+
+        if terminal:
+            return jsonify({
+                "code": 0,
+                "msg": "连接成功",
+                "data": {
+                    "session_id": session_id,
+                    "host": host,
+                    "port": port,
+                }
+            })
+        else:
+            return jsonify({"code": 1, "msg": "连接失败，请检查IP、端口、用户名、密码", "data": None}), 500
+
+    except Exception as e:
+        logger.error(f"创建终端连接失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 执行终端命令
+@app.route("/api/v1/terminal/execute", methods=["POST"])
+def terminal_execute():
+    """
+    执行终端命令
+    请求体：{"session_id": "xxx", "command": "display version", "wait_time": 2}
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"code": 1, "msg": "请求数据为空", "data": None}), 400
+
+        session_id = data.get("session_id")
+        command = data.get("command")
+        wait_time = data.get("wait_time", 2)
+
+        if not session_id:
+            return jsonify({"code": 1, "msg": "会话ID不能为空", "data": None}), 400
+        if not command:
+            return jsonify({"code": 1, "msg": "命令不能为空", "data": None}), 400
+
+        # 执行命令
+        output = terminal_manager.execute_command(session_id, command, wait_time)
+
+        # 保存到命令历史
+        try:
+            terminal = terminal_manager.get_terminal(session_id)
+            if terminal:
+                db_manager.save_command_history(
+                    device_name=f"Terminal-{terminal.host}",
+                    device_ip=terminal.host,
+                    command=command,
+                    command_category='terminal',
+                    result=output,
+                    status='success',
+                )
+        except Exception as e:
+            logger.warning(f"保存终端命令历史失败：{e}")
+
+        return jsonify({
+            "code": 0,
+            "msg": "执行成功",
+            "data": {
+                "session_id": session_id,
+                "command": command,
+                "output": output,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"执行终端命令失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 关闭终端连接
+@app.route("/api/v1/terminal/disconnect", methods=["POST"])
+def terminal_disconnect():
+    """
+    关闭终端连接
+    请求体：{"session_id": "xxx"}
+    """
+    try:
+        data = request.get_json()
+        session_id = data.get("session_id")
+
+        if not session_id:
+            return jsonify({"code": 1, "msg": "会话ID不能为空", "data": None}), 400
+
+        terminal_manager.close_terminal(session_id)
+
+        return jsonify({
+            "code": 0,
+            "msg": "已断开连接",
+            "data": {"session_id": session_id}
+        })
+
+    except Exception as e:
+        logger.error(f"关闭终端连接失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 获取活跃终端会话
+@app.route("/api/v1/terminal/sessions", methods=["GET"])
+def terminal_sessions():
+    """获取所有活跃的终端会话"""
+    try:
+        sessions = terminal_manager.get_active_sessions()
+        return jsonify({
+            "code": 0,
+            "msg": "success",
+            "data": sessions
+        })
+    except Exception as e:
+        logger.error(f"获取终端会话失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
 
 
 # ============================================================
@@ -2278,12 +2580,32 @@ def get_topology_data():
 def scan_topology():
     """
     触发拓扑扫描
-    POST 参数：seed_ip（种子设备IP）, community（SNMP团体名，默认public）
+    POST 参数：
+    - seed_ip: 种子设备IP（必填）
+    - community: SNMP团体名（默认public）
+    - scan_mode: 扫描模式 single/multi（默认single）
+    - max_depth: 最大扫描深度（默认3，仅multi模式有效）
+    - snmp_version: SNMP版本 v2c/v3（默认v2c）
+    - username: v3用户名
+    - auth_protocol: v3认证协议 md5/sha/none
+    - auth_password: v3认证密码
+    - priv_protocol: v3加密协议 des/aes/none
+    - priv_password: v3加密密码
     """
     try:
         data = request.get_json() or {}
         seed_ip = data.get("seed_ip")
         community = data.get("community", "public")
+        scan_mode = data.get("scan_mode", "single")  # single=单层, multi=多层BFS
+        max_depth = data.get("max_depth", 3)
+        snmp_version = data.get("snmp_version", "v2c")
+
+        # v3 参数
+        username = data.get("username", "")
+        auth_protocol = data.get("auth_protocol", "none")
+        auth_password = data.get("auth_password", "")
+        priv_protocol = data.get("priv_protocol", "none")
+        priv_password = data.get("priv_password", "")
 
         if not seed_ip:
             return jsonify({"code": 1, "msg": "缺少种子设备IP", "data": None}), 400
@@ -2295,15 +2617,45 @@ def scan_topology():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
+        builder = TopologyBuilder()
+
         try:
-            collector = SNMPCollector(seed_ip, community=community)
-            collected_data = loop.run_until_complete(collector.collect_all())
+            if scan_mode == 'mac_fallback':
+                # MAC 回退模式：先用 LLDP，失效时用 MAC 表推导（创新点！）
+                logger.info(f"启动 MAC 回退扫描模式，种子：{seed_ip}，最大深度：{max_depth}")
+                loop.run_until_complete(builder.build_topology_with_mac_fallback(
+                    seed_ip, community=community, max_depth=max_depth,
+                    snmp_version=snmp_version,
+                    username=username, auth_protocol=auth_protocol,
+                    auth_password=auth_password, priv_protocol=priv_protocol,
+                    priv_password=priv_password,
+                ))
+            elif scan_mode == 'multi':
+                # 多层扫描模式：广度优先，自动发现邻居的邻居
+                logger.info(f"启动多层扫描模式，种子：{seed_ip}，最大深度：{max_depth}")
+                loop.run_until_complete(builder.build_topology_bfs(
+                    seed_ip, community=community, max_depth=max_depth,
+                    snmp_version=snmp_version,
+                    username=username, auth_protocol=auth_protocol,
+                    auth_password=auth_password, priv_protocol=priv_protocol,
+                    priv_password=priv_password,
+                ))
+            else:
+                # 单层扫描模式：只扫描种子设备的邻居（原有逻辑）
+                logger.info(f"启动单层扫描模式，种子：{seed_ip}")
+                if snmp_version == 'v3':
+                    collector = SNMPCollector(
+                        seed_ip, version='v3',
+                        username=username, auth_protocol=auth_protocol,
+                        auth_password=auth_password, priv_protocol=priv_protocol,
+                        priv_password=priv_password,
+                    )
+                else:
+                    collector = SNMPCollector(seed_ip, community=community)
+                collected_data = loop.run_until_complete(collector.collect_all())
+                builder.build_from_lldp(seed_ip, collected_data)
         finally:
             loop.close()
-
-        # 用拓扑构建器处理数据
-        builder = TopologyBuilder()
-        builder.build_from_lldp(seed_ip, collected_data)
 
         # 保存到数据库
         db_manager.clear_topology_nodes()
@@ -2319,7 +2671,7 @@ def scan_topology():
 
         return jsonify({
             "code": 0,
-            "msg": "扫描完成",
+            "msg": f"扫描完成（{scan_mode}模式）",
             "data": {
                 "nodes": nodes_list,
                 "links": links_list,
@@ -2327,6 +2679,9 @@ def scan_topology():
                     "device_count": len(nodes_list),
                     "link_count": len(links_list),
                     "seed_ip": seed_ip,
+                    "scan_mode": scan_mode,
+                    "max_depth": max_depth if scan_mode == 'multi' else 1,
+                    "snmp_version": snmp_version,
                 }
             }
         })
@@ -2379,6 +2734,99 @@ def get_snapshot_detail(snapshot_id):
         return jsonify({"code": 1, "msg": "快照不存在", "data": None}), 404
     except Exception as e:
         logger.error(f"获取快照详情失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# ============================================================
+# 配置导出/导入 API
+# ============================================================
+
+# 导出项目配置
+@app.route("/api/v1/config/export", methods=["GET"])
+def export_config():
+    """
+    导出项目配置文件（设备清单 + SNMP配置）
+    方便换环境时一键导入
+    """
+    try:
+        # 读取设备清单
+        devices = get_devices()
+
+        # 构造导出数据
+        export_data = {
+            'export_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'version': 'V8.0',
+            'devices': devices,
+            'snmp_config': {
+                'default_community': 'public',
+                'default_version': 'v2c',
+                'default_port': 161,
+            },
+            'topology_config': {
+                'scan_mode': 'single',
+                'max_depth': 3,
+            },
+        }
+
+        return jsonify({
+            "code": 0,
+            "msg": "配置导出成功",
+            "data": export_data
+        })
+    except Exception as e:
+        logger.error(f"导出配置失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 导入项目配置
+@app.route("/api/v1/config/import", methods=["POST"])
+def import_config():
+    """
+    导入项目配置文件
+    接收 JSON 格式的配置数据，更新设备清单
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"code": 1, "msg": "没有接收到配置数据", "data": None}), 400
+
+        devices = data.get('devices', [])
+        if not devices:
+            return jsonify({"code": 1, "msg": "配置中没有设备信息", "data": None}), 400
+
+        # 写入设备清单文件
+        import yaml
+
+        # 转换为 Nornir 格式
+        nornir_config = {}
+        for device in devices:
+            device_name = device.get('device_name', '')
+            if not device_name:
+                continue
+
+            nornir_config[device_name] = {
+                'hostname': device.get('host', ''),
+                'username': device.get('username', ''),
+                'password': device.get('password', ''),
+                'platform': device.get('device_type', 'huawei'),
+                'data': {
+                    'vendor': device.get('vendor', 'unknown'),
+                },
+            }
+
+        # 写入文件
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            yaml.dump(nornir_config, f, allow_unicode=True, default_flow_style=False)
+
+        logger.info(f"配置导入成功，共 {len(devices)} 台设备")
+
+        return jsonify({
+            "code": 0,
+            "msg": f"配置导入成功，共 {len(devices)} 台设备",
+            "data": {"device_count": len(devices)}
+        })
+    except Exception as e:
+        logger.error(f"导入配置失败：{e}")
         return jsonify({"code": 1, "msg": str(e), "data": None}), 500
 
 

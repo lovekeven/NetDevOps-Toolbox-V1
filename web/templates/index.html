@@ -14,6 +14,10 @@
     <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
     <!-- 引入 Socket.IO 客户端 -->
     <script src="https://cdn.bootcdn.net/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <!-- 引入 xterm.js 终端库 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
     <style>
         /* 现代化深色主题 */
         :root {
@@ -1011,9 +1015,20 @@
                             <i class="fas fa-sync-alt me-1"></i>刷新
                         </button>
                     </div>
+                    <!-- 扫描模式选择 -->
+                    <div class="mt-2">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <input type="radio" class="btn-check" name="scanMode" id="modeSingle" value="single" checked>
+                            <label class="btn btn-outline-secondary" for="modeSingle">单层扫描</label>
+                            <input type="radio" class="btn-check" name="scanMode" id="modeMulti" value="multi">
+                            <label class="btn btn-outline-secondary" for="modeMulti">多层扫描</label>
+                            <input type="radio" class="btn-check" name="scanMode" id="modeMacFallback" value="mac_fallback">
+                            <label class="btn btn-outline-warning" for="modeMacFallback">MAC回退（创新）</label>
+                        </div>
+                    </div>
                     <small class="text-muted mt-1 d-block">
                         <i class="fas fa-info-circle me-1"></i>
-                        输入种子设备IP，通过SNMP+LLDP自动发现邻居。支持华为/H3C/Cisco。
+                        单层：只扫描种子邻居 | 多层：递归扫描全网 | MAC回退：LLDP失效时用MAC表推导链路
                     </small>
                 </div>
 
@@ -1760,6 +1775,9 @@
                         <h6 class="mb-0"><i class="fas fa-file-alt text-info me-2"></i>命令执行结果</h6>
                         <div class="d-flex gap-2">
                             <span id="commandExecutionTime" class="text-muted small"></span>
+                            <button id="downloadCommandResultBtn" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-download me-1"></i>下载结果
+                            </button>
                             <button id="copyCommandResultBtn" class="btn btn-sm btn-outline-secondary">
                                 <i class="fas fa-copy me-1"></i>复制结果
                             </button>
@@ -1773,6 +1791,41 @@
                         <pre id="commandResultContent" class="mb-0"
                              style="color: #00ff00; font-family: 'Consolas', 'Monaco', monospace; font-size: 14px; white-space: pre-wrap; word-break: break-all;">
                         </pre>
+                    </div>
+                </div>
+
+                <!-- 命令历史记录区域 -->
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0"><i class="fas fa-history text-warning me-2"></i>命令执行历史</h6>
+                        <div class="d-flex gap-2">
+                            <button id="refreshHistoryBtn" class="btn btn-sm btn-outline-info">
+                                <i class="fas fa-sync-alt me-1"></i>刷新历史
+                            </button>
+                            <button id="compareHistoryBtn" class="btn btn-sm btn-outline-primary" disabled>
+                                <i class="fas fa-exchange-alt me-1"></i>对比选中的两次
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-hover table-sm">
+                            <thead class="sticky-top" style="background-color: var(--card-background);">
+                                <tr>
+                                    <th style="width: 40px;">
+                                        <input type="checkbox" id="selectAllHistory" class="form-check-input">
+                                    </th>
+                                    <th style="width: 50px;">ID</th>
+                                    <th style="width: 100px;">设备</th>
+                                    <th>命令</th>
+                                    <th style="width: 80px;">状态</th>
+                                    <th style="width: 100px;">耗时</th>
+                                    <th style="width: 150px;">执行时间</th>
+                                    <th style="width: 120px;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="commandHistoryBody">
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -1795,6 +1848,119 @@
                                 </tr>
                             </thead>
                             <tbody id="batchCommandResultBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Web 终端卡片 -->
+        <div class="card mb-4" data-tab="tools">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-desktop text-danger me-2"></i>Web 终端（SSH 连接）</h5>
+                <div class="d-flex gap-2">
+                    <button id="refreshSessionsBtn" class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-sync-alt me-1"></i>刷新会话
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- 连接配置 -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label">设备 IP</label>
+                        <input type="text" id="terminalHost" class="form-control" placeholder="192.168.1.1">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">SSH 端口</label>
+                        <input type="number" id="terminalPort" class="form-control" value="22">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">用户名</label>
+                        <input type="text" id="terminalUsername" class="form-control" value="admin">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">密码</label>
+                        <input type="password" id="terminalPassword" class="form-control">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <button id="terminalConnectBtn" class="btn btn-primary">
+                            <i class="fas fa-plug me-1"></i>连接
+                        </button>
+                        <button id="terminalDisconnectBtn" class="btn btn-danger" disabled>
+                            <i class="fas fa-times me-1"></i>断开
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 快速连接（从设备列表选择） -->
+                <div class="mb-3">
+                    <label class="form-label">快速连接（从设备列表选择）</label>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <select id="terminalDeviceSelect" class="form-select" style="width: 300px;">
+                            <option value="">-- 选择设备快速连接 --</option>
+                            {% for device in devices %}
+                            <option value="{{ device.device_name }}" data-ip="{{ device.host }}" data-username="{{ device.username }}" data-password="{{ device.password }}">
+                                {{ device.device_name }} ({{ device.host }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button id="terminalQuickConnectBtn" class="btn btn-outline-primary">
+                            <i class="fas fa-bolt me-1"></i>快速连接
+                        </button>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- 终端显示区域 -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0"><i class="fas fa-terminal text-success me-2"></i>终端窗口</h6>
+                        <div class="d-flex gap-2">
+                            <span id="terminalStatus" class="badge bg-secondary">未连接</span>
+                            <button id="terminalClearBtn" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-eraser me-1"></i>清屏
+                            </button>
+                        </div>
+                    </div>
+                    <div id="terminalContainer" style="height: 400px; background-color: #1a1a2e; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
+                        <!-- xterm.js 终端将在这里渲染 -->
+                    </div>
+                </div>
+
+                <!-- 命令输入（备用，防止终端输入有问题） -->
+                <div class="mb-3">
+                    <label class="form-label">命令输入（备用）</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-chevron-right"></i>
+                        </span>
+                        <input type="text" id="terminalCommandInput" class="form-control" placeholder="输入命令，按回车执行" disabled>
+                        <button id="terminalExecuteBtn" class="btn btn-primary" disabled>
+                            <i class="fas fa-play me-1"></i>执行
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 活跃会话列表 -->
+                <div class="mt-4">
+                    <h6><i class="fas fa-list text-info me-2"></i>活跃会话</h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>会话ID</th>
+                                    <th>设备IP</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="terminalSessionsBody">
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">暂无活跃会话</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -4169,8 +4335,11 @@
                         batchCommandResultSection.style.display = 'none';
                         commandResultContent.textContent = data.data.output;
                         commandExecutionTime.textContent = `耗时：${data.data.execution_time}`;
+                        currentHistoryId = data.data.history_id;
                         // 滚动到结果区域
                         commandResultSection.scrollIntoView({ behavior: 'smooth' });
+                        // 刷新历史记录
+                        loadCommandHistory();
                     } else {
                         alert(`执行失败：${data.msg}`);
                     }
@@ -4303,12 +4472,453 @@
                 }
             });
 
+            // 下载命令结果
+            const downloadCommandResultBtn = document.getElementById('downloadCommandResultBtn');
+            let currentHistoryId = null;
+            downloadCommandResultBtn.addEventListener('click', function() {
+                if (currentHistoryId) {
+                    window.open(`/api/v1/command/download/${currentHistoryId}`, '_blank');
+                } else {
+                    alert('没有可下载的结果');
+                }
+            });
+
+            // 刷新命令历史
+            const refreshHistoryBtn = document.getElementById('refreshHistoryBtn');
+            const commandHistoryBody = document.getElementById('commandHistoryBody');
+            const compareHistoryBtn = document.getElementById('compareHistoryBtn');
+            let selectedHistoryIds = [];
+
+            function loadCommandHistory() {
+                fetch('/api/v1/command/history?limit=20')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.code === 0) {
+                            commandHistoryBody.innerHTML = '';
+                            data.data.forEach(item => {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `
+                                    <td><input type="checkbox" class="form-check-input history-checkbox" data-id="${item.id}"></td>
+                                    <td>${item.id}</td>
+                                    <td>${item.device_name}</td>
+                                    <td><code>${item.command}</code></td>
+                                    <td><span class="badge bg-${item.status === 'success' ? 'success' : 'danger'}">${item.status === 'success' ? '成功' : '失败'}</span></td>
+                                    <td>${item.execution_time ? item.execution_time.toFixed(2) + '秒' : '-'}</td>
+                                    <td>${item.created_at}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-info view-history-btn" data-id="${item.id}" title="查看详情">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success download-history-btn" data-id="${item.id}" title="下载">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </td>
+                                `;
+                                commandHistoryBody.appendChild(tr);
+                            });
+
+                            // 绑定查看详情事件
+                            document.querySelectorAll('.view-history-btn').forEach(btn => {
+                                btn.addEventListener('click', function() {
+                                    const id = this.dataset.id;
+                                    fetch(`/api/v1/command/history/${id}`)
+                                        .then(r => r.json())
+                                        .then(data => {
+                                            if (data.code === 0) {
+                                                commandResultSection.style.display = 'block';
+                                                commandResultContent.textContent = data.data.result;
+                                                commandExecutionTime.textContent = `设备：${data.data.device_name} | 命令：${data.data.command} | 时间：${data.data.created_at}`;
+                                                currentHistoryId = id;
+                                                commandResultSection.scrollIntoView({ behavior: 'smooth' });
+                                            }
+                                        });
+                                });
+                            });
+
+                            // 绑定下载事件
+                            document.querySelectorAll('.download-history-btn').forEach(btn => {
+                                btn.addEventListener('click', function() {
+                                    window.open(`/api/v1/command/download/${this.dataset.id}`, '_blank');
+                                });
+                            });
+
+                            // 绑定复选框事件
+                            document.querySelectorAll('.history-checkbox').forEach(cb => {
+                                cb.addEventListener('change', function() {
+                                    selectedHistoryIds = Array.from(document.querySelectorAll('.history-checkbox:checked')).map(c => c.dataset.id);
+                                    compareHistoryBtn.disabled = selectedHistoryIds.length !== 2;
+                                });
+                            });
+                        }
+                    });
+            }
+
+            refreshHistoryBtn.addEventListener('click', loadCommandHistory);
+
+            // 对比两次命令结果
+            compareHistoryBtn.addEventListener('click', function() {
+                if (selectedHistoryIds.length !== 2) {
+                    alert('请选择两次命令执行记录进行对比');
+                    return;
+                }
+
+                fetch('/api/v1/command/compare', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({history_id_1: parseInt(selectedHistoryIds[0]), history_id_2: parseInt(selectedHistoryIds[1])})
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.code === 0) {
+                        const result = data.data;
+                        let compareText = `对比结果：\n`;
+                        compareText += `====================\n`;
+                        compareText += `第一次：${result.result1.device_name} - ${result.result1.command} (${result.result1.created_at})\n`;
+                        compareText += `第二次：${result.result2.device_name} - ${result.result2.command} (${result.result2.created_at})\n`;
+                        compareText += `====================\n`;
+                        compareText += `新增 ${result.added_count} 行，删除 ${result.removed_count} 行\n\n`;
+
+                        if (result.added.length > 0) {
+                            compareText += `【新增内容】：\n`;
+                            result.added.forEach(line => compareText += `+ ${line}\n`);
+                        }
+                        if (result.removed.length > 0) {
+                            compareText += `\n【删除内容】：\n`;
+                            result.removed.forEach(line => compareText += `- ${line}\n`);
+                        }
+
+                        commandResultSection.style.display = 'block';
+                        commandResultContent.textContent = compareText;
+                        commandExecutionTime.textContent = `对比结果`;
+                        currentHistoryId = null;
+                        commandResultSection.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        alert('对比失败：' + data.msg);
+                    }
+                });
+            });
+
+            // 全选/取消全选
+            const selectAllHistory = document.getElementById('selectAllHistory');
+            selectAllHistory.addEventListener('change', function() {
+                document.querySelectorAll('.history-checkbox').forEach(cb => {
+                    cb.checked = this.checked;
+                });
+                selectedHistoryIds = Array.from(document.querySelectorAll('.history-checkbox:checked')).map(c => c.dataset.id);
+                compareHistoryBtn.disabled = selectedHistoryIds.length !== 2;
+            });
+
+            // 初始化加载命令历史
+            loadCommandHistory();
+
             // 初始化加载命令白名单
             loadCommandWhitelist('h3c');
         }
 
         // 初始化自定义命令功能
         initCustomCommandFunction();
+
+        // ============================================================
+        // Web 终端功能
+        // ============================================================
+        function initWebTerminal() {
+            const terminalHost = document.getElementById('terminalHost');
+            const terminalPort = document.getElementById('terminalPort');
+            const terminalUsername = document.getElementById('terminalUsername');
+            const terminalPassword = document.getElementById('terminalPassword');
+            const terminalConnectBtn = document.getElementById('terminalConnectBtn');
+            const terminalDisconnectBtn = document.getElementById('terminalDisconnectBtn');
+            const terminalDeviceSelect = document.getElementById('terminalDeviceSelect');
+            const terminalQuickConnectBtn = document.getElementById('terminalQuickConnectBtn');
+            const terminalStatus = document.getElementById('terminalStatus');
+            const terminalClearBtn = document.getElementById('terminalClearBtn');
+            const terminalCommandInput = document.getElementById('terminalCommandInput');
+            const terminalExecuteBtn = document.getElementById('terminalExecuteBtn');
+            const terminalSessionsBody = document.getElementById('terminalSessionsBody');
+            const refreshSessionsBtn = document.getElementById('refreshSessionsBtn');
+
+            let currentSessionId = null;
+            let terminal = null;
+            let fitAddon = null;
+
+            // 初始化 xterm.js 终端
+            function initTerminal() {
+                terminal = new Terminal({
+                    theme: {
+                        background: '#1a1a2e',
+                        foreground: '#00ff00',
+                        cursor: '#00ff00',
+                        cursorAccent: '#1a1a2e',
+                        selectionBackground: 'rgba(0, 255, 0, 0.3)',
+                    },
+                    fontFamily: '"Consolas", "Monaco", monospace',
+                    fontSize: 14,
+                    lineHeight: 1.2,
+                    cursorBlink: true,
+                    cursorStyle: 'block',
+                    scrollback: 1000,
+                    tabStopWidth: 4,
+                });
+
+                fitAddon = new FitAddon.FitAddon();
+                terminal.loadAddon(fitAddon);
+
+                terminal.open(document.getElementById('terminalContainer'));
+                fitAddon.fit();
+
+                // 监听终端输入
+                terminal.onData(data => {
+                    if (currentSessionId) {
+                        // 发送到后端
+                        fetch('/api/v1/terminal/execute', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                session_id: currentSessionId,
+                                command: data,
+                                wait_time: 0.5,
+                            })
+                        })
+                        .then(r => r.json())
+                        .then(result => {
+                            if (result.code === 0 && result.data.output) {
+                                terminal.write(result.data.output);
+                            }
+                        });
+                    }
+                });
+
+                // 显示欢迎信息
+                terminal.writeln('\x1b[1;32m========================================\x1b[0m');
+                terminal.writeln('\x1b[1;32m  NetDevOps Web 终端\x1b[0m');
+                terminal.writeln('\x1b[1;32m  请先连接设备\x1b[0m');
+                terminal.writeln('\x1b[1;32m========================================\x1b[0m');
+                terminal.writeln('');
+            }
+
+            // 连接设备
+            function connectDevice(host, port, username, password) {
+                if (!host) {
+                    alert('请输入设备IP');
+                    return;
+                }
+
+                terminalConnectBtn.disabled = true;
+                terminalConnectBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>连接中...';
+                terminalStatus.textContent = '连接中...';
+                terminalStatus.className = 'badge bg-warning';
+
+                fetch('/api/v1/terminal/connect', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        host: host,
+                        port: port || 22,
+                        username: username || 'admin',
+                        password: password || '',
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    terminalConnectBtn.disabled = false;
+                    terminalConnectBtn.innerHTML = '<i class="fas fa-plug me-1"></i>连接';
+
+                    if (data.code === 0) {
+                        currentSessionId = data.data.session_id;
+                        terminalStatus.textContent = `已连接: ${host}`;
+                        terminalStatus.className = 'badge bg-success';
+                        terminalDisconnectBtn.disabled = false;
+                        terminalCommandInput.disabled = false;
+                        terminalExecuteBtn.disabled = false;
+
+                        // 清空终端并显示连接成功信息
+                        terminal.clear();
+                        terminal.writeln(`\x1b[1;32m已连接到 ${host}:${port}\x1b[0m`);
+                        terminal.writeln(`\x1b[1;32m用户名: ${username}\x1b[0m`);
+                        terminal.writeln('\x1b[1;32m========================================\x1b[0m');
+                        terminal.writeln('');
+
+                        // 刷新会话列表
+                        loadSessions();
+                    } else {
+                        terminalStatus.textContent = '连接失败';
+                        terminalStatus.className = 'badge bg-danger';
+                        alert('连接失败：' + data.msg);
+                    }
+                })
+                .catch(error => {
+                    terminalConnectBtn.disabled = false;
+                    terminalConnectBtn.innerHTML = '<i class="fas fa-plug me-1"></i>连接';
+                    terminalStatus.textContent = '连接失败';
+                    terminalStatus.className = 'badge bg-danger';
+                    alert('连接失败：' + error.message);
+                });
+            }
+
+            // 断开连接
+            function disconnectDevice() {
+                if (!currentSessionId) return;
+
+                fetch('/api/v1/terminal/disconnect', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({session_id: currentSessionId})
+                })
+                .then(r => r.json())
+                .then(data => {
+                    currentSessionId = null;
+                    terminalStatus.textContent = '未连接';
+                    terminalStatus.className = 'badge bg-secondary';
+                    terminalDisconnectBtn.disabled = true;
+                    terminalCommandInput.disabled = true;
+                    terminalExecuteBtn.disabled = true;
+
+                    terminal.writeln('');
+                    terminal.writeln('\x1b[1;31m已断开连接\x1b[0m');
+
+                    loadSessions();
+                });
+            }
+
+            // 执行命令
+            function executeCommand(command) {
+                if (!currentSessionId || !command) return;
+
+                fetch('/api/v1/terminal/execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        session_id: currentSessionId,
+                        command: command,
+                        wait_time: 2,
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.code === 0) {
+                        terminal.write(data.data.output);
+                    } else {
+                        terminal.writeln(`\x1b[1;31m执行失败: ${data.msg}\x1b[0m`);
+                    }
+                });
+            }
+
+            // 加载活跃会话
+            function loadSessions() {
+                fetch('/api/v1/terminal/sessions')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.code === 0) {
+                            terminalSessionsBody.innerHTML = '';
+                            if (data.data.length === 0) {
+                                terminalSessionsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">暂无活跃会话</td></tr>';
+                            } else {
+                                data.data.forEach(session => {
+                                    const tr = document.createElement('tr');
+                                    tr.innerHTML = `
+                                        <td><code>${session.session_id.substring(0, 8)}...</code></td>
+                                        <td>${session.host}</td>
+                                        <td><span class="badge bg-${session.is_connected ? 'success' : 'danger'}">${session.is_connected ? '在线' : '离线'}</span></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-warning disconnect-session-btn" data-id="${session.session_id}">
+                                                <i class="fas fa-times"></i> 断开
+                                            </button>
+                                        </td>
+                                    `;
+                                    terminalSessionsBody.appendChild(tr);
+                                });
+
+                                // 绑定断开事件
+                                document.querySelectorAll('.disconnect-session-btn').forEach(btn => {
+                                    btn.addEventListener('click', function() {
+                                        const sessionId = this.dataset.id;
+                                        fetch('/api/v1/terminal/disconnect', {
+                                            method: 'POST',
+                                            headers: {'Content-Type': 'application/json'},
+                                            body: JSON.stringify({session_id: sessionId})
+                                        })
+                                        .then(() => loadSessions());
+                                    });
+                                });
+                            }
+                        }
+                    });
+            }
+
+            // 绑定事件
+            terminalConnectBtn.addEventListener('click', function() {
+                connectDevice(
+                    terminalHost.value,
+                    terminalPort.value,
+                    terminalUsername.value,
+                    terminalPassword.value
+                );
+            });
+
+            terminalDisconnectBtn.addEventListener('click', disconnectDevice);
+
+            // 快速连接
+            terminalQuickConnectBtn.addEventListener('click', function() {
+                const deviceName = terminalDeviceSelect.value;
+                if (!deviceName) {
+                    alert('请先选择设备');
+                    return;
+                }
+
+                const option = terminalDeviceSelect.selectedOptions[0];
+                terminalHost.value = option.dataset.ip;
+                terminalUsername.value = option.dataset.username || 'admin';
+                terminalPassword.value = option.dataset.password || '';
+
+                connectDevice(
+                    option.dataset.ip,
+                    22,
+                    option.dataset.username || 'admin',
+                    option.dataset.password || ''
+                );
+            });
+
+            // 执行命令（备用输入框）
+            terminalExecuteBtn.addEventListener('click', function() {
+                const command = terminalCommandInput.value.trim();
+                if (command) {
+                    executeCommand(command);
+                    terminalCommandInput.value = '';
+                }
+            });
+
+            terminalCommandInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const command = this.value.trim();
+                    if (command) {
+                        executeCommand(command);
+                        this.value = '';
+                    }
+                }
+            });
+
+            // 清屏
+            terminalClearBtn.addEventListener('click', function() {
+                if (terminal) terminal.clear();
+            });
+
+            // 刷新会话
+            refreshSessionsBtn.addEventListener('click', loadSessions);
+
+            // 窗口大小改变时重新适配终端
+            window.addEventListener('resize', function() {
+                if (fitAddon) fitAddon.fit();
+            });
+
+            // 初始化终端
+            initTerminal();
+
+            // 加载活跃会话
+            loadSessions();
+        }
+
+        // 初始化 Web 终端
+        initWebTerminal();
 
         // ============================================================
         // Tab 切换功能
@@ -4363,8 +4973,35 @@
         function doTraditionalScan() {
             const seedIp = document.getElementById('seedIpInput').value.trim();
             const community = document.getElementById('communityInput').value.trim() || 'public';
+            const scanMode = document.querySelector('input[name="scanMode"]:checked')?.value || 'single';
             if (!seedIp) { alert('请输入种子设备IP'); return; }
-            scanTopology(seedIp, community);
+
+            // 显示扫描模式提示
+            const modeNames = {'single': '单层', 'multi': '多层', 'mac_fallback': 'MAC回退'};
+            showToast(`正在${modeNames[scanMode]}扫描 ${seedIp}...`, 'info');
+
+            // 调用后端 API，传入扫描模式
+            fetch('/api/v1/topology/scan', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    seed_ip: seedIp,
+                    community: community,
+                    scan_mode: scanMode,
+                    max_depth: 3,
+                    snmp_version: 'v2c'
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.code === 0) {
+                    topo.renderTopology(data.data);
+                    showToast(`扫描完成：${data.data.metadata.device_count} 个设备，${data.data.metadata.link_count} 条链路`, 'success');
+                } else {
+                    showToast('扫描失败: ' + data.msg, 'error');
+                }
+            })
+            .catch(e => showToast('请求失败: ' + e.message, 'error'));
         }
 
         // SDN 扫描

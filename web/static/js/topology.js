@@ -154,15 +154,6 @@ class NetworkTopology {
                 y: 5
             }
         };
-    }},
-            shadow: {
-                enabled: true,
-                color: 'rgba(0,0,0,0.3)',
-                size: 10,
-                x: 5,
-                y: 5
-            }
-        };
     }
 
     generateTooltip(device) {
@@ -326,17 +317,24 @@ class NetworkTopology {
     // 触发扫描
     // -----------------------------------------------------------
 
-    async triggerScan(seedIp, community = 'public') {
+    async triggerScan(seedIp, community = 'public', scanMode = 'single', maxDepth = 3) {
         try {
             // 显示扫描中状态
+            const modeNames = {'single': '单层', 'multi': '多层', 'mac_fallback': 'MAC回退'};
             if (typeof showToast === 'function') {
-                showToast('正在扫描拓扑...', 'info');
+                showToast(`正在${modeNames[scanMode] || ''}扫描拓扑...`, 'info');
             }
 
             const response = await fetch('/api/v1/topology/scan', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ seed_ip: seedIp, community: community })
+                body: JSON.stringify({
+                    seed_ip: seedIp,
+                    community: community,
+                    scan_mode: scanMode,
+                    max_depth: maxDepth,
+                    snmp_version: 'v2c'
+                })
             });
 
             const result = await response.json();
@@ -344,7 +342,7 @@ class NetworkTopology {
             if (result.code === 0) {
                 this.renderTopology(result.data);
                 if (typeof showToast === 'function') {
-                    showToast(`扫描完成！发现 ${result.data.metadata.device_count} 个设备`, 'success');
+                    showToast(`扫描完成！发现 ${result.data.metadata.device_count} 个设备，${result.data.metadata.link_count} 条链路`, 'success');
                 }
                 return result.data;
             } else {
@@ -422,6 +420,39 @@ class NetworkTopology {
         link.click();
     }
 
+    exportAsCSV(filename = 'device_list') {
+        // 导出设备清单为 CSV 格式，Excel 能直接打开
+        const nodes = this.nodes.get();
+
+        // CSV 表头
+        const headers = ['设备ID', '设备名称', 'IP地址', '设备类型', '厂商', '网络层级', '状态'];
+
+        // CSV 内容
+        const rows = nodes.map(node => [
+            node.node_id || '',
+            node.name || '',
+            node.ip_address || '',
+            node.device_type || '',
+            node.vendor || '',
+            node.layer || '',
+            node.status || '',
+        ]);
+
+        // 拼成 CSV 字符串（处理中文和特殊字符）
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+
+        // 加 BOM 头，解决 Excel 打开中文乱码
+        const bom = '﻿';
+        const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.download = `${filename}.csv`;
+        link.href = URL.createObjectURL(blob);
+        link.click();
+    }
+
     // -----------------------------------------------------------
     // 布局控制
     // -----------------------------------------------------------
@@ -482,8 +513,8 @@ function fitTopology() {
     if (topologyInstance) topologyInstance.fitAll();
 }
 
-function scanTopology(seedIp, community) {
-    if (topologyInstance) return topologyInstance.triggerScan(seedIp, community);
+function scanTopology(seedIp, community, scanMode = 'single', maxDepth = 3) {
+    if (topologyInstance) return topologyInstance.triggerScan(seedIp, community, scanMode, maxDepth);
 }
 
 function saveTopologySnapshot(name) {
@@ -496,6 +527,10 @@ function exportTopologyPNG(filename) {
 
 function exportTopologyJSON(filename) {
     if (topologyInstance) topologyInstance.exportAsJSON(filename);
+}
+
+function exportTopologyCSV(filename) {
+    if (topologyInstance) topologyInstance.exportAsCSV(filename);
 }
 
 // 挂到 window 上

@@ -70,14 +70,34 @@ OID_H3C_LLDP_REM_SYS_NAME = '1.3.6.1.4.1.25506.11.1.2.1.4.1.1.9'
 # Cisco 私有 LLDP MIB
 OID_CISCO_LLDP_REM_SYS_NAME = '1.3.6.1.4.1.9.9.23.1.2.1.1.6'
 
+# MAC 地址表（dot1dTpFdbTable）
+OID_MAC_TABLE = '1.3.6.1.2.1.17.4.3.1'           # dot1dTpFdbTable 根节点
+OID_MAC_ADDRESS = '1.3.6.1.2.1.17.4.3.1.1'       # dot1dTpFdbAddress - MAC地址
+OID_MAC_PORT = '1.3.6.1.2.1.17.4.3.1.2'          # dot1dTpFdbPort - 对应端口
+OID_MAC_STATUS = '1.3.6.1.2.1.17.4.3.1.3'        # dot1dTpFdbStatus - 学习状态
+
+# 路由表（ipRouteTable）
+OID_ROUTE_TABLE = '1.3.6.1.2.1.4.21.1'           # ipRouteTable 根节点
+OID_ROUTE_DEST = '1.3.6.1.2.1.4.21.1.1'          # ipRouteDest - 目的网段
+OID_ROUTE_IFINDEX = '1.3.6.1.2.1.4.21.1.2'       # ipRouteIfIndex - 出接口索引
+OID_ROUTE_METRIC = '1.3.6.1.2.1.4.21.1.3'        # ipRouteMetric1 - 路由开销
+OID_ROUTE_NEXTHOP = '1.3.6.1.2.1.4.21.1.7'       # ipRouteNextHop - 下一跳
+OID_ROUTE_MASK = '1.3.6.1.2.1.4.21.1.11'         # ipRouteMask - 子网掩码
+OID_ROUTE_TYPE = '1.3.6.1.2.1.4.21.1.8'          # ipRouteType - 路由类型
+
 
 class SNMPCollector:
     """
     SNMP 采集器
     负责和设备打交道，拿回 LLDP 邻居、ARP、系统信息等原始数据
+    支持 v2c 和 v3 两个版本
     """
 
-    def __init__(self, ip, community='public', port=161, version='v2c', timeout=3, retries=2):
+    def __init__(self, ip, community='public', port=161, version='v2c',
+                 timeout=3, retries=2,
+                 # v3 专用参数
+                 username='', auth_protocol='none', auth_password='',
+                 priv_protocol='none', priv_password=''):
         """
         初始化 SNMP 采集器
         :param ip: 设备IP
@@ -86,6 +106,11 @@ class SNMPCollector:
         :param version: SNMP版本 v2c/v3
         :param timeout: 超时秒数
         :param retries: 重试次数
+        :param username: v3 用户名
+        :param auth_protocol: v3 认证协议 md5/sha/none
+        :param auth_password: v3 认证密码
+        :param priv_protocol: v3 加密协议 des/aes/none
+        :param priv_password: v3 加密密码
         """
         self.ip = ip
         self.community = community
@@ -96,6 +121,13 @@ class SNMPCollector:
         self.snmp_engine = None
         self.auth_data = None
         self.transport_target = None
+
+        # v3 参数
+        self.username = username
+        self.auth_protocol = auth_protocol
+        self.auth_password = auth_password
+        self.priv_protocol = priv_protocol
+        self.priv_password = priv_password
 
         if not PYSNMP_AVAILABLE:
             logger.error("pysnmp 没装，无法初始化 SNMP 采集器")
@@ -108,14 +140,71 @@ class SNMPCollector:
         self.snmp_engine = SnmpEngine()
 
         if self.version == 'v2c':
+            # v2c 用团体名（暗号）认证
             self.auth_data = CommunityData(self.community)
-        # v3 的话后面再加，先把 v2c 跑通
+        elif self.version == 'v3':
+            # v3 用用户名+密码认证，更安全
+            self.auth_data = self._setup_v3_auth()
+        else:
+            logger.warning(f"不支持的 SNMP 版本: {self.version}，默认用 v2c")
+            self.auth_data = CommunityData(self.community)
 
         self.transport_target = UdpTransportTarget(
             (self.ip, self.port),
             timeout=self.timeout,
             retries=self.retries
         )
+
+    def _setup_v3_auth(self):
+        """
+        配置 SNMPv3 认证参数
+        v3 有三种安全级别：
+        1. noAuthNoPriv - 只有用户名，无认证无加密
+        2. authNoPriv - 有认证（MD5/SHA），无加密
+        3. authPriv - 有认证 + 有加密（DES/AES）
+        """
+        # 认证协议映射
+        auth_proto_map = {
+            'md5': usmHMACMD5AuthProtocol,
+            'sha': usmHMACSHAAuthProtocol,
+            'none': None,
+        }
+
+        # 加密协议映射
+        priv_proto_map = {
+            'des': usmDESPrivProtocol,
+            'aes': usmAesCfb128Protocol,
+            'none': None,
+        }
+
+        auth_proto = auth_proto_map.get(self.auth_protocol.lower())
+        priv_proto = priv_proto_map.get(self.priv_protocol.lower())
+
+        # 根据安全级别创建认证对象
+        if auth_proto and self.auth_password:
+            # 有认证
+            if priv_proto and self.priv_password:
+                # 有认证 + 有加密（最高安全级别）
+                logger.info(f"SNMPv3 authPriv 模式 [{self.ip}]")
+                return UsmUserData(
+                    self.username,
+                    self.auth_password,
+                    authProtocol=auth_proto,
+                    privKey=self.priv_password,
+                    privProtocol=priv_proto,
+                )
+            else:
+                # 有认证 + 无加密
+                logger.info(f"SNMPv3 authNoPriv 模式 [{self.ip}]")
+                return UsmUserData(
+                    self.username,
+                    self.auth_password,
+                    authProtocol=auth_proto,
+                )
+        else:
+            # 无认证无加密（最低安全级别）
+            logger.info(f"SNMPv3 noAuthNoPriv 模式 [{self.ip}]")
+            return UsmUserData(self.username)
 
     # -----------------------------------------------------------
     # 基础 SNMP 操作
@@ -330,6 +419,134 @@ class SNMPCollector:
         return arp_entries
 
     # -----------------------------------------------------------
+    # MAC 地址表采集
+    # -----------------------------------------------------------
+
+    async def get_mac_table(self):
+        """
+        读取 MAC 地址表（dot1dTpFdbTable）
+        获取设备学习到的 MAC 地址和对应端口
+        返回：[{mac, port, status}, ...]
+        """
+        mac_entries = []
+
+        # 读取 MAC 地址
+        mac_list = await self.snmp_walk(OID_MAC_ADDRESS)
+        # 读取对应端口
+        port_list = await self.snmp_walk(OID_MAC_PORT)
+        # 读取学习状态
+        status_list = await self.snmp_walk(OID_MAC_STATUS)
+
+        # 组装数据
+        # 状态含义：1=other, 2=invalid, 3=learned, 4=self, 5=mgmt
+        status_map = {1: 'other', 2: 'invalid', 3: 'learned', 4: 'self', 5: 'mgmt'}
+
+        # 先把端口和状态做成字典，方便匹配
+        port_dict = {}
+        for oid, val in port_list:
+            # OID 最后一段是端口索引
+            index = oid.split('.')[-1]
+            port_dict[index] = int(val)
+
+        status_dict = {}
+        for oid, val in status_list:
+            index = oid.split('.')[-1]
+            status_dict[index] = status_map.get(int(val), 'unknown')
+
+        # 遍历 MAC 地址
+        for oid, val in mac_list:
+            index = oid.split('.')[-1]
+
+            # 解析 MAC 地址（6字节）
+            mac = ''
+            if isinstance(val, bytes) and len(val) == 6:
+                mac = ':'.join(f'{b:02x}' for b in val)
+            else:
+                mac = str(val)
+
+            mac_entries.append({
+                'mac': mac,
+                'port': port_dict.get(index, 0),
+                'status': status_dict.get(index, 'unknown'),
+            })
+
+        logger.info(f"MAC 地址表采集完成 [{self.ip}]：共 {len(mac_entries)} 条")
+        return mac_entries
+
+    # -----------------------------------------------------------
+    # 路由表采集
+    # -----------------------------------------------------------
+
+    async def get_route_table(self):
+        """
+        读取路由表（ipRouteTable）
+        获取设备的路由条目
+        返回：[{dest, mask, next_hop, metric, route_type}, ...]
+        """
+        route_entries = []
+
+        # 读取各字段
+        dest_list = await self.snmp_walk(OID_ROUTE_DEST)
+        mask_list = await self.snmp_walk(OID_ROUTE_MASK)
+        nexthop_list = await self.snmp_walk(OID_ROUTE_NEXTHOP)
+        metric_list = await self.snmp_walk(OID_ROUTE_METRIC)
+        type_list = await self.snmp_walk(OID_ROUTE_TYPE)
+
+        # 路由类型：1=other, 2=direct, 3=indirect
+        route_type_map = {1: 'other', 2: 'direct', 3: 'indirect'}
+
+        # 组装数据
+        # 用目的地址做 key，因为同一个目的可能有多条路由
+        dest_dict = {}
+        for oid, val in dest_list:
+            # OID 最后4段是IP地址
+            parts = oid.split('.')
+            if len(parts) >= 4:
+                ip_addr = '.'.join(parts[-4:])
+                dest_dict[ip_addr] = {'dest': ip_addr}
+
+        for oid, val in mask_list:
+            parts = oid.split('.')
+            if len(parts) >= 4:
+                ip_addr = '.'.join(parts[-4:])
+                if ip_addr in dest_dict:
+                    mask_parts = []
+                    if isinstance(val, bytes):
+                        mask_parts = [str(b) for b in val]
+                    else:
+                        mask_parts = [str(val)]
+                    dest_dict[ip_addr]['mask'] = '.'.join(mask_parts) if mask_parts else str(val)
+
+        for oid, val in nexthop_list:
+            parts = oid.split('.')
+            if len(parts) >= 4:
+                ip_addr = '.'.join(parts[-4:])
+                if ip_addr in dest_dict:
+                    if isinstance(val, bytes):
+                        dest_dict[ip_addr]['next_hop'] = '.'.join(str(b) for b in val)
+                    else:
+                        dest_dict[ip_addr]['next_hop'] = str(val)
+
+        for oid, val in metric_list:
+            parts = oid.split('.')
+            if len(parts) >= 4:
+                ip_addr = '.'.join(parts[-4:])
+                if ip_addr in dest_dict:
+                    dest_dict[ip_addr]['metric'] = int(val)
+
+        for oid, val in type_list:
+            parts = oid.split('.')
+            if len(parts) >= 4:
+                ip_addr = '.'.join(parts[-4:])
+                if ip_addr in dest_dict:
+                    dest_dict[ip_addr]['route_type'] = route_type_map.get(int(val), 'unknown')
+
+        route_entries = list(dest_dict.values())
+
+        logger.info(f"路由表采集完成 [{self.ip}]：共 {len(route_entries)} 条")
+        return route_entries
+
+    # -----------------------------------------------------------
     # 厂商识别
     # -----------------------------------------------------------
 
@@ -355,15 +572,17 @@ class SNMPCollector:
     async def collect_all(self):
         """
         一次性采集所有信息
-        返回：{device_info, lldp_neighbors, arp_table, local_ports, vendor}
+        返回：{device_info, lldp_neighbors, arp_table, mac_table, route_table, local_ports, vendor}
         """
         logger.info(f"开始全面采集 [{self.ip}]")
 
-        # 并发采集，快一点
-        device_info, lldp_neighbors, arp_table, local_ports = await asyncio.gather(
+        # 并发采集，快一点（6个任务一起跑）
+        device_info, lldp_neighbors, arp_table, mac_table, route_table, local_ports = await asyncio.gather(
             self.get_device_info(),
             self.get_lldp_neighbors(),
             self.get_arp_table(),
+            self.get_mac_table(),
+            self.get_route_table(),
             self.get_local_ports(),
         )
 
@@ -375,11 +594,13 @@ class SNMPCollector:
             'device_info': device_info,
             'lldp_neighbors': lldp_neighbors,
             'arp_table': arp_table,
+            'mac_table': mac_table,
+            'route_table': route_table,
             'local_ports': local_ports,
             'vendor': vendor,
         }
 
-        logger.info(f"全面采集完成 [{self.ip}]：厂商={vendor}，邻居={len(lldp_neighbors)}个，ARP={len(arp_table)}条")
+        logger.info(f"全面采集完成 [{self.ip}]：厂商={vendor}，邻居={len(lldp_neighbors)}个，ARP={len(arp_table)}条，MAC={len(mac_table)}条，路由={len(route_table)}条")
         return result
 
 
@@ -402,6 +623,12 @@ async def test_collect(ip, community='public'):
     print(f"\nARP 表（{len(result['arp_table'])}条）：")
     for a in result['arp_table'][:10]:
         print(f"  {a['ip']} -> {a['mac']}")
+    print(f"\nMAC 地址表（{len(result['mac_table'])}条）：")
+    for m in result['mac_table'][:10]:
+        print(f"  {m['mac']} -> 端口:{m['port']} [{m['status']}]")
+    print(f"\n路由表（{len(result['route_table'])}条）：")
+    for r in result['route_table'][:10]:
+        print(f"  {r.get('dest', '?')}/{r.get('mask', '?')} -> {r.get('next_hop', '?')} [{r.get('route_type', '?')}]")
     print(f"\n本地端口（{len(result['local_ports'])}个）：")
     for p in result['local_ports'][:10]:
         print(f"  {p['name']} [{p['status']}]")
