@@ -1055,7 +1055,7 @@
                 <hr class="my-2">
 
                 <!-- 操作按钮 -->
-                <div class="d-flex gap-2 mb-3">
+                <div class="d-flex gap-2 mb-3 flex-wrap">
                     <button class="btn btn-sm btn-outline-info" onclick="autoLayoutTopology()">
                         <i class="fas fa-magic me-1"></i>自动布局
                     </button>
@@ -1068,6 +1068,9 @@
                     <button class="btn btn-sm btn-outline-secondary" onclick="exportTopologyJSON('topology')">
                         <i class="fas fa-file-code me-1"></i>导出JSON
                     </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="exportTopologyCSV('device_list')">
+                        <i class="fas fa-file-csv me-1"></i>导出CSV
+                    </button>
                     <button class="btn btn-sm btn-outline-danger" onclick="checkDeviceAlerts()">
                         <i class="fas fa-bell me-1"></i>告警检测
                     </button>
@@ -1076,6 +1079,13 @@
                     </button>
                     <button class="btn btn-sm btn-outline-warning" id="editModeBtn" onclick="toggleEditMode()">
                         <i class="fas fa-edit me-1"></i>编辑模式
+                    </button>
+                    <!-- AI 推测按钮（创新点！） -->
+                    <button class="btn btn-sm btn-outline-primary" id="aiPredictBtn" onclick="aiPredictTopology()">
+                        <i class="fas fa-brain me-1"></i>AI推测拓扑
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" id="aiAnalyzeBtn" onclick="aiAnalyzeTopology()">
+                        <i class="fas fa-chart-line me-1"></i>AI分析拓扑
                     </button>
                 </div>
 
@@ -4919,6 +4929,172 @@
 
         // 初始化 Web 终端
         initWebTerminal();
+
+        // ============================================================
+        // AI 拓扑推测功能（创新点！）
+        // ============================================================
+
+        // AI 推测拓扑
+        function aiPredictTopology() {
+            const seedIp = document.getElementById('seedIpInput').value.trim();
+            const community = document.getElementById('communityInput').value.trim() || 'public';
+
+            if (!seedIp) {
+                alert('请先输入种子设备IP');
+                return;
+            }
+
+            // 显示加载状态
+            const btn = document.getElementById('aiPredictBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>AI推测中...';
+
+            showToast('AI 正在分析网络数据，推测拓扑结构...', 'info');
+
+            fetch('/api/v1/ai/predict-topology', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    seed_ip: seedIp,
+                    community: community,
+                    max_depth: 3,
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-brain me-1"></i>AI推测拓扑';
+
+                if (data.code === 0) {
+                    const result = data.data;
+
+                    // 显示已有拓扑
+                    if (result.existing_topology) {
+                        topo.renderTopology(result.existing_topology);
+                    }
+
+                    // 显示 AI 分析结果
+                    let aiReport = `=== AI 拓扑推测报告 ===\n\n`;
+                    aiReport += `采集设备数：${result.collected_device_count} 台\n`;
+                    aiReport += `采集设备：${result.collected_devices.join(', ')}\n\n`;
+
+                    if (result.ai_plans && result.ai_plans.length > 0) {
+                        aiReport += `--- AI 推测方案（共 ${result.ai_plans.length} 种）---\n\n`;
+
+                        result.ai_plans.forEach((plan, index) => {
+                            aiReport += `方案 ${index + 1}：${plan.name}\n`;
+                            aiReport += `描述：${plan.description}\n`;
+                            aiReport += `置信度：${plan.confidence}%\n`;
+                            aiReport += `推测依据：${plan.reasoning}\n`;
+
+                            if (plan.nodes) {
+                                aiReport += `设备数：${plan.nodes.length} 台\n`;
+                            }
+                            if (plan.links) {
+                                aiReport += `链路数：${plan.links.length} 条\n`;
+                            }
+                            aiReport += '\n';
+                        });
+                    }
+
+                    if (result.ai_analysis) {
+                        aiReport += `--- AI 分析建议 ---\n${result.ai_analysis}\n`;
+                    }
+
+                    // 显示报告（可以用模态框或弹窗）
+                    showAIDialog('AI 拓扑推测', aiReport);
+
+                    showToast(`AI 推测完成！采集 ${result.collected_device_count} 台设备`, 'success');
+                } else {
+                    showToast('AI 推测失败：' + data.msg, 'error');
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-brain me-1"></i>AI推测拓扑';
+                showToast('请求失败：' + error.message, 'error');
+            });
+        }
+
+        // AI 分析当前拓扑
+        function aiAnalyzeTopology() {
+            const btn = document.getElementById('aiAnalyzeBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>AI分析中...';
+
+            showToast('AI 正在分析当前拓扑...', 'info');
+
+            fetch('/api/v1/ai/analyze-topology', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-chart-line me-1"></i>AI分析拓扑';
+
+                if (data.code === 0) {
+                    const result = data.data;
+
+                    let report = `=== AI 拓扑分析报告 ===\n\n`;
+                    report += `设备数：${result.device_count} 台\n`;
+                    report += `链路数：${result.link_count} 条\n\n`;
+                    report += `--- 分析结果 ---\n`;
+                    report += result.analysis;
+
+                    showAIDialog('AI 拓扑分析', report);
+
+                    showToast('AI 分析完成！', 'success');
+                } else {
+                    showToast('AI 分析失败：' + data.msg, 'error');
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-chart-line me-1"></i>AI分析拓扑';
+                showToast('请求失败：' + error.message, 'error');
+            });
+        }
+
+        // 显示 AI 报告对话框
+        function showAIDialog(title, content) {
+            // 检查是否已有对话框
+            let dialog = document.getElementById('aiReportDialog');
+            if (!dialog) {
+                dialog = document.createElement('div');
+                dialog.id = 'aiReportDialog';
+                dialog.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: 700px;
+                    max-height: 80vh;
+                    background: #1e293b;
+                    border: 1px solid #334155;
+                    border-radius: 12px;
+                    z-index: 10000;
+                    display: none;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+                `;
+                document.body.appendChild(dialog);
+            }
+
+            dialog.innerHTML = `
+                <div style="padding: 20px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
+                    <h5 style="margin: 0; color: #f1f5f9;"><i class="fas fa-brain me-2" style="color: #8b5cf6;"></i>${title}</h5>
+                    <button onclick="document.getElementById('aiReportDialog').style.display='none'" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 20px;">&times;</button>
+                </div>
+                <div style="padding: 20px; max-height: 60vh; overflow-y: auto;">
+                    <pre style="color: #e2e8f0; white-space: pre-wrap; word-break: break-word; font-family: 'Consolas', monospace; font-size: 13px; line-height: 1.6; margin: 0;">${content}</pre>
+                </div>
+                <div style="padding: 15px 20px; border-top: 1px solid #334155; text-align: right;">
+                    <button onclick="document.getElementById('aiReportDialog').style.display='none'" class="btn btn-sm btn-primary">关闭</button>
+                </div>
+            `;
+
+            dialog.style.display = 'block';
+        }
 
         // ============================================================
         // Tab 切换功能

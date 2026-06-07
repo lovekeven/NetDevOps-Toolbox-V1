@@ -22,6 +22,7 @@ import yaml
 
 # 引入AI这个全局实例
 from core.AI.report_generator import deepseek_assistant
+from core.AI.topo_predictor import TopoPredictor
 from core.nornir.nornir_tasks import run_concurrent_health_check
 from utils.log_setup import setup_logger
 import logging  # 这个可以不用写
@@ -2242,6 +2243,155 @@ def terminal_sessions():
         })
     except Exception as e:
         logger.error(f"获取终端会话失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# ============================================================
+# AI 拓扑智能推测 API（创新点！）
+# ============================================================
+
+# AI 推测拓扑
+@app.route("/api/v1/ai/predict-topology", methods=["POST"])
+def ai_predict_topology():
+    """
+    AI 拓扑智能推测
+    根据已有采集数据，推测完整拓扑结构
+
+    请求体：{"seed_ip": "192.168.1.1", "community": "public", "max_depth": 3}
+    """
+    try:
+        data = request.get_json() or {}
+        seed_ip = data.get("seed_ip")
+        community = data.get("community", "public")
+        max_depth = data.get("max_depth", 3)
+
+        if not seed_ip:
+            return jsonify({"code": 1, "msg": "缺少种子设备IP", "data": None}), 400
+
+        if not PYSNMP_AVAILABLE:
+            return jsonify({"code": 1, "msg": "pysnmp 没装，SNMP 功能用不了", "data": None}), 500
+
+        # 第1步：采集所有可达设备的数据
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        collected_data = {}  # {ip: collected_data}
+
+        try:
+            from core.topology.snmp_collector import SNMPCollector
+            import queue
+
+            # BFS 扫描收集数据
+            q = queue.Queue()
+            q.put((seed_ip, 0))
+            visited = set()
+
+            while not q.empty():
+                current_ip, depth = q.get()
+
+                if current_ip in visited or depth >= max_depth:
+                    continue
+
+                visited.add(current_ip)
+
+                try:
+                    collector = SNMPCollector(current_ip, community=community)
+                    device_data = loop.run_until_complete(collector.collect_all())
+                    collected_data[current_ip] = device_data
+
+                    # 把邻居加入队列
+                    neighbors = device_data.get('lldp_neighbors', [])
+                    for n in neighbors:
+                        n_ip = n.get('remote_ip', '')
+                        if n_ip and n_ip not in visited:
+                            q.put((n_ip, depth + 1))
+
+                except Exception as e:
+                    logger.warning(f"采集设备 {current_ip} 失败：{e}")
+        finally:
+            loop.close()
+
+        if not collected_data:
+            return jsonify({"code": 1, "msg": "没有采集到任何设备数据", "data": None}), 400
+
+        # 第2步：先用传统算法构建已有拓扑
+        builder = TopologyBuilder()
+        for ip, device_data in collected_data.items():
+            builder._add_device_to_topology(ip, device_data)
+        builder._update_layers()
+
+        existing_topology = builder.get_topology_data()
+
+        # 第3步：调用 AI 推测完整拓扑
+        try:
+            predictor = TopoPredictor(deepseek_assistant.api_key)
+            ai_plans = predictor.predict_topology(collected_data)
+
+            # AI 分析已有拓扑
+            ai_analysis = predictor.analyze_topology(existing_topology)
+
+        except Exception as e:
+            logger.error(f"AI 推测失败：{e}")
+            ai_plans = []
+            ai_analysis = f"AI 分析失败：{str(e)}"
+
+        return jsonify({
+            "code": 0,
+            "msg": "AI 推测完成",
+            "data": {
+                "existing_topology": existing_topology,
+                "ai_plans": ai_plans,
+                "ai_analysis": ai_analysis,
+                "collected_device_count": len(collected_data),
+                "collected_devices": list(collected_data.keys()),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"AI 拓扑推测失败：{e}")
+        return jsonify({"code": 1, "msg": f"推测失败：{str(e)}", "data": None}), 500
+
+
+# AI 分析当前拓扑
+@app.route("/api/v1/ai/analyze-topology", methods=["POST"])
+def ai_analyze_topology():
+    """
+    AI 分析当前拓扑
+    给出拓扑问题分析和优化建议
+    """
+    try:
+        # 获取当前拓扑数据
+        nodes = db_manager.get_all_topology_nodes()
+        links = db_manager.get_all_topology_links()
+
+        if not nodes:
+            return jsonify({"code": 1, "msg": "没有拓扑数据，请先扫描", "data": None}), 400
+
+        topology_data = {
+            "nodes": nodes,
+            "links": links,
+        }
+
+        # 调用 AI 分析
+        try:
+            predictor = TopoPredictor(deepseek_assistant.api_key)
+            analysis = predictor.analyze_topology(topology_data)
+        except Exception as e:
+            logger.error(f"AI 分析失败：{e}")
+            analysis = f"AI 分析失败：{str(e)}"
+
+        return jsonify({
+            "code": 0,
+            "msg": "AI 分析完成",
+            "data": {
+                "analysis": analysis,
+                "device_count": len(nodes),
+                "link_count": len(links),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"AI 拓扑分析失败：{e}")
         return jsonify({"code": 1, "msg": str(e), "data": None}), 500
 
 
