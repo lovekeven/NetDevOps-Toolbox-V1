@@ -2133,6 +2133,32 @@ display memory-usage</textarea>
             </div>
         </div>
 
+        <!-- 配置命令集卡片 -->
+        <div class="card mb-4" data-tab="tools">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-book text-info me-2"></i>配置命令集</h5>
+                <div class="d-flex gap-2">
+                    <select id="templateVendorSelect" class="form-select form-select-sm" style="width: 150px;">
+                        <option value="h3c">华三 H3C</option>
+                        <option value="huawei">华为 Huawei</option>
+                        <option value="cisco">思科 Cisco</option>
+                        <option value="common">通用命令</option>
+                    </select>
+                    <button class="btn btn-sm btn-outline-info" onclick="loadCommandTemplates()">
+                        <i class="fas fa-sync-alt me-1"></i>加载
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="commandTemplatesContent">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-book fa-2x mb-2"></i>
+                        <br>选择厂商后加载配置命令集
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 页脚区域 -->
         <footer class="mt-5 py-4">
             <div class="container">
@@ -5581,6 +5607,102 @@ display memory-usage</textarea>
                 document.body.removeChild(a);
             });
         }
+
+        // ============================================================
+        // 配置命令集功能
+        // ============================================================
+
+        function loadCommandTemplates() {
+            const vendor = document.getElementById('templateVendorSelect').value;
+            const container = document.getElementById('commandTemplatesContent');
+
+            container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>加载中...</div>';
+
+            fetch(`/api/v1/command-templates/${vendor}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.code === 0) {
+                        const template = data.data;
+                        let html = `<h6 class="mb-3">${template.name}</h6>`;
+
+                        for (const [category, commands] of Object.entries(template.commands)) {
+                            html += `
+                                <div class="mb-3">
+                                    <h6 class="text-primary"><i class="fas fa-folder me-2"></i>${category}</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 250px;">命令</th>
+                                                    <th>说明</th>
+                                                    <th style="width: 80px;">操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                            `;
+
+                            commands.forEach(cmd => {
+                                html += `
+                                    <tr>
+                                        <td><code>${cmd.cmd}</code></td>
+                                        <td>${cmd.desc}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="copyCommand('${cmd.cmd}')" title="复制命令">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                            });
+
+                            html += `
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                        // 添加官方文档链接
+                        if (template.official_docs && template.official_docs.length > 0) {
+                            html += `
+                                <div class="mt-4">
+                                    <h6 class="text-info"><i class="fas fa-link me-2"></i>官方文档</h6>
+                                    <ul class="list-unstyled">
+                            `;
+                            template.official_docs.forEach(doc => {
+                                html += `<li class="mb-2"><a href="${doc.url}" target="_blank" class="text-decoration-none"><i class="fas fa-external-link-alt me-1"></i>${doc.name}</a></li>`;
+                            });
+                            html += `</ul></div>`;
+                        }
+
+                        container.innerHTML = html;
+                    } else {
+                        container.innerHTML = `<div class="text-center text-danger py-4">加载失败：${data.msg}</div>`;
+                    }
+                })
+                .catch(error => {
+                    container.innerHTML = `<div class="text-center text-danger py-4">加载失败：${error.message}</div>`;
+                });
+        }
+
+        function copyCommand(cmd) {
+            navigator.clipboard.writeText(cmd).then(() => {
+                showToast('命令已复制到剪贴板', 'success');
+            }).catch(() => {
+                //  fallback
+                const textArea = document.createElement('textarea');
+                textArea.value = cmd;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast('命令已复制到剪贴板', 'success');
+            });
+        }
+
+        // 初始化加载配置命令集
+        loadCommandTemplates();
 
         // ============================================================
         // Tab 切换功能

@@ -1,0 +1,169 @@
+{
+  "h3c": {
+    "name": "华三 H3C",
+    "commands": {
+      "系统信息": [
+        {"cmd": "display version", "desc": "查看设备版本信息"},
+        {"cmd": "display current-configuration", "desc": "查看当前配置"},
+        {"cmd": "display saved-configuration", "desc": "查看保存的配置"},
+        {"cmd": "display clock", "desc": "查看系统时间"},
+        {"cmd": "display device", "desc": "查看设备信息"}
+      ],
+      "接口信息": [
+        {"cmd": "display interface brief", "desc": "查看接口摘要"},
+        {"cmd": "display interface", "desc": "查看所有接口详细信息"},
+        {"cmd": "display ip interface brief", "desc": "查看IP接口摘要"},
+        {"cmd": "display port trunk", "desc": "查看Trunk端口"}
+      ],
+      "VLAN信息": [
+        {"cmd": "display vlan", "desc": "查看VLAN信息"},
+        {"cmd": "display vlan brief", "desc": "查看VLAN摘要"},
+        {"cmd": "display mac-address-table", "desc": "查看MAC地址表"}
+      ],
+      "路由信息": [
+        {"cmd": "display ip routing-table", "desc": "查看路由表"},
+        {"cmd": "display arp", "desc": "查看ARP表"},
+        {"cmd": "display ip routing-table statistics", "desc": "查看路由统计"}
+      ],
+      "协议信息": [
+        {"cmd": "display ospf peer", "desc": "查看OSPF邻居"},
+        {"cmd": "display ospf brief", "desc": "查看OSPF摘要"},
+        {"cmd": "display bgp peer", "desc": "查看BGP邻居"},
+        {"cmd": "display stp brief", "desc": "查看STP摘要"},
+        {"cmd": "display lldp neighbor-information", "desc": "查看LLDP邻居"}
+      ],
+      "性能信息": [
+        {"cmd": "display cpu-usage", "desc": "查看CPU使用率"},
+        {"cmd": "display memory", "desc": "查看内存使用"},
+        {"cmd": "display environment", "desc": "查看环境状态（温度、电源、风扇）"}
+      ],
+      "安全信息": [
+        {"cmd": "display acl all", "desc": "查看所有ACL"},
+        {"cmd": "display user-interface", "desc": "查看用户接口"},
+        {"cmd": "display local-user", "desc": "查看本地用户"}
+      ]
+    },
+    "official_docs": [
+      {"name": "H3C 技术文档中心", "url": "https://www.h3c.com/cn/Service/Document_Software/"},
+      {"name": "H3C 产品配置指导", "url": "https://www.h3c.com/cn/Service/Document_Software/Document_Center/Home/Switches/00-Public/Learn_Technologies/Document/"}
+    ]
+  },
+  "huawei": {
+    "name": "华为 Huawei",
+    "commands": {
+      "系统信息": [
+        {"cmd": "display version", "desc": "查看设备版本信息"},
+        {"cmd": "display current-configuration", "desc": "查看当前配置"},
+        {"cmd": "display saved-configuration", "desc": "查看保存的配置"},
+        {"cmd": "display clock", "desc": "查看系统时间"},
+        {"cmd": "display device", "desc": "查看设备信息"}
+      ],
+      "接口信息": [
+        {"cmd": "display interface brief", "desc": "查看接口摘要"},
+        {"cmd": "display interface", "desc": "查看所有接口详细信息"},
+        {"cmd": "display ip interface brief", "desc": "查看IP接口摘要"},
+        {"cmd": "display port vlan", "desc": "查看端口VLAN信息"}
+      ],
+      "VLAN信息": [
+        {"cmd": "display vlan", "desc": "查看VLAN信息"},
+        {"cmd": "display vlan summary", "desc": "查看VLAN摘要"},
+        {"cmd": "display mac-address", "desc": "查看MAC地址表"}
+      ],
+      "路由信息": [
+        {"cmd": "display ip routing-table", "desc": "查看路由表"},
+        {"cmd": "display arp", "desc": "查看ARP表"},
+        {"cmd": "display ip routing-table statistics", "desc": "查看路由统计"}
+      ],
+      "协议信息": [
+        {"cmd": "display ospf peer", "desc": "查看OSPF邻居"},
+        {"cmd": "display ospf brief", "desc": "查看OSPF摘要"},
+        {"cmd": "display bgp peer", "desc": "查看BGP邻居"},
+        {"cmd": "display stp brief", "desc": "查看STP摘要"},
+        {"cmd": "display lldp neighbor-information", "desc": "查看LLDP邻居"}
+      ],
+      "性能信息": [
+        {"cmd": "display cpu-usage", "desc": "查看CPU使用率"},
+        {"cmd": "display memory-usage", "desc": "查看内存使用"},
+        {"cmd": "display environment", "desc": "查看环境状态（温度、电源、风扇）"}
+      ],
+      "安全信息": [
+        {"cmd": "display acl all", "desc": "查看所有ACL"},
+        {"cmd": "display user-interface", "desc": "查看用户接口"},
+        {"cmd": "display aaa local-user", "desc": "查看本地用户"}
+      ]
+    },
+    "official_docs": [
+      {"name": "华为产品文档", "url": "https://support.huawei.com/enterprise/zh/network/switches/"},
+      {"name": "华为 CloudEngine 交换机配置指南", "url": "https://support.huawei.com/enterprise/zh/doc/EDOC1100065910"}
+    ]
+  },
+  "cisco": {
+    "name": "思科 Cisco",
+    "commands": {
+      "系统信息": [
+        {"cmd": "show version", "desc": "查看设备版本信息"},
+        {"cmd": "show running-config", "desc": "查看当前配置"},
+        {"cmd": "show startup-config", "desc": "查看启动配置"},
+        {"cmd": "show clock", "desc": "查看系统时间"},
+        {"cmd": "show inventory", "desc": "查看设备信息"}
+      ],
+      "接口信息": [
+        {"cmd": "show ip interface brief", "desc": "查看IP接口摘要"},
+        {"cmd": "show interfaces", "desc": "查看所有接口详细信息"},
+        {"cmd": "show interfaces status", "desc": "查看接口状态"},
+        {"cmd": "show interfaces trunk", "desc": "查看Trunk接口"}
+      ],
+      "VLAN信息": [
+        {"cmd": "show vlan brief", "desc": "查看VLAN摘要"},
+        {"cmd": "show vlan", "desc": "查看VLAN详细信息"},
+        {"cmd": "show mac address-table", "desc": "查看MAC地址表"}
+      ],
+      "路由信息": [
+        {"cmd": "show ip route", "desc": "查看路由表"},
+        {"cmd": "show arp", "desc": "查看ARP表"},
+        {"cmd": "show ip route summary", "desc": "查看路由摘要"}
+      ],
+      "协议信息": [
+        {"cmd": "show ip ospf neighbor", "desc": "查看OSPF邻居"},
+        {"cmd": "show ip ospf brief", "desc": "查看OSPF摘要"},
+        {"cmd": "show ip bgp summary", "desc": "查看BGP摘要"},
+        {"cmd": "show spanning-tree brief", "desc": "查看STP摘要"},
+        {"cmd": "show cdp neighbors", "desc": "查看CDP邻居"}
+      ],
+      "性能信息": [
+        {"cmd": "show processes cpu", "desc": "查看CPU使用率"},
+        {"cmd": "show memory statistics", "desc": "查看内存使用"},
+        {"cmd": "show environment all", "desc": "查看环境状态（温度、电源、风扇）"}
+      ],
+      "安全信息": [
+        {"cmd": "show access-lists", "desc": "查看所有ACL"},
+        {"cmd": "show users", "desc": "查看在线用户"},
+        {"cmd": "show aaa local-user", "desc": "查看本地用户"}
+      ]
+    },
+    "official_docs": [
+      {"name": "Cisco 技术文档", "url": "https://www.cisco.com/c/en/us/support/index.html"},
+      {"name": "Cisco IOS 命令参考", "url": "https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/fundamentals/command.html"}
+    ]
+  },
+  "common": {
+    "name": "通用命令",
+    "commands": {
+      "网络测试": [
+        {"cmd": "ping <IP地址>", "desc": "测试网络连通性"},
+        {"cmd": "traceroute <IP地址>", "desc": "追踪路由路径"},
+        {"cmd": "telnet <IP地址> <端口>", "desc": "测试TCP端口连通性"}
+      ],
+      "配置保存": [
+        {"cmd": "save", "desc": "保存配置（华三/华为）"},
+        {"cmd": "write memory", "desc": "保存配置（Cisco）"},
+        {"cmd": "copy running-config startup-config", "desc": "保存配置（Cisco）"}
+      ],
+      "配置恢复": [
+        {"cmd": "reset saved-configuration", "desc": "清除保存的配置（华三/华为）"},
+        {"cmd": "erase startup-config", "desc": "清除启动配置（Cisco）"},
+        {"cmd": "reboot", "desc": "重启设备"}
+      ]
+    }
+  }
+}

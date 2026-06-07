@@ -2600,6 +2600,53 @@ def download_query_result():
 
 
 # ============================================================
+# 配置命令集 API
+# ============================================================
+
+# 获取配置命令集
+@app.route("/api/v1/command-templates", methods=["GET"])
+def get_command_templates():
+    """获取配置命令集"""
+    try:
+        import json
+        config_path = os.path.join(ROOT_DIR, "config", "command_templates.json")
+
+        if not os.path.exists(config_path):
+            return jsonify({"code": 1, "msg": "配置文件不存在", "data": None}), 404
+
+        with open(config_path, 'r', encoding='utf-8') as f:
+            templates = json.load(f)
+
+        return jsonify({"code": 0, "msg": "success", "data": templates})
+    except Exception as e:
+        logger.error(f"获取配置命令集失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 获取指定厂商的配置命令集
+@app.route("/api/v1/command-templates/<vendor>", methods=["GET"])
+def get_vendor_command_templates(vendor):
+    """获取指定厂商的配置命令集"""
+    try:
+        import json
+        config_path = os.path.join(ROOT_DIR, "config", "command_templates.json")
+
+        if not os.path.exists(config_path):
+            return jsonify({"code": 1, "msg": "配置文件不存在", "data": None}), 404
+
+        with open(config_path, 'r', encoding='utf-8') as f:
+            templates = json.load(f)
+
+        if vendor not in templates:
+            return jsonify({"code": 1, "msg": f"不支持的厂商：{vendor}", "data": None}), 404
+
+        return jsonify({"code": 0, "msg": "success", "data": templates[vendor]})
+    except Exception as e:
+        logger.error(f"获取厂商配置命令集失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# ============================================================
 # 用户配置 API
 # ============================================================
 
