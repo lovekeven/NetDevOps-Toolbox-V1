@@ -73,6 +73,9 @@ from core.topology.network_tools import NetworkTools
 # 引入终端模块
 from core.terminal.web_terminal import terminal_manager
 
+# 引入告警模块
+from core.alert.alert_engine import alert_engine
+
 logger = setup_logger("web_dashboard", "web_dashboard.log")
 
 app = Flask(__name__)
@@ -2243,6 +2246,390 @@ def terminal_sessions():
         })
     except Exception as e:
         logger.error(f"获取终端会话失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# ============================================================
+# 告警规则管理 API
+# ============================================================
+
+# 获取告警规则列表
+@app.route("/api/v1/alert/rules", methods=["GET"])
+def get_alert_rules():
+    """获取告警规则列表"""
+    try:
+        rules = db_manager.get_alert_rules()
+        return jsonify({"code": 0, "msg": "success", "data": rules})
+    except Exception as e:
+        logger.error(f"获取告警规则失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 添加告警规则
+@app.route("/api/v1/alert/rules", methods=["POST"])
+def add_alert_rule():
+    """
+    添加告警规则
+    请求体：
+    {
+        "rule_name": "CPU使用率告警",
+        "device_name": "SW1",  // 可选，为空表示所有设备
+        "metric_type": "cpu",
+        "threshold_operator": ">",
+        "threshold_value": 80,
+        "severity": "warning",
+        "enable_email_alert": 1,
+        "email_recipients": "admin@example.com"
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"code": 1, "msg": "请求数据为空", "data": None}), 400
+
+        rule_id = db_manager.add_alert_rule(
+            rule_name=data.get('rule_name', '未命名规则'),
+            metric_type=data.get('metric_type', 'cpu'),
+            threshold_operator=data.get('threshold_operator', '>'),
+            threshold_value=data.get('threshold_value', 0),
+            device_name=data.get('device_name'),
+            device_ip=data.get('device_ip'),
+            metric_field=data.get('metric_field'),
+            severity=data.get('severity', 'warning'),
+            enable_email_alert=data.get('enable_email_alert', 0),
+            email_recipients=data.get('email_recipients'),
+        )
+
+        return jsonify({
+            "code": 0,
+            "msg": "规则添加成功",
+            "data": {"rule_id": rule_id}
+        })
+    except Exception as e:
+        logger.error(f"添加告警规则失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 更新告警规则
+@app.route("/api/v1/alert/rules/<int:rule_id>", methods=["PUT"])
+def update_alert_rule(rule_id):
+    """更新告警规则"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"code": 1, "msg": "请求数据为空", "data": None}), 400
+
+        success = db_manager.update_alert_rule(rule_id, **data)
+        if success:
+            return jsonify({"code": 0, "msg": "规则更新成功", "data": None})
+        return jsonify({"code": 1, "msg": "规则不存在", "data": None}), 404
+    except Exception as e:
+        logger.error(f"更新告警规则失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 删除告警规则
+@app.route("/api/v1/alert/rules/<int:rule_id>", methods=["DELETE"])
+def delete_alert_rule(rule_id):
+    """删除告警规则"""
+    try:
+        success = db_manager.delete_alert_rule(rule_id)
+        if success:
+            return jsonify({"code": 0, "msg": "规则删除成功", "data": None})
+        return jsonify({"code": 1, "msg": "规则不存在", "data": None}), 404
+    except Exception as e:
+        logger.error(f"删除告警规则失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 获取告警历史
+@app.route("/api/v1/alert/history", methods=["GET"])
+def get_alert_history():
+    """获取告警历史"""
+    try:
+        limit = int(request.args.get('limit', 50))
+        severity = request.args.get('severity')
+        is_resolved = request.args.get('is_resolved')
+
+        if is_resolved is not None:
+            is_resolved = int(is_resolved)
+
+        history = db_manager.get_alert_history(limit=limit, severity=severity, is_resolved=is_resolved)
+        return jsonify({"code": 0, "msg": "success", "data": history})
+    except Exception as e:
+        logger.error(f"获取告警历史失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 标记告警为已解决
+@app.route("/api/v1/alert/resolve/<int:alert_id>", methods=["POST"])
+def resolve_alert(alert_id):
+    """标记告警为已解决"""
+    try:
+        success = db_manager.resolve_alert(alert_id)
+        if success:
+            return jsonify({"code": 0, "msg": "告警已标记为解决", "data": None})
+        return jsonify({"code": 1, "msg": "告警不存在", "data": None}), 404
+    except Exception as e:
+        logger.error(f"解决告警失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 测试邮件配置
+@app.route("/api/v1/alert/test-email", methods=["POST"])
+def test_alert_email():
+    """测试邮件配置"""
+    try:
+        data = request.get_json()
+        test_recipient = data.get('email')
+
+        if not test_recipient:
+            return jsonify({"code": 1, "msg": "请输入测试邮箱", "data": None}), 400
+
+        success, message = alert_engine.test_email_config(test_recipient)
+        if success:
+            return jsonify({"code": 0, "msg": "测试邮件发送成功", "data": None})
+        return jsonify({"code": 1, "msg": f"发送失败：{message}", "data": None}), 500
+    except Exception as e:
+        logger.error(f"测试邮件失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# ============================================================
+# 一键查询所有设备 API
+# ============================================================
+
+# 一键查询所有设备
+@app.route("/api/v1/devices/query-all", methods=["POST"])
+def query_all_devices():
+    """
+    一键查询所有设备信息
+    支持下载和邮箱推送
+    """
+    try:
+        data = request.get_json() or {}
+        commands = data.get('commands', ['display version', 'display cpu-usage', 'display memory-usage'])
+        send_email = data.get('send_email', False)
+        email_recipients = data.get('email_recipients', '')
+
+        devices = get_devices()
+        if not devices:
+            return jsonify({"code": 1, "msg": "没有设备", "data": None}), 400
+
+        # 并发查询所有设备
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        results = []
+
+        def query_device(device):
+            device_name = device.get('device_name', '')
+            device_ip = device.get('host', '')
+            username = device.get('username', '')
+            password = device.get('password', '')
+
+            device_result = {
+                'device_name': device_name,
+                'device_ip': device_ip,
+                'status': 'success',
+                'commands': {},
+                'error': None,
+            }
+
+            try:
+                from netmiko import ConnectHandler
+                connection = ConnectHandler(
+                    ip=device_ip,
+                    username=username,
+                    password=password,
+                    device_type='huawei',
+                    timeout=10,
+                )
+
+                for cmd in commands:
+                    try:
+                        output = connection.send_command(cmd, delay_factor=2)
+                        device_result['commands'][cmd] = output
+                    except Exception as e:
+                        device_result['commands'][cmd] = f"执行失败：{str(e)}"
+
+                connection.disconnect()
+            except Exception as e:
+                device_result['status'] = 'failed'
+                device_result['error'] = str(e)
+
+            return device_result
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(query_device, dev): dev for dev in devices}
+            for future in as_completed(futures):
+                results.append(future.result())
+
+        # 统计结果
+        success_count = sum(1 for r in results if r['status'] == 'success')
+        failed_count = sum(1 for r in results if r['status'] == 'failed')
+
+        # 保存到历史记录
+        try:
+            import json
+            db_manager.save_command_history(
+                device_name='所有设备',
+                device_ip='',
+                command='一键查询',
+                command_category='batch',
+                result=json.dumps(results, ensure_ascii=False, indent=2),
+                status='success',
+            )
+        except Exception as e:
+            logger.warning(f"保存查询历史失败：{e}")
+
+        # 发送邮件
+        if send_email and email_recipients:
+            try:
+                _send_query_report_email(results, commands, email_recipients)
+            except Exception as e:
+                logger.error(f"发送查询报告邮件失败：{e}")
+
+        return jsonify({
+            "code": 0,
+            "msg": f"查询完成：成功 {success_count} 台，失败 {failed_count} 台",
+            "data": {
+                "total": len(results),
+                "success": success_count,
+                "failed": failed_count,
+                "results": results,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"一键查询失败：{e}")
+        return jsonify({"code": 1, "msg": f"查询失败：{str(e)}", "data": None}), 500
+
+
+def _send_query_report_email(results, commands, recipients):
+    """发送查询报告邮件"""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    smtp_server = db_manager.get_setting('smtp_server', 'smtp.qq.com')
+    smtp_port = int(db_manager.get_setting('smtp_port', '465'))
+    smtp_user = db_manager.get_setting('smtp_user', '')
+    smtp_password = db_manager.get_setting('smtp_password', '')
+
+    if not smtp_user or not smtp_password:
+        logger.warning("邮件未配置，跳过发送")
+        return
+
+    # 构造邮件内容
+    body = f"设备查询报告\n{'='*50}\n\n"
+    body += f"查询时间：{time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+    body += f"查询命令：{', '.join(commands)}\n"
+    body += f"设备总数：{len(results)}\n\n"
+
+    for result in results:
+        body += f"设备：{result['device_name']} ({result['device_ip']})\n"
+        body += f"状态：{result['status']}\n"
+
+        if result.get('error'):
+            body += f"错误：{result['error']}\n"
+
+        for cmd, output in result.get('commands', {}).items():
+            body += f"\n命令：{cmd}\n{'-'*30}\n{output[:500]}\n"
+
+        body += f"\n{'='*50}\n\n"
+
+    # 发送邮件
+    recipients_list = [r.strip() for r in recipients.split(',') if r.strip()]
+
+    msg = MIMEMultipart()
+    msg['From'] = smtp_user
+    msg['To'] = ', '.join(recipients_list)
+    msg['Subject'] = f"设备查询报告 - {time.strftime('%Y-%m-%d %H:%M')}"
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+
+    if smtp_port == 465:
+        server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+    else:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+
+    server.login(smtp_user, smtp_password)
+    server.sendmail(smtp_user, recipients_list, msg.as_string())
+    server.quit()
+
+    logger.info(f"查询报告邮件已发送给：{', '.join(recipients_list)}")
+
+
+# 下载查询结果
+@app.route("/api/v1/devices/download-query", methods=["POST"])
+def download_query_result():
+    """下载查询结果为 TXT 文件"""
+    try:
+        data = request.get_json()
+        results = data.get('results', [])
+        commands = data.get('commands', [])
+
+        # 构造文件内容
+        content = f"设备查询报告\n{'='*50}\n\n"
+        content += f"查询时间：{time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        content += f"查询命令：{', '.join(commands)}\n"
+        content += f"设备总数：{len(results)}\n\n"
+
+        for result in results:
+            content += f"设备：{result.get('device_name', '未知')} ({result.get('device_ip', '未知')})\n"
+            content += f"状态：{result.get('status', '未知')}\n"
+
+            if result.get('error'):
+                content += f"错误：{result['error']}\n"
+
+            for cmd, output in result.get('commands', {}).items():
+                content += f"\n命令：{cmd}\n{'-'*30}\n{output}\n"
+
+            content += f"\n{'='*50}\n\n"
+
+        from flask import Response
+        filename = f"device_query_{time.strftime('%Y%m%d_%H%M%S')}.txt"
+        return Response(
+            content,
+            mimetype='text/plain',
+            headers={'Content-Disposition': f'attachment; filename={filename}'}
+        )
+    except Exception as e:
+        logger.error(f"下载查询结果失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# ============================================================
+# 用户配置 API
+# ============================================================
+
+# 获取用户配置
+@app.route("/api/v1/settings", methods=["GET"])
+def get_user_settings():
+    """获取所有用户配置"""
+    try:
+        settings = db_manager.get_all_settings()
+        return jsonify({"code": 0, "msg": "success", "data": settings})
+    except Exception as e:
+        logger.error(f"获取用户配置失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 更新用户配置
+@app.route("/api/v1/settings", methods=["POST"])
+def update_user_settings():
+    """更新用户配置"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"code": 1, "msg": "请求数据为空", "data": None}), 400
+
+        for key, value in data.items():
+            db_manager.set_setting(key, value)
+
+        return jsonify({"code": 0, "msg": "配置更新成功", "data": None})
+    except Exception as e:
+        logger.error(f"更新用户配置失败：{e}")
         return jsonify({"code": 1, "msg": str(e), "data": None}), 500
 
 

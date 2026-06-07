@@ -236,6 +236,54 @@ class DatabaseManager:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """,
+            # 告警规则表：存储用户配置的告警阈值
+            """
+            CREATE TABLE IF NOT EXISTS alert_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rule_name TEXT NOT NULL,                -- 规则名称
+                device_name TEXT,                       -- 设备名称（为空表示所有设备）
+                device_ip TEXT,                         -- 设备IP
+                metric_type TEXT NOT NULL,              -- 指标类型：cpu/memory/interface/bgp/ospf
+                metric_field TEXT,                      -- 具体字段（如接口名）
+                threshold_operator TEXT NOT NULL,       -- 比较运算符：>/</>=/<=/==/!=
+                threshold_value REAL NOT NULL,          -- 阈值
+                severity TEXT DEFAULT 'warning',        -- 严重级别：info/warning/critical
+                enable_email_alert INTEGER DEFAULT 0,   -- 是否启用邮件告警
+                email_recipients TEXT,                  -- 邮件接收人（逗号分隔）
+                is_enabled INTEGER DEFAULT 1,           -- 是否启用
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """,
+            # 告警历史表：存储触发的告警记录
+            """
+            CREATE TABLE IF NOT EXISTS alert_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rule_id INTEGER,                        -- 关联的规则ID
+                device_name TEXT NOT NULL,               -- 设备名称
+                device_ip TEXT NOT NULL,                 -- 设备IP
+                metric_type TEXT NOT NULL,               -- 指标类型
+                metric_value REAL,                       -- 当前值
+                threshold_value REAL,                    -- 阈值
+                severity TEXT DEFAULT 'warning',         -- 严重级别
+                message TEXT NOT NULL,                   -- 告警消息
+                is_resolved INTEGER DEFAULT 0,           -- 是否已解决
+                resolved_at TIMESTAMP,                   -- 解决时间
+                email_sent INTEGER DEFAULT 0,            -- 邮件是否已发送
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (rule_id) REFERENCES alert_rules (id)
+            );
+            """,
+            # 用户配置表：存储用户设置（邮箱等）
+            """
+            CREATE TABLE IF NOT EXISTS user_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                setting_key TEXT UNIQUE NOT NULL,        -- 配置项名称
+                setting_value TEXT NOT NULL,             -- 配置值
+                description TEXT,                        -- 描述
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """,
         ]
         cursor = self.conn.cursor()
         try:
@@ -1087,6 +1135,203 @@ class DatabaseManager:
             'added_count': len(added),
             'removed_count': len(removed),
         }
+
+    # ============================================================
+    # 告警规则相关方法
+    # ============================================================
+
+    def add_alert_rule(self, rule_name, metric_type, threshold_operator, threshold_value,
+                       device_name=None, device_ip=None, metric_field=None,
+                       severity='warning', enable_email_alert=0, email_recipients=None):
+        """添加告警规则"""
+        sql = """
+        INSERT INTO alert_rules
+        (rule_name, device_name, device_ip, metric_type, metric_field,
+         threshold_operator, threshold_value, severity, enable_email_alert, email_recipients)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (rule_name, device_name, device_ip, metric_type, metric_field,
+                                 threshold_operator, threshold_value, severity,
+                                 enable_email_alert, email_recipients))
+            self.conn.commit()
+            return cursor.lastrowid
+        except sqlite3.Error as e:
+            logger.error(f"添加告警规则失败：{e}")
+            self.conn.rollback()
+            raise
+
+    def get_alert_rules(self, is_enabled=None):
+        """获取告警规则列表"""
+        if is_enabled is not None:
+            sql = "SELECT * FROM alert_rules WHERE is_enabled = ? ORDER BY created_at DESC"
+            cursor = self.conn.cursor()
+            cursor.execute(sql, (is_enabled,))
+        else:
+            sql = "SELECT * FROM alert_rules ORDER BY created_at DESC"
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+        return [dict(r) for r in cursor.fetchall()]
+
+    def update_alert_rule(self, rule_id, **kwargs):
+        """更新告警规则"""
+        allowed_fields = ['rule_name', 'device_name', 'device_ip', 'metric_type', 'metric_field',
+                          'threshold_operator', 'threshold_value', 'severity',
+                          'enable_email_alert', 'email_recipients', 'is_enabled']
+        updates = []
+        params = []
+        for key, value in kwargs.items():
+            if key in allowed_fields:
+                updates.append(f"{key} = ?")
+                params.append(value)
+
+        if not updates:
+            return False
+
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(rule_id)
+
+        sql = f"UPDATE alert_rules SET {', '.join(updates)} WHERE id = ?"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            logger.error(f"更新告警规则失败：{e}")
+            self.conn.rollback()
+            raise
+
+    def delete_alert_rule(self, rule_id):
+        """删除告警规则"""
+        sql = "DELETE FROM alert_rules WHERE id = ?"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (rule_id,))
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            logger.error(f"删除告警规则失败：{e}")
+            self.conn.rollback()
+            raise
+
+    def add_alert_history(self, rule_id, device_name, device_ip, metric_type,
+                          metric_value, threshold_value, severity, message):
+        """添加告警历史"""
+        sql = """
+        INSERT INTO alert_history
+        (rule_id, device_name, device_ip, metric_type, metric_value, threshold_value, severity, message)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (rule_id, device_name, device_ip, metric_type,
+                                 metric_value, threshold_value, severity, message))
+            self.conn.commit()
+            return cursor.lastrowid
+        except sqlite3.Error as e:
+            logger.error(f"添加告警历史失败：{e}")
+            self.conn.rollback()
+            raise
+
+    def get_alert_history(self, limit=50, severity=None, is_resolved=None):
+        """获取告警历史"""
+        conditions = []
+        params = []
+
+        if severity:
+            conditions.append("severity = ?")
+            params.append(severity)
+        if is_resolved is not None:
+            conditions.append("is_resolved = ?")
+            params.append(is_resolved)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        sql = f"""
+        SELECT * FROM alert_history
+        WHERE {where_clause}
+        ORDER BY created_at DESC
+        LIMIT ?
+        """
+        params.append(limit)
+
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            return [dict(r) for r in cursor.fetchall()]
+        except sqlite3.Error as e:
+            logger.error(f"获取告警历史失败：{e}")
+            raise
+
+    def resolve_alert(self, alert_id):
+        """标记告警为已解决"""
+        sql = "UPDATE alert_history SET is_resolved = 1, resolved_at = CURRENT_TIMESTAMP WHERE id = ?"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (alert_id,))
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            logger.error(f"解决告警失败：{e}")
+            self.conn.rollback()
+            raise
+
+    def mark_alert_email_sent(self, alert_id):
+        """标记告警邮件已发送"""
+        sql = "UPDATE alert_history SET email_sent = 1 WHERE id = ?"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (alert_id,))
+            self.conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"标记邮件发送失败：{e}")
+
+    # ============================================================
+    # 用户配置相关方法
+    # ============================================================
+
+    def get_setting(self, key, default=None):
+        """获取用户配置"""
+        sql = "SELECT setting_value FROM user_settings WHERE setting_key = ?"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (key,))
+            result = cursor.fetchone()
+            return result['setting_value'] if result else default
+        except sqlite3.Error as e:
+            logger.error(f"获取配置失败：{e}")
+            return default
+
+    def set_setting(self, key, value, description=None):
+        """设置用户配置"""
+        sql = """
+        INSERT INTO user_settings (setting_key, setting_value, description, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(setting_key) DO UPDATE SET
+            setting_value = excluded.setting_value,
+            updated_at = CURRENT_TIMESTAMP
+        """
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql, (key, value, description))
+            self.conn.commit()
+            return True
+        except sqlite3.Error as e:
+            logger.error(f"设置配置失败：{e}")
+            self.conn.rollback()
+            return False
+
+    def get_all_settings(self):
+        """获取所有用户配置"""
+        sql = "SELECT * FROM user_settings ORDER BY setting_key"
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(sql)
+            return [dict(r) for r in cursor.fetchall()]
+        except sqlite3.Error as e:
+            logger.error(f"获取所有配置失败：{e}")
+            raise
 
 
 db_manager = DatabaseManager()
