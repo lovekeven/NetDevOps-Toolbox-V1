@@ -486,7 +486,7 @@ class TopologyBuilder:
 
         logger.info(f"MAC 双向匹配完成，新增 {new_links_count} 条链路")
 
-    async def build_topology_with_mac_fallback(self, seed_ip, community='public', max_depth=3,
+    def build_topology_with_mac_fallback(self, seed_ip, community='public', max_depth=3,
                                           snmp_version='v2c', username='', auth_protocol='none',
                                           auth_password='', priv_protocol='none', priv_password=''):
         """
@@ -527,7 +527,12 @@ class TopologyBuilder:
                     collector = SNMPCollector(current_ip, community=community)
 
                 # 采集数据
-                collected_data = await collector.collect_all()
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    collected_data = loop.run_until_complete(collector.collect_all())
+                finally:
+                    loop.close()
                 all_devices_data[current_ip] = collected_data
 
                 # 把设备加入拓扑
