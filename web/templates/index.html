@@ -19,31 +19,28 @@
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
     <style>
-        /* 霓虹科技主题 */
+        /* 现代化浅色主题 - 专业风格 */
         :root {
-            --primary-color: #06b6d4;
-            --primary-hover: #0891b2;
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
             --secondary-color: #64748b;
-            --background-color: #09090b;
-            --card-background: #18181b;
-            --card-hover: #27272a;
-            --text-primary: #fafafa;
-            --text-secondary: #a1a1aa;
-            --text-muted: #71717a;
-            --border-color: #27272a;
+            --background-color: #f8fafc;
+            --card-background: #ffffff;
+            --card-hover: #f1f5f9;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-color: #e2e8f0;
             --success-color: #10b981;
             --warning-color: #f59e0b;
             --danger-color: #ef4444;
-            --info-color: #06b6d4;
-            --neon-cyan: #06b6d4;
-            --neon-purple: #a855f7;
-            --neon-pink: #ec4899;
-            --shadow-sm: 0 0 10px rgba(6, 182, 212, 0.1);
-            --shadow-md: 0 0 20px rgba(6, 182, 212, 0.15);
-            --shadow-lg: 0 0 30px rgba(6, 182, 212, 0.2);
-            --shadow-xl: 0 0 40px rgba(6, 182, 212, 0.25);
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            --gradient: linear-gradient(135deg, #06b6d4 0%, #a855f7 100%);
+            --info-color: #3b82f6;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --transition: all 0.2s ease;
+            --sidebar-width: 250px;
         }
 
         * {
@@ -55,136 +52,322 @@
         body {
             background-color: var(--background-color);
             color: var(--text-primary);
-            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            line-height: 1.6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.5;
             overflow-x: hidden;
-            background-image:
-                radial-gradient(ellipse at top left, rgba(6, 182, 212, 0.15) 0%, transparent 50%),
-                radial-gradient(ellipse at bottom right, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
-            background-attachment: fixed;
         }
 
-        /* 平滑滚动 */
-        html {
-            scroll-behavior: smooth;
+        /* 侧边栏布局 */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: #1e293b;
+            color: white;
+            z-index: 1000;
+            overflow-y: auto;
+            transition: var(--transition);
         }
 
-        /* 容器样式 */
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
+        .sidebar-header {
             padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header h4 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .sidebar-header small {
+            color: rgba(255,255,255,0.6);
+            font-size: 0.75rem;
+        }
+
+        .sidebar-nav {
+            padding: 10px 0;
+        }
+
+        .nav-section {
+            padding: 15px 20px 5px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.4);
+        }
+
+        .nav-item {
+            padding: 0 10px;
+            margin-bottom: 2px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: var(--transition);
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .nav-link.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .nav-link i {
+            width: 20px;
+            margin-right: 10px;
+            text-align: center;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+        }
+
+        /* 顶部栏 */
+        .topbar {
+            background: white;
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .topbar-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* 内容区域 */
+        .content {
+            padding: 25px 30px;
+        }
+
+        /* 页面内容 */
+        .page-content {
+            display: none;
+        }
+
+        .page-content.active {
+            display: block;
+        }
+
+        /* 统计卡片 */
+        .stat-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            margin-bottom: 20px;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            background: transparent;
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-header h5 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        /* 按钮样式 */
+        .btn-primary {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+
+        /* 表格样式 */
+        .table {
+            color: var(--text-primary);
+        }
+
+        .table thead th {
+            background: #f8fafc;
+            border-color: var(--border-color);
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .table td {
+            border-color: var(--border-color);
+            vertical-align: middle;
+        }
+
+        /* 表单样式 */
+        .form-control, .form-select {
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
         }
 
         /* Tab 导航样式 */
         #mainTabs {
-            background: var(--card-background);
+            background: white;
             border-radius: 12px 12px 0 0;
             padding: 8px 16px 0;
             border: 1px solid var(--border-color);
             border-bottom: none;
+            box-shadow: var(--shadow-sm);
         }
 
         #mainTabs .nav-link {
             padding: 10px 20px;
             margin-right: 4px;
             border-radius: 8px 8px 0 0;
-            transition: all 0.3s ease;
+            transition: var(--transition);
             font-weight: 500;
             border: 1px solid transparent;
             border-bottom: none;
+            color: var(--text-secondary);
         }
 
         #mainTabs .nav-link:hover {
-            background: rgba(79, 70, 229, 0.1);
-            color: var(--primary-color) !important;
+            background: var(--card-hover);
+            color: var(--primary-color);
         }
 
         #mainTabs .nav-link.active {
-            background: var(--card-background);
-            color: var(--primary-color) !important;
+            background: white;
+            color: var(--primary-color);
             border-color: var(--border-color);
-            border-bottom: 2px solid var(--primary-color) !important;
+            border-bottom: 2px solid var(--primary-color);
             margin-bottom: -1px;
         }
 
-        /* 标题区域 - 霓虹风格 */
+        /* 标题区域 */
         .header-section {
             text-align: center;
             margin-bottom: 3rem;
-            padding: 2.5rem 0;
-            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%);
+            padding: 2rem 0;
+            background: linear-gradient(135deg, var(--primary-color), var(--info-color));
             border-radius: 16px;
-            border: 1px solid rgba(6, 182, 212, 0.3);
-            box-shadow: 0 0 30px rgba(6, 182, 212, 0.2), inset 0 0 30px rgba(6, 182, 212, 0.1);
+            box-shadow: var(--shadow-lg);
             animation: fadeInUp 0.8s ease-out;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header-section::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: conic-gradient(from 0deg, transparent, rgba(6, 182, 212, 0.1), transparent, rgba(168, 85, 247, 0.1), transparent);
-            animation: rotate 20s linear infinite;
-            pointer-events: none;
-        }
-
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
         }
 
         .header-section h1 {
-            font-size: 3rem;
-            font-weight: 800;
+            font-size: 2.5rem;
+            font-weight: 700;
             margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, #06b6d4 0%, #a855f7 50%, #ec4899 100%);
+            background: linear-gradient(135deg, #ffffff, #cbd5e1);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            text-shadow: none;
-            letter-spacing: -1px;
-            position: relative;
-            z-index: 1;
         }
 
         .header-section p {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: rgba(255, 255, 255, 0.9);
             margin: 0;
-            font-weight: 400;
-            position: relative;
-            z-index: 1;
         }
 
-        /* 卡片样式 - 霓虹风格 */
+        /* 卡片样式 */
         .card {
-            background-color: rgba(24, 24, 27, 0.8);
-            border: 1px solid rgba(6, 182, 212, 0.2);
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
             border-radius: 12px;
-            box-shadow: 0 0 20px rgba(6, 182, 212, 0.1);
+            box-shadow: var(--shadow-md);
             transition: var(--transition);
             margin-bottom: 2rem;
             overflow: hidden;
-            backdrop-filter: blur(20px);
         }
 
         .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0 30px rgba(6, 182, 212, 0.2), 0 0 60px rgba(168, 85, 247, 0.1);
-            border-color: rgba(6, 182, 212, 0.4);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary-color);
         }
 
         .card-header {
-            background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
-            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
-            padding: 1rem 1.5rem;
-        }
+            background-color: rgba(79, 70, 229, 0.1);
             border-bottom: 1px solid var(--border-color);
             padding: 1.25rem 1.5rem;
             font-weight: 600;
@@ -215,64 +398,52 @@
             border-color: var(--primary-color);
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-            border: none;
-            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
-        }
-
         .btn-primary:hover {
-            background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
-            box-shadow: 0 0 25px rgba(6, 182, 212, 0.5);
-            transform: translateY(-1px);
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
         }
 
         .btn-info {
-            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-            border: none;
-            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+            background-color: var(--info-color);
+            border-color: var(--info-color);
         }
 
         .btn-info:hover {
-            background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
-            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+            background-color: #2563eb;
+            border-color: #2563eb;
         }
 
         .btn-outline-primary {
-            border-color: rgba(6, 182, 212, 0.5);
-            color: var(--neon-cyan);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
             background-color: transparent;
         }
 
         .btn-outline-primary:hover {
-            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            background-color: var(--primary-color);
             color: white;
-            border-color: transparent;
-            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
         }
 
         .btn-outline-secondary {
-            border-color: rgba(168, 85, 247, 0.3);
-            color: var(--neon-purple);
+            border-color: var(--secondary-color);
+            color: var(--secondary-color);
             background-color: transparent;
         }
 
         .btn-outline-secondary:hover {
-            background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(236, 72, 153, 0.2) 100%);
-            color: var(--text-primary);
-            border-color: var(--neon-purple);
-            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+            background-color: var(--secondary-color);
+            color: white;
         }
 
         .btn-outline-dark {
-            border-color: var(--border-color);
-            color: var(--text-secondary);
+            border-color: var(--secondary-color);
+            color: var(--secondary-color);
             background-color: transparent;
         }
 
         .btn-outline-dark:hover {
-            background-color: var(--card-hover);
-            color: var(--text-primary);
+            background-color: var(--secondary-color);
+            color: white;
         }
 
 
@@ -989,54 +1160,243 @@
     </style>
 </head>
 <body>
-    <!-- Toast 通知容器（故障告警用） -->
+    <!-- Toast 通知容器 -->
     <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 350px;"></div>
 
-    <div class="container">
-        <!-- 导航 -->
-        <nav class="navbar navbar-expand-lg navbar-dark mb-4" style="background-color: var(--card-background); border: 1px solid var(--border-color); border-radius: 12px;">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="/" style="color: var(--text-primary); font-weight: 600;">NetDevOps工具箱</a>
-                <div class="navbar-nav">
-                    <a class="nav-link active" href="/" style="color: var(--text-primary);">设备管理</a>
-                    <a class="nav-link" href="/cloud" style="color: var(--text-primary);">☁️ 云网络概念</a>
-                    <a class="nav-link" href="/hybrid" style="color: var(--text-primary);">🌐 混合云平台</a>
-                </div>
+    <!-- 侧边栏 -->
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h4><i class="fas fa-network-wired me-2"></i>NetOps Pro</h4>
+            <small>智能网络运维平台 v8.0</small>
+        </div>
+        <div class="sidebar-nav">
+            <div class="nav-section">概览</div>
+            <div class="nav-item">
+                <a class="nav-link active" data-page="dashboard" onclick="switchPage('dashboard')">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>仪表盘</span>
+                </a>
             </div>
-        </nav>
 
-        <!-- 页面标题区域 -->
-        <div class="header-section">
-            <h1><i class="fas fa-toolbox me-3"></i>NetDevOps工具箱仪表盘</h1>
-            <p>智能网络设备自动化运维平台</p>
+            <div class="nav-section">设备管理</div>
+            <div class="nav-item">
+                <a class="nav-link" data-page="devices" onclick="switchPage('devices')">
+                    <i class="fas fa-server"></i>
+                    <span>设备列表</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link" data-page="backup" onclick="switchPage('backup')">
+                    <i class="fas fa-database"></i>
+                    <span>配置备份</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link" data-page="health" onclick="switchPage('health')">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>健康检查</span>
+                </a>
+            </div>
+
+            <div class="nav-section">网络拓扑</div>
+            <div class="nav-item">
+                <a class="nav-link" data-page="topology" onclick="switchPage('topology')">
+                    <i class="fas fa-project-diagram"></i>
+                    <span>拓扑发现</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link" data-page="network-tools" onclick="switchPage('network-tools')">
+                    <i class="fas fa-tools"></i>
+                    <span>网络工具</span>
+                </a>
+            </div>
+
+            <div class="nav-section">运维终端</div>
+            <div class="nav-item">
+                <a class="nav-link" data-page="terminal" onclick="switchPage('terminal')">
+                    <i class="fas fa-terminal"></i>
+                    <span>Web终端</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link" data-page="commands" onclick="switchPage('commands')">
+                    <i class="fas fa-code"></i>
+                    <span>命令中心</span>
+                </a>
+            </div>
+
+            <div class="nav-section">监控告警</div>
+            <div class="nav-item">
+                <a class="nav-link" data-page="monitoring" onclick="switchPage('monitoring')">
+                    <i class="fas fa-chart-line"></i>
+                    <span>实时监控</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link" data-page="alerts" onclick="switchPage('alerts')">
+                    <i class="fas fa-bell"></i>
+                    <span>告警管理</span>
+                </a>
+            </div>
+
+            <div class="nav-section">系统</div>
+            <div class="nav-item">
+                <a class="nav-link" data-page="ai-report" onclick="switchPage('ai-report')">
+                    <i class="fas fa-robot"></i>
+                    <span>AI分析</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link" data-page="settings" onclick="switchPage('settings')">
+                    <i class="fas fa-cog"></i>
+                    <span>系统设置</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <!-- 顶部栏 -->
+        <div class="topbar">
+            <div class="topbar-title" id="pageTitle">仪表盘</div>
+            <div class="topbar-actions">
+                <span class="badge bg-success"><i class="fas fa-circle me-1" style="font-size: 8px;"></i>系统正常</span>
+                <span class="text-muted small" id="currentTime"></span>
+            </div>
         </div>
 
-        <!-- Tab 导航 -->
-        <ul class="nav nav-tabs mb-4" id="mainTabs" style="border-bottom: 2px solid var(--border-color);">
-            <li class="nav-item">
-                <button class="nav-link active" id="tab-overview" onclick="switchTab('overview')" style="color: var(--text-primary); background: transparent; border: none;">
-                    <i class="fas fa-tachometer-alt me-1"></i>系统概览
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" id="tab-topology" onclick="switchTab('topology')" style="color: var(--text-primary); background: transparent; border: none;">
-                    <i class="fas fa-project-diagram me-1"></i>拓扑管理
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" id="tab-monitoring" onclick="switchTab('monitoring')" style="color: var(--text-primary); background: transparent; border: none;">
-                    <i class="fas fa-chart-area me-1"></i>监控告警
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" id="tab-tools" onclick="switchTab('tools')" style="color: var(--text-primary); background: transparent; border: none;">
-                    <i class="fas fa-terminal me-1"></i>运维工具
-                </button>
-            </li>
-        </ul>
+        <!-- 内容区域 -->
+        <div class="content">
 
-        <!-- 网络拓扑可视化卡片（拓扑管理 Tab） -->
-        <div class="card mb-4" data-tab="topology">
+        <!-- 仪表盘页面 -->
+        <div class="page-content active" id="page-dashboard">
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(37, 99, 235, 0.1); color: #2563eb;">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="stat-value">{{ devices|length }}</div>
+                        <div class="stat-label">设备总数</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-value" id="onlineCount">--</div>
+                        <div class="stat-label">在线设备</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-value" id="alertCount">0</div>
+                        <div class="stat-label">活跃告警</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-value" id="uptime">--</div>
+                        <div class="stat-label">运行时间</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-bar me-2"></i>设备状态概览</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">欢迎使用 NetOps Pro 智能网络运维平台，请从左侧菜单选择功能。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设备列表页面 -->
+        <div class="page-content" id="page-devices">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-server me-2"></i>设备列表</h5>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#deviceManagementModal">
+                        <i class="fas fa-plus me-1"></i>添加设备
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>设备名称</th>
+                                    <th>IP地址</th>
+                                    <th>厂商</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for device in devices %}
+                                <tr>
+                                    <td>{{ device.device_name }}</td>
+                                    <td>{{ device.host }}</td>
+                                    <td>{{ device.vendor }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="checkSingleDevice('{{ device.device_name }}')">
+                                            <i class="fas fa-heartbeat"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success" onclick="backupSingleDevice('{{ device.device_name }}')">
+                                            <i class="fas fa-database"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 配置备份页面 -->
+        <div class="page-content" id="page-backup">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-database me-2"></i>配置备份</h5>
+                    <button class="btn btn-sm btn-primary" onclick="backupAllDevices()">
+                        <i class="fas fa-download me-1"></i>批量备份
+                    </button>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">点击设备列表中的备份按钮进行单设备备份，或点击上方按钮批量备份所有设备。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 健康检查页面 -->
+        <div class="page-content" id="page-health">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-heartbeat me-2"></i>健康检查</h5>
+                    <button class="btn btn-sm btn-primary" onclick="checkAllDevices()">
+                        <i class="fas fa-stethoscope me-1"></i>一键检查
+                    </button>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">点击设备列表中的健康检查按钮进行单设备检查，或点击上方按钮检查所有设备。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 拓扑发现页面 -->
+        <div class="page-content" id="page-topology">
+        <!-- 网络拓扑可视化卡片 -->
+        <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-project-diagram text-primary me-2"></i>网络拓扑可视化</h5>
                 <div class="d-flex gap-2 align-items-center">
@@ -1170,7 +1530,7 @@
         </div>
 
         <!-- 告警规则配置卡片 -->
-        <div class="card mb-4" data-tab="monitoring">
+        <div class="card mb-4" data-page="monitoring">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-bell text-danger me-2"></i>告警规则配置</h5>
                 <div class="d-flex gap-2">
@@ -1240,7 +1600,7 @@
         </div>
 
         <!-- 告警历史卡片 -->
-        <div class="card mb-4" data-tab="monitoring">
+        <div class="card mb-4" data-page="monitoring">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-history text-warning me-2"></i>告警历史</h5>
                 <button class="btn btn-sm btn-outline-info" onclick="loadAlertHistory()">
@@ -1274,7 +1634,7 @@
         </div>
 
         <!-- 一键查询所有设备卡片 -->
-        <div class="card mb-4" data-tab="tools">
+        <div class="card mb-4" data-page="tools">
             <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-search-plus text-success me-2"></i>一键查询所有设备</h5>
             </div>
@@ -1324,8 +1684,10 @@ display memory-usage</textarea>
             </div>
         </div>
 
-        <!-- 网络工具箱卡片（二期新增） -->
-        <div class="card mb-4" data-tab="topology">
+        <!-- 网络工具页面 -->
+        <div class="page-content" id="page-network-tools">
+        <!-- 网络工具箱卡片 -->
+        <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-tools text-warning me-2"></i>网络工具箱</h5>
             </div>
@@ -1424,9 +1786,36 @@ display memory-usage</textarea>
                 </div>
             </div>
         </div>
+        </div>
 
+        <!-- Web终端页面 -->
+        <div class="page-content" id="page-terminal">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-terminal me-2"></i>Web终端</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Web终端功能请访问 <a href="/terminal" class="text-primary">/terminal</a> 页面。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 命令中心页面 -->
+        <div class="page-content" id="page-commands">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-code me-2"></i>命令中心</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">命令中心功能请访问 <a href="/commands" class="text-primary">/commands</a> 页面。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 实时监控页面 -->
+        <div class="page-content" id="page-monitoring">
         <!-- 实时监控状态卡片 -->
-        <div class="card mb-4" data-tab="monitoring">
+        <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-chart-area text-success me-2"></i>实时监控仪表盘</h5>
                 <div class="d-flex gap-2">
@@ -1499,9 +1888,46 @@ display memory-usage</textarea>
                 </div>
             </div>
         </div>
+        </div>
+
+        <!-- 告警管理页面 -->
+        <div class="page-content" id="page-alerts">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-bell me-2"></i>告警管理</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">告警管理功能请访问 <a href="/alerts" class="text-primary">/alerts</a> 页面。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI分析页面 -->
+        <div class="page-content" id="page-ai-report">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-robot me-2"></i>AI分析报告</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">AI分析功能请访问 <a href="/ai-report" class="text-primary">/ai-report</a> 页面。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 系统设置页面 -->
+        <div class="page-content" id="page-settings">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-cog me-2"></i>系统设置</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">系统设置功能请访问 <a href="/settings" class="text-primary">/settings</a> 页面。</p>
+                </div>
+            </div>
+        </div>
 
         <!-- 顶部卡片网格（系统概览 Tab） -->
-        <div class="row mb-4" data-tab="overview">
+        <div class="row mb-4" data-page="overview">
             <!-- API服务状态卡片 -->
             <div class="col-md-6 col-lg-4">
                 <div class="card h-100">
@@ -1622,7 +2048,7 @@ display memory-usage</textarea>
         </div>
 
         <!-- 系统健康检查卡片（系统概览 Tab） -->
-        <div class="row mb-4" data-tab="overview">
+        <div class="row mb-4" data-page="overview">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
@@ -1790,7 +2216,7 @@ display memory-usage</textarea>
         </div>
 
         <!-- 设备列表卡片（系统概览 Tab） -->
-        <div class="card" data-tab="overview">
+        <div class="card" data-page="overview">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-network-wired text-secondary me-2"></i>设备状态总览</h5>
             </div>
@@ -1896,7 +2322,7 @@ display memory-usage</textarea>
         </div>
 
         <!-- 用户自定义命令卡片（质变级优化 #1） -->
-        <div class="card mb-4" data-tab="tools">
+        <div class="card mb-4" data-page="tools">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-terminal text-success me-2"></i>自定义命令执行终端</h5>
                 <div class="d-flex gap-2">
@@ -2072,7 +2498,7 @@ display memory-usage</textarea>
         </div>
 
         <!-- Web 终端卡片 -->
-        <div class="card mb-4" data-tab="tools">
+        <div class="card mb-4" data-page="tools">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-desktop text-danger me-2"></i>Web 终端（SSH 连接）</h5>
                 <div class="d-flex gap-2">
@@ -2185,7 +2611,7 @@ display memory-usage</textarea>
         </div>
 
         <!-- 配置命令集卡片 -->
-        <div class="card mb-4" data-tab="tools">
+        <div class="card mb-4" data-page="tools">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-book text-info me-2"></i>配置命令集</h5>
                 <div class="d-flex gap-2">
@@ -5756,35 +6182,54 @@ display memory-usage</textarea>
         loadCommandTemplates();
 
         // ============================================================
-        // Tab 切换功能
+        // 页面切换功能
         // ============================================================
-        function switchTab(tabName) {
-            // 隐藏所有卡片
-            document.querySelectorAll('[data-tab]').forEach(el => {
-                el.style.display = 'none';
+        function switchPage(pageName) {
+            // 隐藏所有页面
+            document.querySelectorAll('.page-content').forEach(el => {
+                el.classList.remove('active');
             });
 
-            // 显示当前 Tab 的卡片
-            document.querySelectorAll(`[data-tab="${tabName}"]`).forEach(el => {
-                el.style.display = '';
-            });
-
-            // 更新 Tab 按钮样式
-            document.querySelectorAll('#mainTabs .nav-link').forEach(btn => {
-                btn.classList.remove('active');
-                btn.style.borderBottom = 'none';
-            });
-
-            const activeBtn = document.getElementById(`tab-${tabName}`);
-            if (activeBtn) {
-                activeBtn.classList.add('active');
-                activeBtn.style.borderBottom = '2px solid var(--primary-color)';
+            // 显示目标页面
+            const targetPage = document.getElementById(`page-${pageName}`);
+            if (targetPage) {
+                targetPage.classList.add('active');
             }
+
+            // 更新侧边栏导航状态
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.page === pageName) {
+                    link.classList.add('active');
+                }
+            });
+
+            // 更新顶部标题
+            const titles = {
+                'dashboard': '仪表盘',
+                'devices': '设备列表',
+                'backup': '配置备份',
+                'health': '健康检查',
+                'topology': '拓扑发现',
+                'network-tools': '网络工具',
+                'terminal': 'Web终端',
+                'commands': '命令中心',
+                'monitoring': '实时监控',
+                'alerts': '告警管理',
+                'ai-report': 'AI分析',
+                'settings': '系统设置'
+            };
+            document.getElementById('pageTitle').textContent = titles[pageName] || pageName;
         }
 
-        // 初始化：默认显示系统概览
+        // 兼容旧的switchTab函数
+        function switchTab(tabName) {
+            switchPage(tabName);
+        }
+
+        // 初始化：默认显示仪表盘
         document.addEventListener('DOMContentLoaded', function() {
-            switchTab('overview');
+            switchPage('dashboard');
         });
 
         // ============================================================
@@ -6465,6 +6910,15 @@ display memory-usage</textarea>
 
         // 初始化实时监控
         initRealTimeMonitoring();
+
+        // 更新时间
+        setInterval(() => {
+            document.getElementById('currentTime').textContent = new Date().toLocaleString();
+        }, 1000);
     </script>
+
+    <!-- 关闭主内容区和侧边栏 -->
+    </div>
+    </div>
 </body>
 </html>
