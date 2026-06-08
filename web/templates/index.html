@@ -1528,160 +1528,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- 告警规则配置卡片 -->
-        <div class="card mb-4" data-page="monitoring">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-bell text-danger me-2"></i>告警规则配置</h5>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-outline-primary" onclick="showAddAlertRuleModal()">
-                        <i class="fas fa-plus me-1"></i>添加规则
-                    </button>
-                    <button class="btn btn-sm btn-outline-info" onclick="loadAlertRules()">
-                        <i class="fas fa-sync-alt me-1"></i>刷新
-                    </button>
-                </div>
-            </div>
-            <div class="card-body">
-                <!-- 邮件配置 -->
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label class="form-label">SMTP 服务器</label>
-                        <input type="text" id="smtpServer" class="form-control" placeholder="smtp.qq.com" value="">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">端口</label>
-                        <input type="number" id="smtpPort" class="form-control" value="465">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">发件邮箱</label>
-                        <input type="email" id="smtpUser" class="form-control" placeholder="your@email.com">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">授权码</label>
-                        <input type="password" id="smtpPassword" class="form-control" placeholder="邮箱授权码">
-                    </div>
-                </div>
-                <div class="d-flex gap-2 mb-3">
-                    <button class="btn btn-sm btn-primary" onclick="saveEmailConfig()">
-                        <i class="fas fa-save me-1"></i>保存邮件配置
-                    </button>
-                    <button class="btn btn-sm btn-outline-info" onclick="testEmailConfig()">
-                        <i class="fas fa-paper-plane me-1"></i>测试发送
-                    </button>
-                </div>
-
-                <hr>
-
-                <!-- 告警规则列表 -->
-                <h6 class="mb-3"><i class="fas fa-list text-info me-2"></i>告警规则列表</h6>
-                <div class="table-responsive">
-                    <table class="table table-hover table-sm">
-                        <thead>
-                            <tr>
-                                <th>规则名称</th>
-                                <th>设备</th>
-                                <th>指标类型</th>
-                                <th>阈值</th>
-                                <th>级别</th>
-                                <th>邮件</th>
-                                <th>状态</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="alertRulesBody">
-                            <tr>
-                                <td colspan="8" class="text-center text-muted">暂无告警规则</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- 告警历史卡片 -->
-        <div class="card mb-4" data-page="monitoring">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-history text-warning me-2"></i>告警历史</h5>
-                <button class="btn btn-sm btn-outline-info" onclick="loadAlertHistory()">
-                    <i class="fas fa-sync-alt me-1"></i>刷新
-                </button>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover table-sm">
-                        <thead>
-                            <tr>
-                                <th>设备</th>
-                                <th>指标</th>
-                                <th>当前值</th>
-                                <th>阈值</th>
-                                <th>级别</th>
-                                <th>消息</th>
-                                <th>时间</th>
-                                <th>状态</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="alertHistoryBody">
-                            <tr>
-                                <td colspan="9" class="text-center text-muted">暂无告警记录</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- 一键查询所有设备卡片 -->
-        <div class="card mb-4" data-page="tools">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-search-plus text-success me-2"></i>一键查询所有设备</h5>
-            </div>
-            <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">查询命令（每行一个）</label>
-                        <textarea id="batchQueryCommands" class="form-control" rows="4" placeholder="display version&#10;display cpu-usage&#10;display memory-usage">display version
-display cpu-usage
-display memory-usage</textarea>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">发送邮箱（可选）</label>
-                        <input type="email" id="batchQueryEmail" class="form-control" placeholder="接收报告的邮箱">
-                    </div>
-                    <div class="col-md-3 d-flex align-items-end gap-2">
-                        <button class="btn btn-primary flex-fill" onclick="queryAllDevices()">
-                            <i class="fas fa-play me-1"></i>一键查询
-                        </button>
-                        <button class="btn btn-outline-success" id="downloadQueryBtn" onclick="downloadQueryResult()" disabled>
-                            <i class="fas fa-download me-1"></i>下载
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 查询结果 -->
-                <div id="batchQueryResult" style="display: none;">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="mb-0">查询结果</h6>
-                        <span id="batchQueryStats" class="text-muted small"></span>
-                    </div>
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-hover table-sm">
-                            <thead class="sticky-top" style="background: var(--card-background);">
-                                <tr>
-                                    <th>设备</th>
-                                    <th>IP</th>
-                                    <th>状态</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="batchQueryBody">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- 网络工具页面 -->
@@ -1802,12 +1648,123 @@ display memory-usage</textarea>
 
         <!-- 命令中心页面 -->
         <div class="page-content" id="page-commands">
-            <div class="card">
+            <!-- 自定义命令终端卡片 -->
+            <div class="card mb-4">
                 <div class="card-header">
-                    <h5><i class="fas fa-code me-2"></i>命令中心</h5>
+                    <h5 class="mb-0"><i class="fas fa-terminal text-success me-2"></i>自定义命令终端</h5>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted">命令中心功能请访问 <a href="/commands" class="text-primary">/commands</a> 页面。</p>
+                    <!-- 命令输入区域 -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">选择设备</label>
+                            <select id="commandDeviceSelect" class="form-select">
+                                <option value="">-- 请选择设备 --</option>
+                                {% for device in devices %}
+                                <option value="{{ device.device_name }}" data-vendor="{{ device.vendor }}">{{ device.device_name }} ({{ device.host }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">输入命令</label>
+                            <div class="input-group">
+                                <input type="text" id="commandInput" class="form-control" placeholder="display version">
+                                <button class="btn btn-primary" onclick="executeCustomCommand()">
+                                    <i class="fas fa-play me-1"></i>执行
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-outline-info w-100" onclick="loadCommandWhitelist()">
+                                <i class="fas fa-list me-1"></i>命令列表
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 命令执行结果 -->
+                    <div id="commandResult" style="display: none;">
+                        <label class="form-label">执行结果</label>
+                        <pre style="background: var(--background-color); padding: 15px; border-radius: 8px; max-height: 300px; overflow-y: auto; font-size: 13px; border: 1px solid var(--border-color);"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 一键查询所有设备卡片 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-search-plus text-success me-2"></i>一键查询所有设备</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">查询命令（每行一个）</label>
+                            <textarea id="batchQueryCommands" class="form-control" rows="4" placeholder="display version&#10;display cpu-usage&#10;display memory-usage">display version
+display cpu-usage
+display memory-usage</textarea>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">发送邮箱（可选）</label>
+                            <input type="email" id="batchQueryEmail" class="form-control" placeholder="接收报告的邮箱">
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end gap-2">
+                            <button class="btn btn-primary flex-fill" onclick="queryAllDevices()">
+                                <i class="fas fa-play me-1"></i>一键查询
+                            </button>
+                            <button class="btn btn-outline-success" id="downloadQueryBtn" onclick="downloadQueryResult()" disabled>
+                                <i class="fas fa-download me-1"></i>下载
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 查询结果 -->
+                    <div id="batchQueryResult" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">查询结果</h6>
+                            <span id="batchQueryStats" class="text-muted small"></span>
+                        </div>
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover table-sm">
+                                <thead class="sticky-top" style="background: var(--card-background);">
+                                    <tr>
+                                        <th>设备</th>
+                                        <th>IP</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="batchQueryBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 命令历史卡片 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history text-warning me-2"></i>命令历史</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>设备</th>
+                                    <th>命令</th>
+                                    <th>状态</th>
+                                    <th>耗时</th>
+                                    <th>时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="commandHistoryBody">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">暂无命令历史</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1892,12 +1849,107 @@ display memory-usage</textarea>
 
         <!-- 告警管理页面 -->
         <div class="page-content" id="page-alerts">
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-bell me-2"></i>告警管理</h5>
+            <!-- 告警规则配置卡片 -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-bell text-danger me-2"></i>告警规则配置</h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="showAddAlertRuleModal()">
+                            <i class="fas fa-plus me-1"></i>添加规则
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="loadAlertRules()">
+                            <i class="fas fa-sync-alt me-1"></i>刷新
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted">告警管理功能请访问 <a href="/alerts" class="text-primary">/alerts</a> 页面。</p>
+                    <!-- 邮件配置 -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">SMTP 服务器</label>
+                            <input type="text" id="smtpServer" class="form-control" placeholder="smtp.qq.com" value="">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">端口</label>
+                            <input type="number" id="smtpPort" class="form-control" value="465">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">发件邮箱</label>
+                            <input type="email" id="smtpUser" class="form-control" placeholder="your@email.com">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">授权码</label>
+                            <input type="password" id="smtpPassword" class="form-control" placeholder="邮箱授权码">
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 mb-3">
+                        <button class="btn btn-sm btn-primary" onclick="saveEmailConfig()">
+                            <i class="fas fa-save me-1"></i>保存邮件配置
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="testEmailConfig()">
+                            <i class="fas fa-paper-plane me-1"></i>测试发送
+                        </button>
+                    </div>
+
+                    <hr>
+
+                    <!-- 告警规则列表 -->
+                    <h6 class="mb-3"><i class="fas fa-list text-info me-2"></i>告警规则列表</h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>规则名称</th>
+                                    <th>设备</th>
+                                    <th>指标类型</th>
+                                    <th>阈值</th>
+                                    <th>级别</th>
+                                    <th>邮件</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alertRulesBody">
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted">暂无告警规则</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 告警历史卡片 -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history text-warning me-2"></i>告警历史</h5>
+                    <button class="btn btn-sm btn-outline-info" onclick="loadAlertHistory()">
+                        <i class="fas fa-sync-alt me-1"></i>刷新
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>设备</th>
+                                    <th>指标</th>
+                                    <th>当前值</th>
+                                    <th>阈值</th>
+                                    <th>级别</th>
+                                    <th>消息</th>
+                                    <th>时间</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alertHistoryBody">
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted">暂无告警记录</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
