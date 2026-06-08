@@ -486,7 +486,7 @@ class TopologyBuilder:
 
         logger.info(f"MAC 双向匹配完成，新增 {new_links_count} 条链路")
 
-    def build_topology_with_mac_fallback(self, seed_ip, community='public', max_depth=3,
+    async def build_topology_with_mac_fallback(self, seed_ip, community='public', max_depth=3,
                                           snmp_version='v2c', username='', auth_protocol='none',
                                           auth_password='', priv_protocol='none', priv_password=''):
         """

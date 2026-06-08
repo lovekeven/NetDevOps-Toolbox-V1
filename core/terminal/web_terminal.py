@@ -13,6 +13,13 @@ import paramiko
 import time
 import threading
 import logging
+import sys
+import os
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(ROOT_DIR)
+
+from utils.log_setup import setup_logger
 
 logger = setup_logger("web_terminal", "terminal.log")
 
