@@ -1476,18 +1476,9 @@ display memory-usage</textarea>
                     </div>
                     <div class="card-body">
                         <div id="efficiencyChart" style="height: 200px;"></div>
-                        <div class="mt-2 small text-muted">
-                            <div class="d-flex justify-content-between">
-                                <span>手动备份 6台设备</span>
-                                <span class="text-danger">30分钟</span>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span>平台备份 6台设备</span>
-                                <span class="text-success">2分钟</span>
-                            </div>
-                            <div class="d-flex justify-content-between fw-bold">
-                                <span>效率提升</span>
-                                <span class="text-primary">15倍</span>
+                        <div id="efficiencyStats" class="mt-2 small text-muted">
+                            <div class="text-center text-muted py-2">
+                                <i class="fas fa-info-circle me-1"></i>添加设备并执行操作后显示效率对比
                             </div>
                         </div>
                     </div>
@@ -6240,6 +6231,7 @@ display memory-usage</textarea>
                 const efficiencyDom = document.getElementById('efficiencyChart');
                 if (efficiencyDom) {
                     efficiencyChart = echarts.init(efficiencyDom);
+                    // 默认显示空图表，等有数据后再更新
                     const option = {
                         tooltip: { trigger: 'axis' },
                         xAxis: {
@@ -6252,13 +6244,13 @@ display memory-usage</textarea>
                             {
                                 name: '手动操作',
                                 type: 'bar',
-                                data: [30, 20, 15, 60],
+                                data: [0, 0, 0, 0],
                                 itemStyle: { color: '#ef4444' }
                             },
                             {
                                 name: '平台自动化',
                                 type: 'bar',
-                                data: [2, 1, 2, 5],
+                                data: [0, 0, 0, 0],
                                 itemStyle: { color: '#10b981' }
                             }
                         ],
