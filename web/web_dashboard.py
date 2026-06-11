@@ -176,6 +176,31 @@ def device_health(device_name):
             del target_device_copy["device_name"]
             del target_device_copy["vendor"]
         result = check_single_device(target_device_copy)
+
+        # 保存健康检查历史记录到数据库
+        try:
+            # 构造数据库需要的格式
+            adapted_result = {
+                "host": target_device.get("host", ""),
+                "device_name": device_name,
+                "version": result.get("version", "未知"),
+                "check_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "status": result.get("status", "unknown"),
+                "check_status": "成功",
+                "up_interface": result.get("up_interface", 0),
+                "down_interface": result.get("down_interface", 0),
+                "total_interface": result.get("total_interface", 0),
+                "CPU_usage": str(result.get("cpu_usage", "N/A")),
+                "memory_usage": str(result.get("memory_usage", "N/A")),
+                "error_message": result.get("error_message", ""),
+                "device_health_issues": ";".join(result.get("health_issues", [])) if result.get("health_issues") else "",
+                "reachable": "可达" if result.get("status") != "failed" else "不可达",
+            }
+            db_manager.log_check_device(adapted_result)
+            logger.info(f"健康检查历史已保存：{device_name}")
+        except Exception as e:
+            logger.warning(f"保存健康检查历史失败：{e}")
+
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": f"检查时出现错误！{e}"}), 500
