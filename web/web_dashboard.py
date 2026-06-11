@@ -180,6 +180,7 @@ def device_health(device_name):
         # 保存健康检查历史记录到数据库
         try:
             # 构造数据库需要的格式
+            # 注意：字段名必须和数据库表字段名完全一致
             adapted_result = {
                 "host": target_device.get("host", ""),
                 "device_name": device_name,
@@ -190,7 +191,7 @@ def device_health(device_name):
                 "up_interface": result.get("up_interface", 0),
                 "down_interface": result.get("down_interface", 0),
                 "total_interface": result.get("total_interface", 0),
-                "CPU_usage": str(result.get("cpu_usage", "N/A")),
+                "CPU_usage": str(result.get("CPU_usage", "N/A")),  # 注意：字段名是大写CPU_usage
                 "memory_usage": str(result.get("memory_usage", "N/A")),
                 "error_message": result.get("error_message", ""),
                 "device_health_issues": ";".join(result.get("health_issues", [])) if result.get("health_issues") else "",
