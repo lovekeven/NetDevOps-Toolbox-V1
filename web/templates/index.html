@@ -2661,7 +2661,7 @@ display memory-usage</textarea>
 
 
             // 发送邮件按钮
-            document.getElementById('sendEmailBtn').addEventListener('click', function() {
+            (document.getElementById('sendEmailBtn')||{}).addEventListener('click', function() {
                 const sendBtn = this;
                 const reportType = sendBtn.dataset.reportType;
                 const days = sendBtn.dataset.days;
@@ -2773,7 +2773,7 @@ display memory-usage</textarea>
 
         // 初始化API状态检查按钮
         function initApiStatusCheck() {
-            document.getElementById('refresh-api-btn').addEventListener('click', checkApiStatus);
+            (document.getElementById('refresh-api-btn')||{}).addEventListener('click', checkApiStatus);
         }
 
         // Toast通知函数
@@ -2930,7 +2930,7 @@ display memory-usage</textarea>
                     statusCell.innerHTML = '<div class="status-indicator"><span class="status-dot pending"></span><span class="badge bg-warning">检查中</span></div>';
 
                     // 更新模态框标题
-                    document.getElementById('healthCheckDeviceName').textContent = hostname;
+                    (document.getElementById('healthCheckDeviceName')||{}).textContent = hostname;
 
                     fetch(`/api/health/${hostname}`)
                         .then(response => response.json().then(data => ({ response, data })))
@@ -3097,7 +3097,7 @@ display memory-usage</textarea>
                     btn.disabled = true;
 
                     // 更新模态框标题
-                    document.getElementById('healthCheckHistoryDeviceName').textContent = hostname;
+                    (document.getElementById('healthCheckHistoryDeviceName')||{}).textContent = hostname;
 
                     // 默认查询10条记录
                     const limit = 10;
@@ -3246,12 +3246,12 @@ display memory-usage</textarea>
             });
 
             // 刷新历史记录按钮
-            document.getElementById('refreshHealthHistoryBtn').addEventListener('click', function() {
+            (document.getElementById('refreshHealthHistoryBtn')||{}).addEventListener('click', function() {
                 queryHealthHistory(false);
             });
 
             // 查询所有历史
-            document.getElementById('queryAllHealthHistoryBtn').addEventListener('click', function() {
+            (document.getElementById('queryAllHealthHistoryBtn')||{}).addEventListener('click', function() {
                 queryHealthHistory(true);
             });
 
@@ -3500,7 +3500,7 @@ display memory-usage</textarea>
 
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>加载中...';
                     btn.disabled = true;
-                    document.getElementById('singleDeviceCardModalLabel').innerHTML = `<i class="fas fa-id-card text-primary me-2"></i>${hostname} 档案卡`;
+                    (document.getElementById('singleDeviceCardModalLabel')||{}).innerHTML = `<i class="fas fa-id-card text-primary me-2"></i>${hostname} 档案卡`;
                     const container = document.getElementById('singleDeviceCardContainer');
                     container.innerHTML = '<div class="text-center text-muted py-4"><small>加载档案卡中...</small></div>';
 
@@ -3544,7 +3544,7 @@ display memory-usage</textarea>
             });
 
             // 一键查看所有设备档案卡
-            document.getElementById('viewAllCardsBtn').addEventListener('click', function() {
+            (document.getElementById('viewAllCardsBtn')||{}).addEventListener('click', function() {
                 const btn = this;
                 const originalText = btn.innerHTML;
 
@@ -3590,26 +3590,26 @@ display memory-usage</textarea>
             document.querySelectorAll('.backup-history-btn').forEach(button => {
                 button.addEventListener('click', function() {
                     currentModalHostname = this.getAttribute('data-hostname');
-                    document.getElementById('modalDeviceName').textContent = currentModalHostname;
-                    document.getElementById('historyLimit').value = 20;
-                    document.getElementById('historyCountInfo').textContent = '总记录数：0 条';
+                    (document.getElementById('modalDeviceName')||{}).textContent = currentModalHostname;
+                    (document.getElementById('historyLimit')||{}).value = 20;
+                    (document.getElementById('historyCountInfo')||{}).textContent = '总记录数：0 条';
                     modalInstances.backupHistoryModal.show();
                     queryBackupHistory();
                 });
             });
 
             // 刷新备份历史
-            document.getElementById('refreshHistoryBtn').addEventListener('click', function() {
+            (document.getElementById('refreshHistoryBtn')||{}).addEventListener('click', function() {
                 queryBackupHistory(false);
             });
 
             // 查询所有历史
-            document.getElementById('queryAllHistoryBtn').addEventListener('click', function() {
+            (document.getElementById('queryAllHistoryBtn')||{}).addEventListener('click', function() {
                 queryBackupHistory(true);
             });
 
             // 下载备份文件
-            document.getElementById('backupHistoryModal').addEventListener('click', function(e) {
+            (document.getElementById('backupHistoryModal')||{}).addEventListener('click', function(e) {
                 const target = e.target.closest('.download-backup-btn');
                 if (target) {
                     e.preventDefault();
@@ -3716,7 +3716,7 @@ display memory-usage</textarea>
         // 6. AI备份报告生成功能
         function initAiReportFunction() {
             // 生成AI报告按钮
-            document.getElementById('generateReportBtn').addEventListener('click', function() {
+            (document.getElementById('generateReportBtn')||{}).addEventListener('click', function() {
                 const generateBtn = this;
                 const daysInput = document.getElementById('reportDays');
                 const reportStatus = document.getElementById('report-status');
@@ -3780,7 +3780,7 @@ display memory-usage</textarea>
 
         // 7. 系统健康检查功能
         function initSystemHealthFunction() {
-            document.getElementById('checkSystemHealthBtn').addEventListener('click', function() {
+            (document.getElementById('checkSystemHealthBtn')||{}).addEventListener('click', function() {
                 const btn = this;
                 const summaryDiv = document.getElementById('systemHealthSummary');
                 const metricsContent = document.getElementById('systemMetricsContent');
@@ -4117,7 +4117,7 @@ display memory-usage</textarea>
             });
 
             // 生成健康分析AI报告按钮
-            document.getElementById('generateHealthReportBtn').addEventListener('click', function() {
+            (document.getElementById('generateHealthReportBtn')||{}).addEventListener('click', function() {
                 const generateBtn = this;
                 const deviceInput = document.getElementById('healthReportDevice');
                 const daysInput = document.getElementById('healthReportDays');
@@ -4263,14 +4263,14 @@ display memory-usage</textarea>
             }
 
             // 处理添加设备按钮点击事件
-            document.getElementById('addDeviceBtn').addEventListener('click', function() {
+            (document.getElementById('addDeviceBtn')||{}).addEventListener('click', function() {
                 modalInstances.deviceManagementModal.show();
                 // 打开模态框时加载设备列表
                 loadDeviceList();
             });
 
             // 处理厂商选择变化事件（显示/隐藏Enable密码字段）
-            document.getElementById('deviceVendor').addEventListener('change', function() {
+            (document.getElementById('deviceVendor')||{}).addEventListener('change', function() {
                 const enablePasswordSection = document.getElementById('enablePasswordSection');
                 if (this.value === '思科Cisco') {
                     enablePasswordSection.style.display = 'block';
@@ -4280,16 +4280,16 @@ display memory-usage</textarea>
             });
 
             // 处理清空表单按钮点击事件
-            document.getElementById('clearDeviceFormBtn').addEventListener('click', function() {
-                document.getElementById('addDeviceForm').reset();
+            (document.getElementById('clearDeviceFormBtn')||{}).addEventListener('click', function() {
+                (document.getElementById('addDeviceForm')||{}).reset();
                 // 重置厂商选择
-                document.getElementById('deviceVendor').value = '华三H3C';
+                (document.getElementById('deviceVendor')||{}).value = '华三H3C';
                 // 隐藏Enable密码字段
-                document.getElementById('enablePasswordSection').style.display = 'none';
+                (document.getElementById('enablePasswordSection')||{}).style.display = 'none';
             });
 
             // 处理添加设备表单提交事件
-            document.getElementById('addDeviceForm').addEventListener('submit', function(e) {
+            (document.getElementById('addDeviceForm')||{}).addEventListener('submit', function(e) {
                 e.preventDefault();
                 
                 const deviceName = document.getElementById('deviceName').value.trim();
@@ -4331,9 +4331,9 @@ display memory-usage</textarea>
                     if (data.code === 0) {
                         alert('设备添加成功！');
                         // 重置表单
-                        document.getElementById('addDeviceForm').reset();
+                        (document.getElementById('addDeviceForm')||{}).reset();
                         // 隐藏Enable密码字段
-                        document.getElementById('enablePasswordSection').style.display = 'none';
+                        (document.getElementById('enablePasswordSection')||{}).style.display = 'none';
                         // 刷新设备列表
                         loadDeviceList();
                         // 刷新设备状态图表
@@ -5259,13 +5259,13 @@ display memory-usage</textarea>
             dialog.innerHTML = `
                 <div style="padding: 20px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
                     <h5 style="margin: 0; color: #f1f5f9;"><i class="fas fa-brain me-2" style="color: #8b5cf6;"></i>${title}</h5>
-                    <button onclick="document.getElementById('aiReportDialog').style.display='none'" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 20px;">&times;</button>
+                    <button onclick="(document.getElementById('aiReportDialog')||{}).style.display='none'" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 20px;">&times;</button>
                 </div>
                 <div style="padding: 20px; max-height: 60vh; overflow-y: auto;">
                     <pre style="color: #e2e8f0; white-space: pre-wrap; word-break: break-word; font-family: 'Consolas', monospace; font-size: 13px; line-height: 1.6; margin: 0;">${content}</pre>
                 </div>
                 <div style="padding: 15px 20px; border-top: 1px solid #334155; text-align: right;">
-                    <button onclick="document.getElementById('aiReportDialog').style.display='none'" class="btn btn-sm btn-primary">关闭</button>
+                    <button onclick="(document.getElementById('aiReportDialog')||{}).style.display='none'" class="btn btn-sm btn-primary">关闭</button>
                 </div>
             `;
 
@@ -5372,10 +5372,10 @@ display memory-usage</textarea>
         // 保存邮件配置
         function saveEmailConfig() {
             const settings = {
-                smtp_server: document.getElementById('smtpServer').value,
-                smtp_port: document.getElementById('smtpPort').value,
-                smtp_user: document.getElementById('smtpUser').value,
-                smtp_password: document.getElementById('smtpPassword').value,
+                smtp_server: (document.getElementById('smtpServer')||{}).value,
+                smtp_port: (document.getElementById('smtpPort')||{}).value,
+                smtp_user: (document.getElementById('smtpUser')||{}).value,
+                smtp_password: (document.getElementById('smtpPassword')||{}).value,
             };
 
             fetch('/api/v1/settings', {
@@ -5520,11 +5520,11 @@ display memory-usage</textarea>
 
                 if (data.code === 0) {
                     lastQueryResult = data.data;
-                    document.getElementById('downloadQueryBtn').disabled = false;
+                    (document.getElementById('downloadQueryBtn')||{}).disabled = false;
 
                     // 显示结果
-                    document.getElementById('batchQueryResult').style.display = 'block';
-                    document.getElementById('batchQueryStats').textContent = `成功：${data.data.success} 台，失败：${data.data.failed} 台`;
+                    (document.getElementById('batchQueryResult')||{}).style.display = 'block';
+                    (document.getElementById('batchQueryStats')||{}).textContent = `成功：${data.data.success} 台，失败：${data.data.failed} 台`;
 
                     const tbody = document.getElementById('batchQueryBody');
                     tbody.innerHTML = '';
@@ -5742,10 +5742,14 @@ display memory-usage</textarea>
         // 切换拓扑模式
         function switchTopologyMode(mode) {
             currentMode = mode;
-            document.getElementById('traditionalPanel').style.display = mode === 'traditional' ? 'block' : 'none';
-            document.getElementById('sdnPanel').style.display = mode === 'sdn' ? 'block' : 'none';
-            document.getElementById('modeTraditional').className = mode === 'traditional' ? 'btn btn-primary active' : 'btn btn-outline-primary';
-            document.getElementById('modeSdn').className = mode === 'sdn' ? 'btn btn-primary active' : 'btn btn-outline-primary';
+            const tp = document.getElementById('traditionalPanel');
+            const sp = document.getElementById('sdnPanel');
+            const mt = document.getElementById('modeTraditional');
+            const ms = document.getElementById('modeSdn');
+            if (tp) tp.style.display = mode === 'traditional' ? 'block' : 'none';
+            if (sp) sp.style.display = mode === 'sdn' ? 'block' : 'none';
+            if (mt) mt.className = mode === 'traditional' ? 'btn btn-primary active' : 'btn btn-outline-primary';
+            if (ms) ms.className = mode === 'sdn' ? 'btn btn-primary active' : 'btn btn-outline-primary';
         }
 
         // 传统 SNMP 扫描
@@ -5821,7 +5825,7 @@ display memory-usage</textarea>
         }
 
         // 支持回车触发扫描
-        document.getElementById('seedIpInput').addEventListener('keypress', function(e) {
+        (document.getElementById('seedIpInput')||{}).addEventListener('keypress', function(e) {
             if (e.key === 'Enter') doTraditionalScan();
         });
 
@@ -5834,7 +5838,7 @@ display memory-usage</textarea>
             const host = document.getElementById('pingHost').value.trim();
             if (!host) { alert('请输入目标IP'); return; }
 
-            document.getElementById('pingResult').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在 Ping...';
+            (document.getElementById('pingResult')||{}).innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在 Ping...';
 
             fetch('/api/v1/tools/ping', {
                 method: 'POST',
@@ -5847,13 +5851,13 @@ display memory-usage</textarea>
                     const r = data.data;
                     const icon = r.reachable ? '✅' : '❌';
                     const rtt = r.reachable ? `，延迟 ${r.rtt_avg}ms` : '';
-                    document.getElementById('pingResult').innerHTML = `${icon} ${host} ${r.reachable ? '可达' : '不可达'}${rtt}`;
+                    (document.getElementById('pingResult')||{}).innerHTML = `${icon} ${host} ${r.reachable ? '可达' : '不可达'}${rtt}`;
                 } else {
-                    document.getElementById('pingResult').innerHTML = '❌ 测试失败: ' + data.msg;
+                    (document.getElementById('pingResult')||{}).innerHTML = '❌ 测试失败: ' + data.msg;
                 }
             })
             .catch(e => {
-                document.getElementById('pingResult').innerHTML = '❌ 请求失败: ' + e.message;
+                (document.getElementById('pingResult')||{}).innerHTML = '❌ 请求失败: ' + e.message;
             });
         }
 
@@ -5862,7 +5866,7 @@ display memory-usage</textarea>
             const host = document.getElementById('portScanHost').value.trim();
             if (!host) { alert('请输入目标IP'); return; }
 
-            document.getElementById('portScanResult').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在扫描...';
+            (document.getElementById('portScanResult')||{}).innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在扫描...';
 
             fetch('/api/v1/tools/port-scan', {
                 method: 'POST',
@@ -5878,13 +5882,13 @@ display memory-usage</textarea>
                         html += `<span class="me-2">${icon} ${p.port}/${p.service}</span>`;
                     });
                     html += '</div>';
-                    document.getElementById('portScanResult').innerHTML = html;
+                    (document.getElementById('portScanResult')||{}).innerHTML = html;
                 } else {
-                    document.getElementById('portScanResult').innerHTML = '❌ 扫描失败: ' + data.msg;
+                    (document.getElementById('portScanResult')||{}).innerHTML = '❌ 扫描失败: ' + data.msg;
                 }
             })
             .catch(e => {
-                document.getElementById('portScanResult').innerHTML = '❌ 请求失败: ' + e.message;
+                (document.getElementById('portScanResult')||{}).innerHTML = '❌ 请求失败: ' + e.message;
             });
         }
 
@@ -5893,7 +5897,7 @@ display memory-usage</textarea>
             const network = document.getElementById('subnetInput').value.trim();
             if (!network) { alert('请输入网段，如 192.168.1'); return; }
 
-            document.getElementById('subnetResult').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在扫描（可能需要10-30秒）...';
+            (document.getElementById('subnetResult')||{}).innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在扫描（可能需要10-30秒）...';
 
             fetch('/api/v1/tools/ping-sweep', {
                 method: 'POST',
@@ -5907,13 +5911,13 @@ display memory-usage</textarea>
                     data.data.forEach(h => {
                         html += `<span class="badge bg-success me-1 mb-1">${h.host}</span>`;
                     });
-                    document.getElementById('subnetResult').innerHTML = html;
+                    (document.getElementById('subnetResult')||{}).innerHTML = html;
                 } else {
-                    document.getElementById('subnetResult').innerHTML = '❌ 扫描失败: ' + data.msg;
+                    (document.getElementById('subnetResult')||{}).innerHTML = '❌ 扫描失败: ' + data.msg;
                 }
             })
             .catch(e => {
-                document.getElementById('subnetResult').innerHTML = '❌ 请求失败: ' + e.message;
+                (document.getElementById('subnetResult')||{}).innerHTML = '❌ 请求失败: ' + e.message;
             });
         }
 
@@ -5922,7 +5926,7 @@ display memory-usage</textarea>
             const host = document.getElementById('tracerouteHost').value.trim();
             if (!host) { alert('请输入目标IP或域名'); return; }
 
-            document.getElementById('tracerouteResult').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在追踪...';
+            (document.getElementById('tracerouteResult')||{}).innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在追踪...';
 
             fetch('/api/v1/tools/traceroute', {
                 method: 'POST',
@@ -5937,13 +5941,13 @@ display memory-usage</textarea>
                         html += `<div>${hop.hop}. ${hop.ip} (${hop.rtt}ms)</div>`;
                     });
                     html += '</div>';
-                    document.getElementById('tracerouteResult').innerHTML = html || '无结果';
+                    (document.getElementById('tracerouteResult')||{}).innerHTML = html || '无结果';
                 } else {
-                    document.getElementById('tracerouteResult').innerHTML = '❌ 追踪失败: ' + data.msg;
+                    (document.getElementById('tracerouteResult')||{}).innerHTML = '❌ 追踪失败: ' + data.msg;
                 }
             })
             .catch(e => {
-                document.getElementById('tracerouteResult').innerHTML = '❌ 请求失败: ' + e.message;
+                (document.getElementById('tracerouteResult')||{}).innerHTML = '❌ 请求失败: ' + e.message;
             });
         }
 
@@ -5953,7 +5957,7 @@ display memory-usage</textarea>
             const community = document.getElementById('lldpCommunity').value.trim() || 'public';
             if (!host) { alert('请输入设备IP'); return; }
 
-            document.getElementById('lldpResult').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在查询...';
+            (document.getElementById('lldpResult')||{}).innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在查询...';
 
             fetch('/api/v1/tools/lldp-query', {
                 method: 'POST',
@@ -5965,7 +5969,7 @@ display memory-usage</textarea>
                 if (data.code === 0) {
                     const r = data.data;
                     if (r.error) {
-                        document.getElementById('lldpResult').innerHTML = '❌ ' + r.error;
+                        (document.getElementById('lldpResult')||{}).innerHTML = '❌ ' + r.error;
                         return;
                     }
                     let html = `<div class="mt-1">`;
@@ -5975,13 +5979,13 @@ display memory-usage</textarea>
                         html += `<div class="ms-2">→ ${n.remote_name} (${n.remote_ip}) 端口: ${n.remote_port}</div>`;
                     });
                     html += `</div>`;
-                    document.getElementById('lldpResult').innerHTML = html;
+                    (document.getElementById('lldpResult')||{}).innerHTML = html;
                 } else {
-                    document.getElementById('lldpResult').innerHTML = '❌ 查询失败: ' + data.msg;
+                    (document.getElementById('lldpResult')||{}).innerHTML = '❌ 查询失败: ' + data.msg;
                 }
             })
             .catch(e => {
-                document.getElementById('lldpResult').innerHTML = '❌ 请求失败: ' + e.message;
+                (document.getElementById('lldpResult')||{}).innerHTML = '❌ 请求失败: ' + e.message;
             });
         }
 
