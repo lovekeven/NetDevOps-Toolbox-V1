@@ -4251,9 +4251,17 @@ display memory-usage</textarea>
                             .then(response => response.json())
                             .then(data => {
                                 if (data.code === 0) {
-                                    alert('设备删除成功！页面将自动刷新。');
-                                    // 刷新整个页面，确保所有数据更新
-                                    window.location.reload();
+                                    alert('设备删除成功！');
+                                    // 刷新设备列表
+                                    loadDeviceList();
+                                    // 刷新设备状态图表
+                                    if (typeof updateDeviceStatusChart === 'function') {
+                                        updateDeviceStatusChart();
+                                    }
+                                    // 刷新监控统计
+                                    if (typeof refreshMonitoringStats === 'function') {
+                                        refreshMonitoringStats();
+                                    }
                                 } else {
                                     alert(`删除失败：${data.msg || '未知错误'}`);
                                 }
@@ -4334,9 +4342,21 @@ display memory-usage</textarea>
                 .then(({ response, data }) => {
                     if (!response.ok) throw new Error(data.msg || `添加设备失败，状态码：${response.status}`);
                     if (data.code === 0) {
-                        alert('设备添加成功！页面将自动刷新。');
-                        // 刷新整个页面，确保所有数据同步
-                        window.location.reload();
+                        alert('设备添加成功！');
+                        // 重置表单
+                        document.getElementById('addDeviceForm').reset();
+                        // 隐藏Enable密码字段
+                        document.getElementById('enablePasswordSection').style.display = 'none';
+                        // 刷新设备列表
+                        loadDeviceList();
+                        // 刷新设备状态图表
+                        if (typeof updateDeviceStatusChart === 'function') {
+                            updateDeviceStatusChart();
+                        }
+                        // 刷新监控统计
+                        if (typeof refreshMonitoringStats === 'function') {
+                            refreshMonitoringStats();
+                        }
                     } else {
                         throw new Error(data.msg || '添加设备失败');
                     }

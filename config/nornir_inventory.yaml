@@ -9,3 +9,14 @@ R1:
         port: 22
   data:
     vendor: 华三H3C
+SW1:
+  username: SW1
+  hostname: 192.168.102.11
+  password: wjz123456789
+  connection_options:
+    netmiko:
+      extras:
+        device_type: hp_comware
+        port: 22
+  data:
+    vendor: 华三H3C
