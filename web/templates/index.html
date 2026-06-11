@@ -4069,22 +4069,31 @@ display memory-usage</textarea>
 
         // 初始化AI健康分析报告功能
         function initAiHealthReportFunction() {
-            // 切换按钮事件监听器
-            document.getElementById('backupReportBtn').addEventListener('click', function() {
-                document.getElementById('backupReportBtn').classList.add('active');
-                document.getElementById('healthReportBtn').classList.remove('active');
-                document.getElementById('backupReportOptions').style.display = 'block';
-                document.getElementById('healthReportOptions').style.display = 'none';
-                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>';
-                document.getElementById('autoSendReminder').innerHTML = '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱';
+            // 切换按钮事件监听器（带安全检查）
+            const brb2 = document.getElementById('backupReportBtn');
+            const hrb2 = document.getElementById('healthReportBtn');
+            if (brb2) brb2.addEventListener('click', function() {
+                this.classList.add('active');
+                if (hrb2) hrb2.classList.remove('active');
+                const bro = document.getElementById('backupReportOptions');
+                const hro = document.getElementById('healthReportOptions');
+                if (bro) bro.style.display = 'block';
+                if (hro) hro.style.display = 'none';
+                const rs = document.getElementById('report-status');
+                if (rs) rs.innerHTML = '<span class="text-muted">点击「生成AI报告」获取运维摘要</span>';
+                const asr = document.getElementById('autoSendReminder');
+                if (asr) asr.innerHTML = '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱';
             });
 
-            document.getElementById('healthReportBtn').addEventListener('click', function() {
-                document.getElementById('healthReportBtn').classList.add('active');
-                document.getElementById('backupReportBtn').classList.remove('active');
-                document.getElementById('backupReportOptions').style.display = 'none';
-                document.getElementById('healthReportOptions').style.display = 'block';
-                document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
+            if (hrb2) hrb2.addEventListener('click', function() {
+                this.classList.add('active');
+                if (brb2) brb2.classList.remove('active');
+                const bro = document.getElementById('backupReportOptions');
+                const hro = document.getElementById('healthReportOptions');
+                if (bro) bro.style.display = 'none';
+                if (hro) hro.style.display = 'block';
+                const rs = document.getElementById('report-status');
+                if (rs) rs.innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
             });
 
             // 单个设备/所有设备切换按钮（带安全检查）
