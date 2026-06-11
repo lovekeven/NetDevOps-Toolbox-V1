@@ -2647,102 +2647,6 @@ display memory-usage</textarea>
                 loadReportState(newReportType);
             });
 
-            // 重新绑定生成健康分析AI报告按钮事件
-            document.getElementById('generateHealthReportBtn').addEventListener('click', function() {
-                const generateBtn = this;
-                const deviceInput = document.getElementById('healthReportDevice');
-                const daysInput = document.getElementById('healthReportDays');
-                const reportStatus = document.getElementById('report-status');
-                const reportContent = document.getElementById('aiReportContent');
-                const reportTime = document.getElementById('reportGenerateTime');
-                const sendEmailBtn = document.getElementById('sendEmailBtn');
-
-                let days = parseInt(daysInput.value.trim());
-                let apiUrl = '';
-                let device = '';
-                let reportType = '';
-
-                if (isNaN(days) || days < 1 || days > 30) {
-                    alert('请输入1-30之间的有效天数！');
-                    daysInput.value = 7;
-                    return;
-                }
-
-                // 检查是单个设备还是所有设备
-                const isSingleDevice = document.getElementById('singleDeviceBtn').classList.contains('active');
-
-                if (isSingleDevice) {
-                    device = deviceInput.value.trim();
-                    if (!device) {
-                        alert('请输入设备名称！');
-                        return;
-                    }
-                    apiUrl = `/api/health/ai/?device_name=${device}&days=${days}`;
-                    reportType = 'health_single';
-                } else {
-                    apiUrl = `/api/health/ai/all/?days=${days}`;
-                    reportType = 'health_all';
-                }
-
-                const originalBtnText = generateBtn.innerHTML;
-                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
-                generateBtn.disabled = true;
-                reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI健康分析报告，请稍候...</span>';
-                reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
-                reportTime.textContent = '';
-                sendEmailBtn.disabled = true;
-
-                fetch(apiUrl)
-                    .then(response => response.json().then(data => ({ response, data })))
-                    .then(({ response, data }) => {
-                        if (!response.ok) throw new Error(data.message || data.error_detail || `请求失败，状态码：${response.status}`);
-                        if (data.code === 200 && data.data && data.data !== '') {
-                            // 简单的HTML格式化
-                            let html = data.data.trim();
-                            html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-                            html = html.replace(/<strong>(\d+\. .*?)<\/strong>/g, "<h3>$1</h3>");
-                            html = html.replace(/\n\*   (.*?)(?=\n|$)/g, "\n<li>$1</li>");
-                            html = html.replace(/(<li>.*?<\/li>)+/gs, "<ul>$&</ul>");
-                            html = html.replace(/\n(\d+)\.  (.*?)(?=\n|$)/g, "\n<li>$2</li>");
-                            html = html.replace(/(<li>.*?<\/li>)+/gs, "<ol>$&</ol>");
-                            html = html.replace(/\*\((注：.*?)\)\*/g, "<p class='report-note'>$1</p>");
-                            html = html.replace(/\n{2,}/g, "<br><br>");
-                            html = html.replace(/\n/g, " ");
-                            
-                            reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
-                            reportContent.innerHTML = `<div class="report-content-wrapper">${html}</div>`;
-                            if (data.report_time) {
-                                reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
-                            }
-                            sendEmailBtn.disabled = false;
-                            sendEmailBtn.dataset.days = days;
-                            sendEmailBtn.dataset.reportType = reportType;
-                            if (isSingleDevice) {
-                                sendEmailBtn.dataset.deviceName = device;
-                            }
-                            // 更新状态对象
-                            window.saveCurrentReportState();
-                        } else {
-                            reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
-                            reportContent.innerHTML = '<span class="report-empty">暂无有效健康数据可供分析</span>';
-                            sendEmailBtn.disabled = true;
-                            // 更新状态对象
-                            window.saveCurrentReportState();
-                        }
-                    })
-                    .catch(error => {
-                        reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
-                        reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
-                        console.error('AI健康分析报告生成异常：', error);
-                        sendEmailBtn.disabled = true;
-                        // 更新状态对象
-                        window.saveCurrentReportState();
-                    })
-                    .finally(() => {
-                        generateBtn.innerHTML = originalBtnText;
-                        generateBtn.disabled = false;
-                    });
-            });
 
             // 发送邮件按钮
             document.getElementById('sendEmailBtn').addEventListener('click', function() {
@@ -4194,6 +4098,7 @@ display memory-usage</textarea>
                 const reportStatus = document.getElementById('report-status');
                 const reportContent = document.getElementById('aiReportContent');
                 const reportTime = document.getElementById('reportGenerateTime');
+                const sendEmailBtn = document.getElementById('sendEmailBtn');
 
                 const device = deviceInput.value.trim();
                 let days = parseInt(daysInput.value.trim());
@@ -4215,6 +4120,7 @@ display memory-usage</textarea>
                 reportStatus.innerHTML = '<span class="text-warning"><i class="fas fa-robot me-1"></i>正在生成AI健康分析报告，请稍候...</span>';
                 reportContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary me-2"></div>报告生成中...</div>';
                 reportTime.textContent = '';
+                sendEmailBtn.disabled = true;
 
                 const apiUrl = `/api/health/ai/?device_name=${device}&days=${days}`;
                 fetch(apiUrl)
@@ -4222,32 +4128,28 @@ display memory-usage</textarea>
                     .then(({ response, data }) => {
                         if (!response.ok) throw new Error(data.message || data.error_detail || `请求失败，状态码：${response.status}`);
                         if (data.code === 200 && data.data && data.data !== '') {
-                            // 简单的HTML格式化
-                            let html = data.data.trim();
-                            html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-                            html = html.replace(/<strong>(\d+\. .*?)<\/strong>/g, "<h3>$1</h3>");
-                            html = html.replace(/\n\*   (.*?)(?=\n|$)/g, "\n<li>$1</li>");
-                            html = html.replace(/(<li>.*?<\/li>)+/gs, "<ul>$&</ul>");
-                            html = html.replace(/\n(\d+)\.  (.*?)(?=\n|$)/g, "\n<li>$2</li>");
-                            html = html.replace(/(<li>.*?<\/li>)+/gs, "<ol>$&</ol>");
-                            html = html.replace(/\*\((注：.*?)\)\*/g, "<p class='report-note'>$1</p>");
-                            html = html.replace(/\n{2,}/g, "<br><br>");
-                            html = html.replace(/\n/g, " ");
-                            
+                            // 使用统一的格式化函数
                             reportStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>报告生成成功！</span>';
-                            reportContent.innerHTML = `<div class="report-content-wrapper">${html}</div>`;
+                            reportContent.innerHTML = formatReportToHtml(data.data);
                             if (data.report_time) {
                                 reportTime.textContent = `报告生成时间：${new Date(data.report_time).toLocaleString('zh-CN')}`;
                             }
+                            // 启用发送邮件按钮，设置参数
+                            sendEmailBtn.disabled = false;
+                            sendEmailBtn.dataset.days = days;
+                            sendEmailBtn.dataset.reportType = 'health_single';
+                            sendEmailBtn.dataset.deviceName = device;
                         } else {
                             reportStatus.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>暂无有效报告数据</span>';
                             reportContent.innerHTML = '<span class="report-empty">暂无有效健康数据可供分析</span>';
+                            sendEmailBtn.disabled = true;
                         }
                     })
                     .catch(error => {
                         reportStatus.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>报告生成失败！</span>`;
                         reportContent.innerHTML = `<span class="text-danger text-center py-4">${error.message}</span>`;
                         console.error('AI健康分析报告生成异常：', error);
+                        sendEmailBtn.disabled = true;
                     })
                     .finally(() => {
                         generateBtn.innerHTML = originalBtnText;
