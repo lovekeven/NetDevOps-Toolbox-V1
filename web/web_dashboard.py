@@ -123,31 +123,10 @@ def get_devices(filename=CONFIG_PATH):
 def index():
     devices = get_devices()
 
-    def check_device_status(dev):
-        try:
-            # 测试连接
-            dev_copy = dev.copy()
-            if "device_name" in dev_copy:
-                del dev_copy["device_name"]
-                del dev_copy["vendor"]
-            connection = ConnectHandler(**dev_copy, timeout=2)
-            # Netmiko 默认超时约 10 秒，若有 1 台设备离线，页面会卡在这台设备的连接上 10 秒，设备多的话加载会极慢，加 2
-            #  秒超时后，单台设备连不上会立刻判离线，页面加载速度会大幅提升。
-            connection.disconnect()
-            dev["status"] = "在线"
-            logger.info(f"连接设备 {dev['device_name']} 成功")
-        except Exception as e:
-            logger.error(f"连接设备 {dev['device_name']} 失败: {e}")
-            dev["status"] = "离线"
-
-    threads = []
+    # 不在首页加载时测试设备状态（太慢了）
+    # 设备状态改为通过API异步获取
     for dev in devices:
-        thread = threading.Thread(target=check_device_status, args=(dev,))
-        # 参数那里只能以元组的形式
-        threads.append(thread)
-        thread.start()
-    for thread in threads:
-        thread.join()
+        dev["status"] = "未知"
 
     return render_template("index.html", devices=devices)
 
