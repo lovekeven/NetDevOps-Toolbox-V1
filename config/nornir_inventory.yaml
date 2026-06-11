@@ -1,11 +1,1 @@
-R1:
-  username: R1
-  hostname: 192.168.102.254
-  password: wjz1234567890
-  connection_options:
-    netmiko:
-      extras:
-        device_type: hp_comware
-        port: 22
-  data:
-    vendor: 华三H3C
+{}

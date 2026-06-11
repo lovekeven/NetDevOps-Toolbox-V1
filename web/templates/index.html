@@ -4251,8 +4251,9 @@ display memory-usage</textarea>
                             .then(response => response.json())
                             .then(data => {
                                 if (data.code === 0) {
-                                    alert('设备删除成功！');
-                                    loadDeviceList();
+                                    alert('设备删除成功！页面将自动刷新。');
+                                    // 刷新整个页面，确保所有数据更新
+                                    window.location.reload();
                                 } else {
                                     alert(`删除失败：${data.msg || '未知错误'}`);
                                 }
