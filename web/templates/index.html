@@ -2512,8 +2512,10 @@ display memory-usage</textarea>
 
             // 获取当前报告类型
             function getCurrentReportType() {
-                const isBackup = document.getElementById('backupReportBtn').classList.contains('active');
-                const isSingle = document.getElementById('singleDeviceBtn').classList.contains('active');
+                const backupBtn = document.getElementById('backupReportBtn');
+                const singleBtn = document.getElementById('singleDeviceBtn');
+                const isBackup = backupBtn ? backupBtn.classList.contains('active') : true;
+                const isSingle = singleBtn ? singleBtn.classList.contains('active') : true;
                 if (isBackup) {
                     return isSingle ? 'backup_single' : 'backup_all';
                 } else {
@@ -2604,20 +2606,24 @@ display memory-usage</textarea>
             checkApiStatus();
 
             // 单个设备/所有设备切换按钮
-            document.getElementById('singleDeviceBtn').addEventListener('click', function() {
-                document.getElementById('singleDeviceBtn').classList.add('active');
-                document.getElementById('allDevicesBtn').classList.remove('active');
-                document.getElementById('singleDeviceInput').style.display = 'block';
+            const singleDeviceBtnEl = document.getElementById('singleDeviceBtn');
+            const allDevicesBtnEl = document.getElementById('allDevicesBtn');
+            if (singleDeviceBtnEl) singleDeviceBtnEl.addEventListener('click', function() {
+                this.classList.add('active');
+                if (allDevicesBtnEl) allDevicesBtnEl.classList.remove('active');
+                const singleInput = document.getElementById('singleDeviceInput');
+                if (singleInput) singleInput.style.display = 'block';
                 // 保存当前状态并加载新状态
                 saveCurrentReportState();
                 const newReportType = getCurrentReportType();
                 loadReportState(newReportType);
             });
 
-            document.getElementById('allDevicesBtn').addEventListener('click', function() {
-                document.getElementById('allDevicesBtn').classList.add('active');
-                document.getElementById('singleDeviceBtn').classList.remove('active');
-                document.getElementById('singleDeviceInput').style.display = 'none';
+            if (allDevicesBtnEl) allDevicesBtnEl.addEventListener('click', function() {
+                this.classList.add('active');
+                if (singleDeviceBtnEl) singleDeviceBtnEl.classList.remove('active');
+                const singleInput = document.getElementById('singleDeviceInput');
+                if (singleInput) singleInput.style.display = 'none';
                 // 保存当前状态并加载新状态
                 saveCurrentReportState();
                 const newReportType = getCurrentReportType();
@@ -4075,19 +4081,24 @@ display memory-usage</textarea>
                 document.getElementById('report-status').innerHTML = '<span class="text-muted">点击「生成报告」获取健康分析</span>';
             });
 
-            // 单个设备/所有设备切换按钮
-            document.getElementById('singleDeviceBtn').addEventListener('click', function() {
-                document.getElementById('singleDeviceBtn').classList.add('active');
-                document.getElementById('allDevicesBtn').classList.remove('active');
-                document.getElementById('singleDeviceInput').style.display = 'block';
-                document.getElementById('autoSendReminder').innerHTML = '';
+            // 单个设备/所有设备切换按钮（带安全检查）
+            const sdb = document.getElementById('singleDeviceBtn');
+            const adb = document.getElementById('allDevicesBtn');
+            if (sdb) sdb.addEventListener('click', function() {
+                this.classList.add('active');
+                if (adb) adb.classList.remove('active');
+                const si = document.getElementById('singleDeviceInput');
+                if (si) si.style.display = 'block';
+                const asr = document.getElementById('autoSendReminder');
+                if (asr) asr.innerHTML = '';
             });
-
-            document.getElementById('allDevicesBtn').addEventListener('click', function() {
-                document.getElementById('allDevicesBtn').classList.add('active');
-                document.getElementById('singleDeviceBtn').classList.remove('active');
-                document.getElementById('singleDeviceInput').style.display = 'none';
-                document.getElementById('autoSendReminder').innerHTML = '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱';
+            if (adb) adb.addEventListener('click', function() {
+                this.classList.add('active');
+                if (sdb) sdb.classList.remove('active');
+                const si = document.getElementById('singleDeviceInput');
+                if (si) si.style.display = 'none';
+                const asr = document.getElementById('autoSendReminder');
+                if (asr) asr.innerHTML = '<i class="fas fa-calendar-alt me-1"></i>每周一早上9点自动发送到邮箱';
             });
 
             // 生成健康分析AI报告按钮
