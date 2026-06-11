@@ -2417,24 +2417,48 @@ display memory-usage</textarea>
             loadDeviceStatus();
         });
 
-        // AI报告格式转换（修复正则漏洞）
+        // AI报告格式转换（Markdown → HTML）
         function formatReportToHtml(rawText) {
             if (!rawText || rawText.trim() === '') {
                 return '<span class="report-empty">暂无有效数据可供分析</span>';
             }
 
             let html = rawText.trim();
-            html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-            html = html.replace(/<strong>(\d+\. .*?)<\/strong>/g, "<h3>$1</h3>");
-            html = html.replace(/\n\*   (.*?)(?=\n|$)/g, "\n<li>$1</li>");
-            html = html.replace(/(<li>.*?<\/li>)+/gs, "<ul>$&</ul>");
-            html = html.replace(/\n(\d+)\.  (.*?)(?=\n|$)/g, "\n<li>$2</li>");
-            html = html.replace(/(<li>.*?<\/li>)+/gs, "<ol>$&</ol>");
-            html = html.replace(/\*\((注：.*?)\)\*/g, "<p class='report-note'>$1</p>");
-            html = html.replace(/\n{2,}/g, "<br><br>");
-            html = html.replace(/\n/g, " ");
 
-            return `<div class="report-content-wrapper">${html}</div>`;
+            // 1. 标题：# ## ###
+            html = html.replace(/^### (.*$)/gm, '<h5>$1</h5>');
+            html = html.replace(/^## (.*$)/gm, '<h4>$1</h4>');
+            html = html.replace(/^# (.*$)/gm, '<h3>$1</h3>');
+
+            // 2. 加粗：**text**
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+            // 3. 无序列表：- item
+            html = html.replace(/^- (.*$)/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+            // 4. 有序列表：1. item
+            html = html.replace(/^\d+\. (.*$)/gm, '<li>$1</li>');
+
+            // 5. 分隔线：---
+            html = html.replace(/^---$/gm, '<hr>');
+
+            // 6. 换行：连续两个换行变成段落
+            html = html.replace(/\n\n/g, '</p><p>');
+            html = html.replace(/\n/g, '<br>');
+
+            // 7. 包裹段落
+            html = '<p>' + html + '</p>';
+
+            // 8. 清理空段落
+            html = html.replace(/<p><\/p>/g, '');
+            html = html.replace(/<p>(<h[3-5]>)/g, '$1');
+            html = html.replace(/(<\/h[3-5]>)<\/p>/g, '$1');
+            html = html.replace(/<p>(<ul>)/g, '$1');
+            html = html.replace(/(<\/ul>)<\/p>/g, '$1');
+            html = html.replace(/<p>(<hr>)<\/p>/g, '$1');
+
+            return `<div class="report-content-wrapper" style="line-height: 1.8; color: #e2e8f0;">${html}</div>`;
         }
 
         // DOM加载完成后初始化所有模态框
