@@ -4201,43 +4201,46 @@ display memory-usage</textarea>
         }
 
         // 设备管理功能
-        function initDeviceManagementFunction() {
-            // 加载设备列表
-            function loadDeviceList() {
-                const deviceListBody = document.getElementById('deviceListTableBody');
-                deviceListBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><div class="spinner-border text-primary me-2"></div>加载设备列表中...</td></tr>';
+        // 全局函数：加载设备列表
+        function loadDeviceList() {
+            const deviceListBody = document.getElementById('deviceListTableBody');
+            if (!deviceListBody) return;
 
-                fetch('/api/devices')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.code === 0 && data.data && data.data.length > 0) {
-                            deviceListBody.innerHTML = '';
-                            data.data.forEach(device => {
-                                const row = document.createElement('tr');
-                                row.innerHTML = `
-                                    <td>${device.device_name || '未知'}</td>
-                                    <td>${device.hostname || device.host || '未知'}</td>
-                                    <td>${device.vendor || '未知'}</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-danger delete-device-btn" data-device-name="${device.device_name || device.name}">
-                                            <i class="fas fa-trash-alt me-1"></i>删除
-                                        </button>
-                                    </td>
-                                    <td><span class="badge bg-success">已添加</span></td>
-                                `;
-                                deviceListBody.appendChild(row);
-                            });
-                            // 绑定删除按钮事件
-                            bindDeleteDeviceEvents();
-                        } else {
-                            deviceListBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无设备，请先添加</td></tr>';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('加载设备列表失败：', error);
-                        deviceListBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">加载设备列表失败</td></tr>';
-                    });
-            }
+            deviceListBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><div class="spinner-border text-primary me-2"></div>加载设备列表中...</td></tr>';
+
+            fetch('/api/devices')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 0 && data.data && data.data.length > 0) {
+                        deviceListBody.innerHTML = '';
+                        data.data.forEach(device => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${device.device_name || '未知'}</td>
+                                <td>${device.hostname || device.host || '未知'}</td>
+                                <td>${device.vendor || '未知'}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-danger delete-device-btn" data-device-name="${device.device_name || device.name}">
+                                        <i class="fas fa-trash-alt me-1"></i>删除
+                                    </button>
+                                </td>
+                                <td><span class="badge bg-success">已添加</span></td>
+                            `;
+                            deviceListBody.appendChild(row);
+                        });
+                        // 绑定删除按钮事件
+                        bindDeleteDeviceEvents();
+                    } else {
+                        deviceListBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无设备，请先添加</td></tr>';
+                    }
+                })
+                .catch(error => {
+                    console.error('加载设备列表失败：', error);
+                    deviceListBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">加载设备列表失败</td></tr>';
+                });
+        }
+
+        function initDeviceManagementFunction() {
 
             // 绑定删除设备事件
             function bindDeleteDeviceEvents() {
