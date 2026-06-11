@@ -2631,22 +2631,28 @@ display memory-usage</textarea>
             });
 
             // 备份报告和健康报告切换按钮
-            document.getElementById('backupReportBtn').addEventListener('click', function() {
-                document.getElementById('backupReportBtn').classList.add('active');
-                document.getElementById('healthReportBtn').classList.remove('active');
-                document.getElementById('backupReportOptions').style.display = 'block';
-                document.getElementById('healthReportOptions').style.display = 'none';
+            const backupReportBtnEl = document.getElementById('backupReportBtn');
+            const healthReportBtnEl = document.getElementById('healthReportBtn');
+            if (backupReportBtnEl) backupReportBtnEl.addEventListener('click', function() {
+                this.classList.add('active');
+                if (healthReportBtnEl) healthReportBtnEl.classList.remove('active');
+                const bro = document.getElementById('backupReportOptions');
+                const hro = document.getElementById('healthReportOptions');
+                if (bro) bro.style.display = 'block';
+                if (hro) hro.style.display = 'none';
                 // 保存当前状态并加载新状态
                 saveCurrentReportState();
                 const newReportType = getCurrentReportType();
                 loadReportState(newReportType);
             });
 
-            document.getElementById('healthReportBtn').addEventListener('click', function() {
-                document.getElementById('healthReportBtn').classList.add('active');
-                document.getElementById('backupReportBtn').classList.remove('active');
-                document.getElementById('backupReportOptions').style.display = 'none';
-                document.getElementById('healthReportOptions').style.display = 'block';
+            if (healthReportBtnEl) healthReportBtnEl.addEventListener('click', function() {
+                this.classList.add('active');
+                if (backupReportBtnEl) backupReportBtnEl.classList.remove('active');
+                const bro = document.getElementById('backupReportOptions');
+                const hro = document.getElementById('healthReportOptions');
+                if (bro) bro.style.display = 'none';
+                if (hro) hro.style.display = 'block';
                 // 保存当前状态并加载新状态
                 saveCurrentReportState();
                 const newReportType = getCurrentReportType();
