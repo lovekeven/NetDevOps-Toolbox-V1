@@ -17,6 +17,9 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 sys.path.append(ROOT_DIR)
 CONFIG_PATH1 = os.path.join(ROOT_DIR, "config", "nornir_config.yaml")
 logger = setup_logger("nornir_tasks", "nornir_tasks.log")
+
+# 切换工作目录到项目根目录，确保nornir能找到相对路径的配置文件
+os.chdir(ROOT_DIR)
 # 第一步：创建控制台实例
 
 

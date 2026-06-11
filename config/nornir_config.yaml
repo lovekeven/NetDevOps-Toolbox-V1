@@ -2,11 +2,10 @@
 inventory:
   plugin: SimpleInventory
   options:
-    host_file: 'd:\Desktop\NetDevOps_Projects\NetDevOps-Toolbox-V1\config\nornir_inventory.yaml'
+    host_file: 'config/nornir_inventory.yaml'
 runner:
   plugin: threaded
   options:
-    # 原代码：num_workers: 10000  # 问题：10000 线程对 6 台设备完全没必要，浪费系统资源
-    num_workers: 20  # 修复：改为 20，足够并发处理多台设备
+    num_workers: 20
 logging:
   enabled: False
