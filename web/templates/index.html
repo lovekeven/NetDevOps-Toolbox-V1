@@ -4048,8 +4048,11 @@ display memory-usage</textarea>
                         totalCount.textContent = success + failed;
 
                         // 显示结果模态框
-                        const nornirResultModal = new bootstrap.Modal(document.getElementById('nornirResultModal'));
-                        nornirResultModal.show();
+                        const nornirResultModal = document.getElementById('nornirCheckResultModal');
+                        if (nornirResultModal) {
+                            const modal = new bootstrap.Modal(nornirResultModal);
+                            modal.show();
+                        }
                     })
                     .catch(error => {
                         console.error('并发检查失败:', error);
