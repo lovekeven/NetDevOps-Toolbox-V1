@@ -131,6 +131,35 @@ def index():
     return render_template("index.html", devices=devices)
 
 
+# 异步获取设备状态API（页面加载后调用，不阻塞首页）
+@app.route("/api/devices/status")
+def get_devices_status():
+    """异步获取所有设备的在线状态"""
+    devices = get_devices()
+
+    def check_device_status(dev):
+        try:
+            dev_copy = dev.copy()
+            if "device_name" in dev_copy:
+                del dev_copy["device_name"]
+                del dev_copy["vendor"]
+            connection = ConnectHandler(**dev_copy, timeout=2)
+            connection.disconnect()
+            return {"device_name": dev["device_name"], "status": "在线"}
+        except Exception as e:
+            return {"device_name": dev["device_name"], "status": "离线"}
+
+    # 并发测试所有设备
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    results = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(check_device_status, dev): dev for dev in devices}
+        for future in as_completed(futures):
+            results.append(future.result())
+
+    return jsonify({"code": 0, "data": results})
+
+
 # 第一个API接口：对设备的健康检查
 @app.route("/api/health/<device_name>")
 def device_health(device_name):

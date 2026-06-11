@@ -1785,18 +1785,11 @@ display memory-usage</textarea>
                                     <span class="badge bg-info text-dark">{{ device.vendor }}</span>
                                 </td>
                                 <!-- 设备状态列 -->
-                                <td class="device-status">
-                                    {% if device.status == '在线' %}
+                                <td class="device-status" data-device="{{ device.device_name }}">
                                     <span class="status-indicator">
-                                        <span class="status-dot online"></span>
-                                        <span class="badge bg-success">在线</span>
+                                        <span class="status-dot pending"></span>
+                                        <span class="badge bg-secondary">检测中...</span>
                                     </span>
-                                    {% else %}
-                                    <span class="status-indicator">
-                                        <span class="status-dot offline"></span>
-                                        <span class="badge bg-danger">离线</span>
-                                    </span>
-                                    {% endif %}
                                 </td>
                                 <!-- 备份状态列 -->
                                 <td class="backup-status">
@@ -2384,6 +2377,45 @@ display memory-usage</textarea>
             nornirCheckResultModal: null,
             deviceManagementModal: null
         };
+
+        // 异步获取设备状态（页面加载后调用，不阻塞首页）
+        function loadDeviceStatus() {
+            fetch('/api/devices/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 0 && data.data) {
+                        data.data.forEach(device => {
+                            // 找到对应的设备状态单元格并更新
+                            const statusCell = document.querySelector(`td.device-status[data-device="${device.device_name}"]`);
+                            if (statusCell) {
+                                if (device.status === '在线') {
+                                    statusCell.innerHTML = `
+                                        <span class="status-indicator">
+                                            <span class="status-dot online"></span>
+                                            <span class="badge bg-success">在线</span>
+                                        </span>
+                                    `;
+                                } else {
+                                    statusCell.innerHTML = `
+                                        <span class="status-indicator">
+                                            <span class="status-dot offline"></span>
+                                            <span class="badge bg-danger">离线</span>
+                                        </span>
+                                    `;
+                                }
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('获取设备状态失败:', error);
+                });
+        }
+
+        // 页面加载完成后异步获取设备状态
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDeviceStatus();
+        });
 
         // AI报告格式转换（修复正则漏洞）
         function formatReportToHtml(rawText) {
