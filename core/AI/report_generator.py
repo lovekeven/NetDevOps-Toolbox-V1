@@ -99,6 +99,45 @@ class ReportGenerator:
             return "请指定要分析的设备名称"
         helthly_record = self.db.get_health_check_history(device_name=device_name, days=days)
 
+        if not helthly_record:
+            return f"设备 {device_name} 近{days}天没有健康检查记录，请先做健康检查。"
+
+        # 取最新的记录用于分析
+        latest = helthly_record[0] if helthly_record else {}
+        prompt = f"""你是一名资深网络运维工程师。请根据以下设备健康检查数据，生成一份专业的健康分析报告。
+
+        【设备名称】：{device_name}
+        【分析周期】：近{days}天
+        【检查记录数】：{len(helthly_record)}条
+
+        【最新检查数据】：
+        - 检查时间：{latest.get('check_time', 'N/A')}
+        - 设备状态：{latest.get('status', 'N/A')}
+        - CPU使用率：{latest.get('CPU_usage', 'N/A')}
+        - 内存使用率：{latest.get('memory_usage', 'N/A')}
+        - 接口状态：UP={latest.get('up_interface', 0)}，DOWN={latest.get('down_interface', 0)}，总计={latest.get('total_interface', 0)}
+        - 健康问题：{latest.get('device_health_issues', '无')}
+        - 错误信息：{latest.get('error_message', '无')}
+
+        请用Markdown格式输出报告，包含以下部分：
+        1. **设备概况**：设备基本信息和检查时间
+        2. **健康状态分析**：CPU、内存、接口状态分析
+        3. **问题诊断**：发现的问题及可能原因
+        4. **运维建议**：具体的处理建议
+
+        要求：专业、简洁、有数据支撑，直接输出Markdown文本。
+        """
+
+        logger.info("正在生成AI健康分析报告...")
+        try:
+            report = self.use_deepseek_api(prompt)
+            logger.info("AI健康分析报告生成成功！")
+            return report
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"AI健康分析报告生成失败：{error_msg[:100]}")
+            return f"AI分析失败：{error_msg[:100]}"
+
     def analyze_health_and_suggest(self, device_name, health_data):
         """
         分析健康数据并给出智能建议（中优先级 #8）
