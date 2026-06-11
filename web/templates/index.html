@@ -4334,13 +4334,9 @@ display memory-usage</textarea>
                 .then(({ response, data }) => {
                     if (!response.ok) throw new Error(data.msg || `添加设备失败，状态码：${response.status}`);
                     if (data.code === 0) {
-                        alert('设备添加成功！');
-                        // 重置表单
-                        document.getElementById('addDeviceForm').reset();
-                        // 隐藏Enable密码字段
-                        document.getElementById('enablePasswordSection').style.display = 'none';
-                        // 重新加载设备列表
-                        loadDeviceList();
+                        alert('设备添加成功！页面将自动刷新。');
+                        // 刷新整个页面，确保所有数据同步
+                        window.location.reload();
                     } else {
                         throw new Error(data.msg || '添加设备失败');
                     }
