@@ -1507,6 +1507,25 @@ def save_device():
             [device_name, hostname, username, password],
         ):
             return jsonify({"code": 1, "msg": "请输入设备名称，IP,用户名，密码"})
+
+        # 连通性测试：先测试 SSH 连接，只有测试通过才能保存
+        logger.info(f"正在测试设备 {device_name} ({hostname}) 的连通性...")
+        try:
+            from netmiko import ConnectHandler
+            test_connection = ConnectHandler(
+                ip=hostname,
+                username=username,
+                password=password,
+                device_type=device_type,
+                port=port,
+                timeout=10,
+            )
+            test_connection.disconnect()
+            logger.info(f"设备 {device_name} 连通性测试通过！")
+        except Exception as e:
+            logger.error(f"设备 {device_name} 连通性测试失败：{e}")
+            return jsonify({"code": 1, "msg": f"设备连通性测试失败：{str(e)[:100]}，请检查IP、用户名、密码是否正确"})
+
         device_config = {
             "username": username,
             "hostname": hostname,
@@ -1540,7 +1559,7 @@ def save_device():
             # default_flow_style=False让每个键值对单独占一行，而非挤在一行，可读性拉满强制使用「块格式」（换行）
             # allow_unicode=True支持 Unicode 字符（中文）当设备配
             # sort_keys=False保持字典键的顺序，不自动排序
-        return jsonify({"code": 0, "msg": f"设备{device_name}保存成功！"})
+        return jsonify({"code": 0, "msg": f"设备{device_name}保存成功！（连通性测试通过）"})
 
     except Exception as e:
         return jsonify({"code": 2, "msg": f"保存失败：{str(e)}"})

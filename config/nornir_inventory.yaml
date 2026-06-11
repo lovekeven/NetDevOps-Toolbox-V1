@@ -1,27 +1,11 @@
-# NetDevOps 工具箱设备清单
-# 添加设备格式如下（去掉注释符号 # 即可启用）：
-#
-# 设备名称:
-#   username: '用户名'
-#   hostname: IP地址
-#   password: '密码'
-#   connection_options:
-#     netmiko:
-#       extras:
-#         device_type: hp_comware  # 设备类型：hp_comware/huawei/cisco_ios
-#         port: 22                 # SSH端口
-#   data:
-#     vendor: HCLCloud             # 厂商标识
-#
-# 示例：
-# SW1:
-#   username: 'admin'
-#   hostname: 192.168.1.1
-#   password: 'admin123'
-#   connection_options:
-#     netmiko:
-#       extras:
-#         device_type: hp_comware
-#         port: 22
-#   data:
-#     vendor: HCLCloud
+R1:
+  username: R1
+  hostname: 192.168.102.254
+  password: wjz1234567890
+  connection_options:
+    netmiko:
+      extras:
+        device_type: hp_comware
+        port: 22
+  data:
+    vendor: 华三H3C
