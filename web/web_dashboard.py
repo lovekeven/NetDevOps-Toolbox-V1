@@ -2500,7 +2500,7 @@ def query_all_devices():
 
                 for cmd in commands:
                     try:
-                        output = connection.send_command(cmd, delay_factor=2)
+                        output = connection.send_command_timing(cmd, delay_factor=3)
                         device_result['commands'][cmd] = output
                     except Exception as e:
                         device_result['commands'][cmd] = f"执行失败：{str(e)}"
