@@ -1,0 +1,8 @@
+{
+    "smtp_server": "smtp.qq.com",
+    "smtp_port": 587,
+    "sender_email": "1942601627@qq.com",
+    "sender_password": "dxzlbekmqfqybjfg",
+    "sender_name": "NetDevOps",
+    "use_ssl": false
+}

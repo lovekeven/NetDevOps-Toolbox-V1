@@ -13,6 +13,7 @@ import smtplib
 
 # 导入生成正文对象的工具包
 from email.mime.text import MIMEText
+from email.header import Header
 
 # 导入生成信封的工具包
 from email.mime.multipart import MIMEMultipart
@@ -22,11 +23,12 @@ from datetime import datetime
 
 
 class EmailSender:
-    def __init__(self, smtp_server, smtp_port, smtp_email, smtp_password):
+    def __init__(self, smtp_server, smtp_port, smtp_email, smtp_password, sender_name="NetDevOps工具箱"):
         self.smtp_server = smtp_server
-        self.smtp_port = smtp_port
+        self.smtp_port = int(smtp_port)
         self.smtp_email = smtp_email
         self.smtp_password = smtp_password
+        self.sender_name = sender_name
         logger.info("与邮件服务器连接初始化完成")
 
     # 核心方法
@@ -39,7 +41,8 @@ class EmailSender:
             msg["Subject"] = (
                 f"Netdevops运维工具箱：关于设备的AI{report_type}状态分析 --{datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}"
             )
-            msg["From"] = self.smtp_email
+            # 设置发件人，格式为：发件人名称 <邮箱地址>
+            msg["From"] = f"{self.sender_name} <{self.smtp_email}>"
             msg["To"] = ", ".join(recipient_emails)
             # 1.邮件服务器规范：多个收件人邮箱必须用「英文逗号 + 空格」分隔（如a@163.com, b@qq.com）
             # 2. 生成HTML格式正文（主流邮箱支持，保留AI排版，更美观）

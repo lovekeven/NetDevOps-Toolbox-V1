@@ -186,19 +186,43 @@ class AlertEngine:
     def _send_alert_email(self, rule, message, current_value):
         """发送告警邮件"""
         try:
-            # 获取邮件配置
-            smtp_server = db_manager.get_setting('smtp_server', 'smtp.qq.com')
-            smtp_port = int(db_manager.get_setting('smtp_port', '465'))
-            smtp_user = db_manager.get_setting('smtp_user', '')
-            smtp_password = db_manager.get_setting('smtp_password', '')
-
-            if not smtp_user or not smtp_password:
-                logger.warning("邮件未配置，跳过发送")
+            # 获取预配置的发送邮箱（从配置文件）
+            import json
+            config_path = os.path.join(ROOT_DIR, 'config', 'email_config.json')
+            if not os.path.exists(config_path):
+                logger.warning("邮箱配置文件不存在，跳过发送")
                 return
 
-            # 获取收件人
-            recipients = rule.get('email_recipients', '').split(',')
-            recipients = [r.strip() for r in recipients if r.strip()]
+            with open(config_path, 'r', encoding='utf-8') as f:
+                email_config = json.load(f)
+
+            smtp_server = email_config.get('smtp_server', 'smtp.qq.com')
+            smtp_port = int(email_config.get('smtp_port', 465))
+            smtp_user = email_config.get('sender_email', '')
+            smtp_password = email_config.get('sender_password', '')
+            sender_name = email_config.get('sender_name', 'NetDevOps工具箱')
+
+            if not smtp_user or not smtp_password:
+                logger.warning("发送邮箱未配置，跳过发送")
+                return
+
+            # 获取收件人（从邮箱列表中获取所有邮箱）
+            recipients = []
+            emails_setting = db_manager.get_setting('receive_emails', '[]')
+            email_list = json.loads(emails_setting)
+            if email_list:
+                recipients = [item['email'] for item in email_list]
+
+            # 如果邮箱列表为空，使用旧的单邮箱配置
+            if not recipients:
+                receive_email = db_manager.get_setting('receive_email', '')
+                if receive_email:
+                    recipients.append(receive_email)
+
+            # 如果还是没有，使用规则中的邮箱
+            if not recipients:
+                rule_recipients = rule.get('email_recipients', '').split(',')
+                recipients = [r.strip() for r in rule_recipients if r.strip()]
 
             if not recipients:
                 logger.warning("没有收件人，跳过发送")
@@ -206,7 +230,7 @@ class AlertEngine:
 
             # 构造邮件
             msg = MIMEMultipart()
-            msg['From'] = smtp_user
+            msg['From'] = f"{sender_name} <{smtp_user}>"
             msg['To'] = ', '.join(recipients)
             msg['Subject'] = f"[{rule['severity'].upper()}] 网络告警 - {rule['rule_name']}"
 
@@ -249,16 +273,26 @@ class AlertEngine:
     def test_email_config(self, test_recipient):
         """测试邮件配置"""
         try:
-            smtp_server = db_manager.get_setting('smtp_server', 'smtp.qq.com')
-            smtp_port = int(db_manager.get_setting('smtp_port', '465'))
-            smtp_user = db_manager.get_setting('smtp_user', '')
-            smtp_password = db_manager.get_setting('smtp_password', '')
+            # 获取预配置的发送邮箱（从配置文件）
+            import json
+            config_path = os.path.join(ROOT_DIR, 'config', 'email_config.json')
+            if not os.path.exists(config_path):
+                return False, "邮箱配置文件不存在"
+
+            with open(config_path, 'r', encoding='utf-8') as f:
+                email_config = json.load(f)
+
+            smtp_server = email_config.get('smtp_server', 'smtp.qq.com')
+            smtp_port = int(email_config.get('smtp_port', 465))
+            smtp_user = email_config.get('sender_email', '')
+            smtp_password = email_config.get('sender_password', '')
+            sender_name = email_config.get('sender_name', 'NetDevOps工具箱')
 
             if not smtp_user or not smtp_password:
-                return False, "邮件未配置"
+                return False, "发送邮箱未配置"
 
             msg = MIMEMultipart()
-            msg['From'] = smtp_user
+            msg['From'] = f"{sender_name} <{smtp_user}>"
             msg['To'] = test_recipient
             msg['Subject'] = "测试邮件 - NetDevOps工具箱"
             body = "这是一封测试邮件，邮件配置正常！"

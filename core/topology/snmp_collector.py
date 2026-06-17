@@ -239,14 +239,18 @@ class SNMPCollector:
         """遍历 OID 子树，返回 (oid, value) 列表"""
         results = []
         try:
-            async for (error_indication, error_status, error_index, var_binds) in next_cmd(
-                self.snmp_engine,
-                self.auth_data,
-                self.transport_target,
-                ContextData(),
-                ObjectType(ObjectIdentity(oid)),
-                lexicographicMode=False
-            ):
+            # pysnmp 6.x 需要用循环调用 next_cmd，而不是 async for
+            current_oid = ObjectType(ObjectIdentity(oid))
+            while True:
+                error_indication, error_status, error_index, var_binds = await next_cmd(
+                    self.snmp_engine,
+                    self.auth_data,
+                    self.transport_target,
+                    ContextData(),
+                    current_oid,
+                    lexicographicMode=False
+                )
+
                 if error_indication:
                     logger.warning(f"SNMP WALK 错误 [{self.ip}]: {error_indication}")
                     break
@@ -254,8 +258,16 @@ class SNMPCollector:
                     logger.warning(f"SNMP WALK 状态错误 [{self.ip}]: {error_status.prettyPrint()}")
                     break
 
+                if not var_binds:
+                    break
+
                 for var_bind in var_binds:
-                    results.append((str(var_bind[0]), var_bind[1]))
+                    oid_str = str(var_bind[0])
+                    # 检查是否还在目标 OID 范围内
+                    if not oid_str.startswith(oid.rstrip('.')):
+                        return results
+                    results.append((oid_str, var_bind[1]))
+                    current_oid = ObjectType(var_bind[0])
         except Exception as e:
             logger.error(f"SNMP WALK 异常 [{self.ip}]: {e}")
 

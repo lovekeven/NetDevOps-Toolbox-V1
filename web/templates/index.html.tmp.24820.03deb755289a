@@ -168,21 +168,6 @@
             text-transform: none;
         }
 
-        /* 隐藏 Bootstrap 关闭按钮的默认样式 */
-        .btn-close {
-            display: none !important;
-        }
-
-        /* 隐藏所有模态框的关闭按钮 */
-        .modal-header .btn-close {
-            display: none !important;
-        }
-
-        /* 隐藏 toast 的关闭按钮 */
-        .toast .btn-close {
-            display: none !important;
-        }
-
         .btn:hover {
             transform: translateY(-1px);
             box-shadow: var(--shadow-md);
@@ -1079,61 +1064,38 @@
             display: block;
         }
 
-        /* 子模块切换标签 */
-        .sub-tabs {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1.5rem;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 0;
-        }
-
-        .sub-tab {
-            padding: 0.75rem 1.25rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: var(--transition);
-            border-bottom: 3px solid transparent;
-            margin-bottom: -2px;
-            color: var(--text-muted);
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-
-        .sub-tab:hover {
-            color: var(--text-primary);
-            background: rgba(79, 70, 229, 0.05);
-        }
-
-        .sub-tab.active {
-            color: var(--primary-color);
-            border-bottom-color: var(--primary-color);
-        }
-
-        .sub-tab-content {
-            display: none;
-        }
-
-        .sub-tab-content.active {
-            display: block;
-        }
-
-        /* 命令集弹窗 */
-        .command-popup {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 800px;
-            max-height: 80vh;
+        /* 折叠面板 */
+        .collapse-panel {
             background: var(--card-background);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
-            z-index: 10000;
-            display: none;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .collapse-header {
+            padding: 0.875rem 1.25rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+        }
+
+        .collapse-header:hover {
+            background: rgba(79, 70, 229, 0.1);
+        }
+
+        .collapse-body {
+            padding: 0 1.25rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapse-body.expanded {
+            padding: 1.25rem;
+            max-height: 2000px;
         }
 
         /* 小卡片 */
@@ -1195,14 +1157,6 @@
                 <a href="#" class="nav-item" data-module="ai" onclick="switchModule('ai')">
                     <i class="fas fa-robot"></i>
                     <span>AI分析报告</span>
-                </a>
-                <a href="/cloud" class="nav-item">
-                    <i class="fas fa-cloud"></i>
-                    <span>云网络平台</span>
-                </a>
-                <a href="/hybrid" class="nav-item">
-                    <i class="fas fa-globe"></i>
-                    <span>混合云平台</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -1384,227 +1338,222 @@
 
                 <!-- 拓扑管理模块 -->
                 <div class="module-content" id="module-topology">
-                    <!-- 子模块切换标签 -->
-                    <div class="sub-tabs">
-                        <div class="sub-tab active" data-sub="topo-visual" onclick="switchSubTab('topology', 'topo-visual')">
-                            <i class="fas fa-project-diagram"></i>
-                            <span>网络拓扑可视化</span>
+                    <!-- 网络拓扑可视化（主要功能） -->
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-project-diagram text-primary me-2"></i>网络拓扑可视化</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-primary active" id="modeTraditional" onclick="switchTopologyMode('traditional')">
+                                        <i class="fas fa-network-wired me-1"></i>传统探测
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary" id="modeSdn" onclick="switchTopologyMode('sdn')">
+                                        <i class="fas fa-cogs me-1"></i>SDN控制器
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="sub-tab" data-sub="topo-tools" onclick="switchSubTab('topology', 'topo-tools')">
-                            <i class="fas fa-tools"></i>
-                            <span>网络工具箱</span>
-                        </div>
-                    </div>
-
-                    <!-- 网络拓扑可视化子模块 -->
-                    <div class="sub-tab-content active" id="sub-topology-topo-visual">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0"><i class="fas fa-project-diagram text-primary me-2"></i>网络拓扑可视化</h5>
-                                <div class="d-flex gap-2 align-items-center">
+                        <div class="card-body">
+                            <div id="traditionalPanel" class="mb-3">
+                                <div class="d-flex gap-2 align-items-center flex-wrap">
+                                    <div class="input-group input-group-sm" style="width: 300px;">
+                                        <input type="text" id="seedIpInput" class="form-control" placeholder="种子设备IP，如 192.168.1.1">
+                                        <input type="text" id="communityInput" class="form-control" placeholder="community" value="public" style="width: 80px;">
+                                        <button id="scanTopologyBtn" class="btn btn-success" onclick="doTraditionalScan()">
+                                            <i class="fas fa-search me-1"></i>SNMP扫描
+                                        </button>
+                                    </div>
+                                    <button id="refreshTopologyBtn" class="btn btn-sm btn-outline-primary" onclick="refreshTopology()">
+                                        <i class="fas fa-sync-alt me-1"></i>刷新
+                                    </button>
+                                </div>
+                                <div class="mt-2">
                                     <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-primary active" id="modeTraditional" onclick="switchTopologyMode('traditional')">
-                                            <i class="fas fa-network-wired me-1"></i>传统探测
-                                        </button>
-                                        <button type="button" class="btn btn-outline-primary" id="modeSdn" onclick="switchTopologyMode('sdn')">
-                                            <i class="fas fa-cogs me-1"></i>SDN控制器
-                                        </button>
+                                        <input type="radio" class="btn-check" name="scanMode" id="modeSingle" value="single" checked>
+                                        <label class="btn btn-outline-secondary" for="modeSingle">单层扫描</label>
+                                        <input type="radio" class="btn-check" name="scanMode" id="modeMulti" value="multi">
+                                        <label class="btn btn-outline-secondary" for="modeMulti">多层扫描</label>
+                                        <input type="radio" class="btn-check" name="scanMode" id="modeMacFallback" value="mac_fallback">
+                                        <label class="btn btn-outline-warning" for="modeMacFallback">MAC回退（创新）</label>
                                     </div>
                                 </div>
+                                <small class="text-muted mt-1 d-block">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    单层：只扫描种子邻居 | 多层：递归扫描全网 | MAC回退：LLDP失效时用MAC表推导链路
+                                </small>
                             </div>
-                            <div class="card-body">
-                                <div id="traditionalPanel" class="mb-3">
-                                    <div class="d-flex gap-2 align-items-center flex-wrap">
-                                        <div class="input-group input-group-sm" style="width: 300px;">
-                                            <input type="text" id="seedIpInput" class="form-control" placeholder="种子设备IP，如 192.168.1.1">
-                                            <input type="text" id="communityInput" class="form-control" placeholder="community" value="public" style="width: 80px;">
-                                            <button id="scanTopologyBtn" class="btn btn-success" onclick="doTraditionalScan()">
-                                                <i class="fas fa-search me-1"></i>SNMP扫描
-                                            </button>
-                                        </div>
-                                        <button id="refreshTopologyBtn" class="btn btn-sm btn-outline-primary" onclick="refreshTopology()">
-                                            <i class="fas fa-sync-alt me-1"></i>刷新
+
+                            <div id="sdnPanel" class="mb-3" style="display: none;">
+                                <div class="d-flex gap-2 align-items-center flex-wrap">
+                                    <div class="input-group input-group-sm" style="width: 300px;">
+                                        <input type="text" id="ryuIpInput" class="form-control" placeholder="Ryu控制器IP" value="127.0.0.1">
+                                        <input type="number" id="ryuPortInput" class="form-control" placeholder="端口" value="8080" style="width: 80px;">
+                                        <button class="btn btn-info" onclick="doSdnScan()">
+                                            <i class="fas fa-cogs me-1"></i>获取拓扑
                                         </button>
                                     </div>
-                                    <div class="mt-2">
-                                        <div class="btn-group btn-group-sm" role="group">
-                                            <input type="radio" class="btn-check" name="scanMode" id="modeSingle" value="single" checked>
-                                            <label class="btn btn-outline-secondary" for="modeSingle">单层扫描</label>
-                                            <input type="radio" class="btn-check" name="scanMode" id="modeMulti" value="multi">
-                                            <label class="btn btn-outline-secondary" for="modeMulti">多层扫描</label>
-                                            <input type="radio" class="btn-check" name="scanMode" id="modeMacFallback" value="mac_fallback">
-                                            <label class="btn btn-outline-warning" for="modeMacFallback">MAC回退（创新）</label>
-                                        </div>
-                                    </div>
-                                    <small class="text-muted mt-1 d-block">
-                                        <i class="fas fa-info-circle me-1"></i>
-                                        单层：只扫描种子邻居 | 多层：递归扫描全网 | MAC回退：LLDP失效时用MAC表推导链路
-                                    </small>
-                                </div>
-
-                                <div id="sdnPanel" class="mb-3" style="display: none;">
-                                    <div class="d-flex gap-2 align-items-center flex-wrap">
-                                        <div class="input-group input-group-sm" style="width: 300px;">
-                                            <input type="text" id="ryuIpInput" class="form-control" placeholder="Ryu控制器IP" value="127.0.0.1">
-                                            <input type="number" id="ryuPortInput" class="form-control" placeholder="端口" value="8080" style="width: 80px;">
-                                            <button class="btn btn-info" onclick="doSdnScan()">
-                                                <i class="fas fa-cogs me-1"></i>获取拓扑
-                                            </button>
-                                        </div>
-                                        <button class="btn btn-sm btn-outline-warning" onclick="testSdnConnection()">
-                                            <i class="fas fa-plug me-1"></i>测试连接
-                                        </button>
-                                    </div>
-                                    <small class="text-muted mt-1 d-block">
-                                        <i class="fas fa-info-circle me-1"></i>
-                                        连接Ryu控制器，获取OpenFlow网络拓扑。需要先启动Ryu。
-                                    </small>
-                                </div>
-
-                                <hr class="my-2">
-
-                                <div class="d-flex gap-2 mb-3 flex-wrap">
-                                    <button class="btn btn-sm btn-outline-info" onclick="autoLayoutTopology()">
-                                        <i class="fas fa-magic me-1"></i>自动布局
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-warning" onclick="saveTopologySnapshot()">
-                                        <i class="fas fa-camera me-1"></i>保存快照
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="exportTopologyPNG('topology')">
-                                        <i class="fas fa-download me-1"></i>导出PNG
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="exportTopologyJSON('topology')">
-                                        <i class="fas fa-file-code me-1"></i>导出JSON
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="exportTopologyCSV('device_list')">
-                                        <i class="fas fa-file-csv me-1"></i>导出CSV
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="checkDeviceAlerts()">
-                                        <i class="fas fa-bell me-1"></i>告警检测
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-success" onclick="batchBackupDevices()">
-                                        <i class="fas fa-database me-1"></i>批量备份
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-warning" id="editModeBtn" onclick="toggleEditMode()">
-                                        <i class="fas fa-edit me-1"></i>编辑模式
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-primary" id="aiPredictBtn" onclick="aiPredictTopology()">
-                                        <i class="fas fa-brain me-1"></i>AI推测拓扑
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-info" id="aiAnalyzeBtn" onclick="aiAnalyzeTopology()">
-                                        <i class="fas fa-chart-line me-1"></i>AI分析拓扑
+                                    <button class="btn btn-sm btn-outline-warning" onclick="testSdnConnection()">
+                                        <i class="fas fa-plug me-1"></i>测试连接
                                     </button>
                                 </div>
+                                <small class="text-muted mt-1 d-block">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    连接Ryu控制器，获取OpenFlow网络拓扑。需要先启动Ryu。
+                                </small>
+                            </div>
 
-                                <div id="topology-container"></div>
+                            <hr class="my-2">
 
-                                <div class="topology-legend">
-                                    <div class="legend-item">
-                                        <span class="legend-dot" style="background: #8b5cf6;"></span>
-                                        <span>路由器</span>
-                                    </div>
-                                    <div class="legend-item">
-                                        <span class="legend-dot" style="background: #3b82f6;"></span>
-                                        <span>交换机</span>
-                                    </div>
-                                    <div class="legend-item">
-                                        <span class="legend-dot" style="background: #f59e0b;"></span>
-                                        <span>防火墙</span>
-                                    </div>
-                                    <div class="legend-item">
-                                        <span class="legend-dot" style="background: #10b981;"></span>
-                                        <span>终端设备</span>
-                                    </div>
-                                    <div class="legend-item">
-                                        <span class="legend-dot" style="background: #ec4899;"></span>
-                                        <span>OpenFlow交换机</span>
-                                    </div>
+                            <div class="d-flex gap-2 mb-3 flex-wrap">
+                                <button class="btn btn-sm btn-success" onclick="loadExampleTopology()">
+                                    <i class="fas fa-project-diagram me-1"></i>加载示例拓扑
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" onclick="autoLayoutTopology()">
+                                    <i class="fas fa-magic me-1"></i>自动布局
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning" onclick="saveTopologySnapshot()">
+                                    <i class="fas fa-camera me-1"></i>保存快照
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="exportTopologyPNG('topology')">
+                                    <i class="fas fa-download me-1"></i>导出PNG
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="exportTopologyJSON('topology')">
+                                    <i class="fas fa-file-code me-1"></i>导出JSON
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="exportTopologyCSV('device_list')">
+                                    <i class="fas fa-file-csv me-1"></i>导出CSV
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="checkDeviceAlerts()">
+                                    <i class="fas fa-bell me-1"></i>告警检测
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" onclick="batchBackupDevices()">
+                                    <i class="fas fa-database me-1"></i>批量备份
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning" id="editModeBtn" onclick="toggleEditMode()">
+                                    <i class="fas fa-edit me-1"></i>编辑模式
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" id="aiPredictBtn" onclick="aiPredictTopology()">
+                                    <i class="fas fa-brain me-1"></i>AI推测拓扑
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" id="aiAnalyzeBtn" onclick="aiAnalyzeTopology()">
+                                    <i class="fas fa-chart-line me-1"></i>AI分析拓扑
+                                </button>
+                            </div>
+
+                            <div id="topology-container"></div>
+
+                            <div class="topology-legend">
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: #8b5cf6;"></span>
+                                    <span>路由器</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: #3b82f6;"></span>
+                                    <span>交换机</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: #f59e0b;"></span>
+                                    <span>防火墙</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: #10b981;"></span>
+                                    <span>终端设备</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: #ec4899;"></span>
+                                    <span>OpenFlow交换机</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 网络工具箱子模块 -->
-                    <div class="sub-tab-content" id="sub-topology-topo-tools">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <div class="card">
-                                    <div class="card-header py-2">
-                                        <i class="fas fa-bullseye me-1"></i>Ping 连通测试
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="input-group input-group-sm mb-2">
-                                            <input type="text" id="pingHost" class="form-control" placeholder="目标IP，如 8.8.8.8">
-                                            <button class="btn btn-outline-success" onclick="doPingTest()">
-                                                <i class="fas fa-play me-1"></i>Ping
-                                            </button>
+                    <!-- 网络工具箱（次要功能，折叠显示） -->
+                    <div class="collapse-panel">
+                        <div class="collapse-header" onclick="toggleCollapse(this)">
+                            <span><i class="fas fa-tools text-warning me-2"></i>网络工具箱</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="collapse-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-dark">
+                                        <div class="card-header py-2">
+                                            <i class="fas fa-bullseye me-1"></i>Ping 连通测试
                                         </div>
-                                        <div id="pingResult" class="small text-muted"></div>
+                                        <div class="card-body">
+                                            <div class="input-group input-group-sm mb-2">
+                                                <input type="text" id="pingHost" class="form-control" placeholder="目标IP，如 8.8.8.8">
+                                                <button class="btn btn-outline-success" onclick="doPingTest()">
+                                                    <i class="fas fa-play me-1"></i>Ping
+                                                </button>
+                                            </div>
+                                            <div id="pingResult" class="small text-muted"></div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <div class="card">
-                                    <div class="card-header py-2">
-                                        <i class="fas fa-door-open me-1"></i>端口扫描
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="input-group input-group-sm mb-2">
-                                            <input type="text" id="portScanHost" class="form-control" placeholder="目标IP">
-                                            <button class="btn btn-outline-info" onclick="doPortScan()">
-                                                <i class="fas fa-search me-1"></i>扫描
-                                            </button>
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-dark">
+                                        <div class="card-header py-2">
+                                            <i class="fas fa-door-open me-1"></i>端口扫描
                                         </div>
-                                        <div id="portScanResult" class="small text-muted"></div>
+                                        <div class="card-body">
+                                            <div class="input-group input-group-sm mb-2">
+                                                <input type="text" id="portScanHost" class="form-control" placeholder="目标IP">
+                                                <button class="btn btn-outline-info" onclick="doPortScan()">
+                                                    <i class="fas fa-search me-1"></i>扫描
+                                                </button>
+                                            </div>
+                                            <div id="portScanResult" class="small text-muted"></div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <div class="card">
-                                    <div class="card-header py-2">
-                                        <i class="fas fa-broadcast-tower me-1"></i>网段扫描
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="input-group input-group-sm mb-2">
-                                            <input type="text" id="subnetInput" class="form-control" placeholder="网段，如 192.168.1">
-                                            <button class="btn btn-outline-warning" onclick="doSubnetScan()">
-                                                <i class="fas fa-search me-1"></i>扫描
-                                            </button>
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-dark">
+                                        <div class="card-header py-2">
+                                            <i class="fas fa-broadcast-tower me-1"></i>网段扫描
                                         </div>
-                                        <div id="subnetResult" class="small text-muted"></div>
+                                        <div class="card-body">
+                                            <div class="input-group input-group-sm mb-2">
+                                                <input type="text" id="subnetInput" class="form-control" placeholder="网段，如 192.168.1">
+                                                <button class="btn btn-outline-warning" onclick="doSubnetScan()">
+                                                    <i class="fas fa-search me-1"></i>扫描
+                                                </button>
+                                            </div>
+                                            <div id="subnetResult" class="small text-muted"></div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <div class="card">
-                                    <div class="card-header py-2">
-                                        <i class="fas fa-route me-1"></i>Traceroute
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="input-group input-group-sm mb-2">
-                                            <input type="text" id="tracerouteHost" class="form-control" placeholder="目标IP或域名">
-                                            <button class="btn btn-outline-danger" onclick="doTraceroute()">
-                                                <i class="fas fa-play me-1"></i>追踪
-                                            </button>
+                                <div class="col-md-6 mb-3">
+                                    <div class="card bg-dark">
+                                        <div class="card-header py-2">
+                                            <i class="fas fa-route me-1"></i>Traceroute
                                         </div>
-                                        <div id="tracerouteResult" class="small text-muted"></div>
+                                        <div class="card-body">
+                                            <div class="input-group input-group-sm mb-2">
+                                                <input type="text" id="tracerouteHost" class="form-control" placeholder="目标IP或域名">
+                                                <button class="btn btn-outline-danger" onclick="doTraceroute()">
+                                                    <i class="fas fa-play me-1"></i>追踪
+                                                </button>
+                                            </div>
+                                            <div id="tracerouteResult" class="small text-muted"></div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="col-md-12 mb-3">
-                                <div class="card">
-                                    <div class="card-header py-2">
-                                        <i class="fas fa-ethernet me-1"></i>LLDP 邻居查询
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="input-group input-group-sm mb-2">
-                                            <input type="text" id="lldpHost" class="form-control" placeholder="设备IP">
-                                            <input type="text" id="lldpCommunity" class="form-control" placeholder="community" value="public" style="width: 100px;">
-                                            <button class="btn btn-outline-primary" onclick="doLldpQuery()">
-                                                <i class="fas fa-search me-1"></i>查询
-                                            </button>
+                                <div class="col-md-12 mb-3">
+                                    <div class="card bg-dark">
+                                        <div class="card-header py-2">
+                                            <i class="fas fa-ethernet me-1"></i>LLDP 邻居查询
                                         </div>
-                                        <div id="lldpResult" class="small text-muted"></div>
+                                        <div class="card-body">
+                                            <div class="input-group input-group-sm mb-2">
+                                                <input type="text" id="lldpHost" class="form-control" placeholder="设备IP">
+                                                <input type="text" id="lldpCommunity" class="form-control" placeholder="community" value="public" style="width: 100px;">
+                                                <button class="btn btn-outline-primary" onclick="doLldpQuery()">
+                                                    <i class="fas fa-search me-1"></i>查询
+                                                </button>
+                                            </div>
+                                            <div id="lldpResult" class="small text-muted"></div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1614,101 +1563,141 @@
 
                 <!-- 监控告警模块 -->
                 <div class="module-content" id="module-alert">
-                    <!-- 子模块切换标签 -->
-                    <div class="sub-tabs">
-                        <div class="sub-tab active" data-sub="monitor" onclick="switchSubTab('alert', 'monitor')">
-                            <i class="fas fa-chart-area"></i>
-                            <span>实时监控</span>
+                    <!-- 实时监控仪表盘（主要功能） -->
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-chart-area text-success me-2"></i>实时监控仪表盘</h5>
+                            <div class="d-flex gap-2">
+                                <select id="monitoringInterval" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="30">30秒</option>
+                                    <option value="60" selected>1分钟</option>
+                                    <option value="300">5分钟</option>
+                                    <option value="600">10分钟</option>
+                                </select>
+                                <button id="startMonitoringBtn" class="btn btn-sm btn-success">
+                                    <i class="fas fa-play me-1"></i>启动监控
+                                </button>
+                                <button id="stopMonitoringBtn" class="btn btn-sm btn-danger" disabled>
+                                    <i class="fas fa-stop me-1"></i>停止监控
+                                </button>
+                                <span id="monitoringStatus" class="badge bg-secondary">未启动</span>
+                            </div>
                         </div>
-                        <div class="sub-tab" data-sub="rules" onclick="switchSubTab('alert', 'rules')">
-                            <i class="fas fa-bell"></i>
-                            <span>告警规则</span>
-                        </div>
-                        <div class="sub-tab" data-sub="history" onclick="switchSubTab('alert', 'history')">
-                            <i class="fas fa-history"></i>
-                            <span>告警历史</span>
-                        </div>
-                    </div>
-
-                    <!-- 实时监控子模块 -->
-                    <div class="sub-tab-content active" id="sub-alert-monitor">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0"><i class="fas fa-chart-area text-success me-2"></i>实时监控仪表盘</h5>
-                                <div class="d-flex gap-2">
-                                    <select id="monitoringInterval" class="form-select form-select-sm" style="width: auto;">
-                                        <option value="30">30秒</option>
-                                        <option value="60" selected>1分钟</option>
-                                        <option value="300">5分钟</option>
-                                        <option value="600">10分钟</option>
-                                    </select>
-                                    <button id="startMonitoringBtn" class="btn btn-sm btn-success">
-                                        <i class="fas fa-play me-1"></i>启动监控
-                                    </button>
-                                    <button id="stopMonitoringBtn" class="btn btn-sm btn-danger" disabled>
-                                        <i class="fas fa-stop me-1"></i>停止监控
-                                    </button>
-                                    <span id="monitoringStatus" class="badge bg-secondary">未启动</span>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="card bg-primary text-white">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title">设备总数</h6>
+                                            <h2 id="monitorTotal" class="mb-0">{{ devices|length }}</h2>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-success text-white">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title">在线设备</h6>
+                                            <h2 id="monitorOnline" class="mb-0">-</h2>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-danger text-white">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title">离线设备</h6>
+                                            <h2 id="monitorOffline" class="mb-0">-</h2>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-info text-white">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title">健康率</h6>
+                                            <h2 id="monitorHealthRate" class="mb-0">-</h2>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-3">
-                                        <div class="card bg-primary text-white">
-                                            <div class="card-body text-center">
-                                                <h6 class="card-title">设备总数</h6>
-                                                <h2 id="monitorTotal" class="mb-0">{{ devices|length }}</h2>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="card bg-success text-white">
-                                            <div class="card-body text-center">
-                                                <h6 class="card-title">在线设备</h6>
-                                                <h2 id="monitorOnline" class="mb-0">-</h2>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="card bg-danger text-white">
-                                            <div class="card-body text-center">
-                                                <h6 class="card-title">离线设备</h6>
-                                                <h2 id="monitorOffline" class="mb-0">-</h2>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="card bg-info text-white">
-                                            <div class="card-body text-center">
-                                                <h6 class="card-title">健康率</h6>
-                                                <h2 id="monitorHealthRate" class="mb-0">-</h2>
-                                            </div>
-                                        </div>
-                                    </div>
+                            <div class="row mt-3">
+                                <div class="col-md-8">
+                                    <div id="monitoringChart" style="height: 300px;"></div>
                                 </div>
-                                <div class="row mt-3">
-                                    <div class="col-md-8">
-                                        <div id="monitoringChart" style="height: 300px;"></div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div id="deviceStatusChart" style="height: 300px;"></div>
-                                    </div>
+                                <div class="col-md-4">
+                                    <div id="deviceStatusChart" style="height: 300px;"></div>
                                 </div>
-                                <div class="mt-3">
-                                    <h6><i class="fas fa-clock me-2"></i>最近监控记录</h6>
-                                    <div id="monitoringLog" style="max-height: 200px; overflow-y: auto;">
-                                        <p class="text-muted">暂无监控记录</p>
-                                    </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6><i class="fas fa-clock me-2"></i>最近监控记录</h6>
+                                <div id="monitoringLog" style="max-height: 200px; overflow-y: auto;">
+                                    <p class="text-muted">暂无监控记录</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 告警规则子模块 -->
-                    <div class="sub-tab-content" id="sub-alert-rules">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0"><i class="fas fa-bell text-danger me-2"></i>告警规则配置</h5>
+                    <!-- 告警规则配置（次要功能） -->
+                    <div class="collapse-panel">
+                        <div class="collapse-header" onclick="toggleCollapse(this)">
+                            <span><i class="fas fa-bell text-danger me-2"></i>告警规则配置</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="collapse-body">
+                            <!-- 邮箱配置 -->
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <label class="form-label">
+                                        <i class="fas fa-envelope me-1"></i>接收邮箱（告警和AI报告将发送到此邮箱）
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="email" id="receiveEmail" class="form-control" placeholder="请输入您的邮箱地址">
+                                        <button class="btn btn-primary" onclick="addReceiveEmail()">
+                                            <i class="fas fa-plus me-1"></i>添加
+                                        </button>
+                                        <button class="btn btn-outline-info" onclick="testReceiveEmail()">
+                                            <i class="fas fa-paper-plane me-1"></i>测试
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        配置后可接收告警通知和AI分析报告
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- 接收邮箱列表 -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0"><i class="fas fa-list text-info me-2"></i>接收邮箱列表</h6>
+                                    <button class="btn btn-sm btn-outline-info" onclick="loadEmailList()">
+                                        <i class="fas fa-sync-alt me-1"></i>刷新
+                                    </button>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>邮箱地址</th>
+                                                <th>添加时间</th>
+                                                <th>状态</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="emailListBody">
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted">暂无接收邮箱</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <!-- 告警规则列表 -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0"><i class="fas fa-list text-info me-2"></i>告警规则列表</h6>
                                 <div class="d-flex gap-2">
                                     <button class="btn btn-sm btn-outline-primary" onclick="showAddAlertRuleModal()">
                                         <i class="fas fa-plus me-1"></i>添加规则
@@ -1718,119 +1707,64 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <!-- 邮箱配置 -->
-                                <div class="row mb-3">
-                                    <div class="col-md-8">
-                                        <label class="form-label">
-                                            <i class="fas fa-envelope me-1"></i>接收邮箱（告警和AI报告将发送到此邮箱）
-                                        </label>
-                                        <div class="input-group">
-                                            <input type="email" id="receiveEmail" class="form-control" placeholder="请输入您的邮箱地址">
-                                            <button class="btn btn-primary" onclick="addReceiveEmail()">
-                                                <i class="fas fa-plus me-1"></i>添加
-                                            </button>
-                                            <button class="btn btn-outline-info" onclick="testReceiveEmail()">
-                                                <i class="fas fa-paper-plane me-1"></i>测试
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4 d-flex align-items-end">
-                                        <small class="text-muted">
-                                            <i class="fas fa-info-circle me-1"></i>
-                                            配置后可接收告警通知和AI分析报告
-                                        </small>
-                                    </div>
-                                </div>
-
-                                <!-- 接收邮箱列表 -->
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <h6 class="mb-0"><i class="fas fa-list text-info me-2"></i>接收邮箱列表</h6>
-                                        <button class="btn btn-sm btn-outline-info" onclick="loadEmailList()">
-                                            <i class="fas fa-sync-alt me-1"></i>刷新
-                                        </button>
-                                    </div>
-                                    <div class="table-responsive">
-                                        <table class="table table-hover table-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th>邮箱地址</th>
-                                                    <th>添加时间</th>
-                                                    <th>状态</th>
-                                                    <th>操作</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="emailListBody">
-                                                <tr>
-                                                    <td colspan="4" class="text-center text-muted">暂无接收邮箱</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                <hr>
-
-                                <!-- 告警规则列表 -->
-                                <h6 class="mb-3"><i class="fas fa-list text-info me-2"></i>告警规则列表</h6>
-                                <div class="table-responsive">
-                                    <table class="table table-hover table-sm">
-                                        <thead>
-                                            <tr>
-                                                <th>规则名称</th>
-                                                <th>设备</th>
-                                                <th>指标类型</th>
-                                                <th>阈值</th>
-                                                <th>级别</th>
-                                                <th>邮件</th>
-                                                <th>状态</th>
-                                                <th>操作</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="alertRulesBody">
-                                            <tr>
-                                                <td colspan="8" class="text-center text-muted">暂无告警规则</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>规则名称</th>
+                                            <th>设备</th>
+                                            <th>指标类型</th>
+                                            <th>阈值</th>
+                                            <th>级别</th>
+                                            <th>邮件</th>
+                                            <th>状态</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="alertRulesBody">
+                                        <tr>
+                                            <td colspan="8" class="text-center text-muted">暂无告警规则</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 告警历史子模块 -->
-                    <div class="sub-tab-content" id="sub-alert-history">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0"><i class="fas fa-history text-warning me-2"></i>告警历史</h5>
+                    <!-- 告警历史（次要功能） -->
+                    <div class="collapse-panel">
+                        <div class="collapse-header" onclick="toggleCollapse(this)">
+                            <span><i class="fas fa-history text-warning me-2"></i>告警历史</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="collapse-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">告警历史记录</h6>
                                 <button class="btn btn-sm btn-outline-info" onclick="loadAlertHistory()">
                                     <i class="fas fa-sync-alt me-1"></i>刷新
                                 </button>
                             </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-hover table-sm">
-                                        <thead>
-                                            <tr>
-                                                <th>设备</th>
-                                                <th>指标</th>
-                                                <th>当前值</th>
-                                                <th>阈值</th>
-                                                <th>级别</th>
-                                                <th>消息</th>
-                                                <th>时间</th>
-                                                <th>状态</th>
-                                                <th>操作</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="alertHistoryBody">
-                                            <tr>
-                                                <td colspan="9" class="text-center text-muted">暂无告警记录</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>设备</th>
+                                            <th>指标</th>
+                                            <th>当前值</th>
+                                            <th>阈值</th>
+                                            <th>级别</th>
+                                            <th>消息</th>
+                                            <th>时间</th>
+                                            <th>状态</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="alertHistoryBody">
+                                        <tr>
+                                            <td colspan="9" class="text-center text-muted">暂无告警记录</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -1838,211 +1772,177 @@
 
                 <!-- 运维工具模块 -->
                 <div class="module-content" id="module-tools">
-                    <!-- 子模块切换标签 -->
-                    <div class="sub-tabs">
-                        <div class="sub-tab active" data-sub="terminal" onclick="switchSubTab('tools', 'terminal')">
-                            <i class="fas fa-desktop"></i>
-                            <span>Web终端</span>
+                    <!-- Web终端（主要功能） -->
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-desktop text-danger me-2"></i>Web 终端（SSH 连接）</h5>
+                            <div class="d-flex gap-2">
+                                <select id="templateVendorSelect" class="form-select form-select-sm" style="width: 130px;">
+                                    <option value="h3c">华三 H3C</option>
+                                    <option value="huawei">华为 Huawei</option>
+                                    <option value="cisco">思科 Cisco</option>
+                                    <option value="common">通用命令</option>
+                                </select>
+                                <button class="btn btn-sm btn-outline-info" onclick="loadCommandTemplates()">
+                                    <i class="fas fa-book me-1"></i>命令集
+                                </button>
+                                <button id="refreshSessionsBtn" class="btn btn-sm btn-outline-info">
+                                    <i class="fas fa-sync-alt me-1"></i>刷新会话
+                                </button>
+                            </div>
                         </div>
-                        <div class="sub-tab" data-sub="query" onclick="switchSubTab('tools', 'query')">
-                            <i class="fas fa-search-plus"></i>
-                            <span>一键查询</span>
-                        </div>
-                        <div class="sub-tab" data-sub="commands" onclick="switchSubTab('tools', 'commands')">
-                            <i class="fas fa-book"></i>
-                            <span>常用命令集</span>
-                        </div>
-                    </div>
-
-                    <!-- Web终端子模块 -->
-                    <div class="sub-tab-content active" id="sub-tools-terminal">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0"><i class="fas fa-desktop text-danger me-2"></i>Web 终端（SSH 连接）</h5>
-                                <div class="d-flex gap-2">
-                                    <button id="refreshSessionsBtn" class="btn btn-sm btn-outline-info">
-                                        <i class="fas fa-sync-alt me-1"></i>刷新会话
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">设备 IP</label>
+                                    <input type="text" id="terminalHost" class="form-control" placeholder="192.168.1.1">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">SSH 端口</label>
+                                    <input type="number" id="terminalPort" class="form-control" value="22">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">用户名</label>
+                                    <input type="text" id="terminalUsername" class="form-control" value="admin">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">密码</label>
+                                    <input type="password" id="terminalPassword" class="form-control">
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end gap-2">
+                                    <button id="terminalConnectBtn" class="btn btn-primary">
+                                        <i class="fas fa-plug me-1"></i>连接
+                                    </button>
+                                    <button id="terminalDisconnectBtn" class="btn btn-danger" disabled>
+                                        <i class="fas fa-times me-1"></i>断开
                                     </button>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-md-3">
-                                        <label class="form-label">设备 IP</label>
-                                        <input type="text" id="terminalHost" class="form-control" placeholder="192.168.1.1">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label class="form-label">SSH 端口</label>
-                                        <input type="number" id="terminalPort" class="form-control" value="22">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label class="form-label">用户名</label>
-                                        <input type="text" id="terminalUsername" class="form-control" value="admin">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label class="form-label">密码</label>
-                                        <input type="password" id="terminalPassword" class="form-control">
-                                    </div>
-                                    <div class="col-md-3 d-flex align-items-end gap-2">
-                                        <button id="terminalConnectBtn" class="btn btn-primary">
-                                            <i class="fas fa-plug me-1"></i>连接
-                                        </button>
-                                        <button id="terminalDisconnectBtn" class="btn btn-danger" disabled>
-                                            <i class="fas fa-times me-1"></i>断开
-                                        </button>
-                                    </div>
-                                </div>
 
-                                <div class="mb-3">
-                                    <label class="form-label">快速连接（从设备列表选择）</label>
-                                    <div class="d-flex gap-2 flex-wrap">
-                                        <select id="terminalDeviceSelect" class="form-select" style="width: 300px;">
-                                            <option value="">-- 选择设备快速连接 --</option>
-                                            {% for device in devices %}
-                                            <option value="{{ device.device_name }}" data-ip="{{ device.host }}" data-username="{{ device.username }}" data-password="{{ device.password }}">
-                                                {{ device.device_name }} ({{ device.host }})
-                                            </option>
-                                            {% endfor %}
-                                        </select>
-                                        <button id="terminalQuickConnectBtn" class="btn btn-outline-primary">
-                                            <i class="fas fa-bolt me-1"></i>快速连接
+                            <div class="mb-3">
+                                <label class="form-label">快速连接（从设备列表选择）</label>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <select id="terminalDeviceSelect" class="form-select" style="width: 300px;">
+                                        <option value="">-- 选择设备快速连接 --</option>
+                                        {% for device in devices %}
+                                        <option value="{{ device.device_name }}" data-ip="{{ device.host }}" data-username="{{ device.username }}" data-password="{{ device.password }}">
+                                            {{ device.device_name }} ({{ device.host }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button id="terminalQuickConnectBtn" class="btn btn-outline-primary">
+                                        <i class="fas fa-bolt me-1"></i>快速连接
+                                    </button>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0"><i class="fas fa-terminal text-success me-2"></i>终端窗口</h6>
+                                    <div class="d-flex gap-2">
+                                        <span id="terminalStatus" class="badge bg-secondary">未连接</span>
+                                        <button id="terminalClearBtn" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-eraser me-1"></i>清屏
                                         </button>
                                     </div>
                                 </div>
-
-                                <hr>
-
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <h6 class="mb-0"><i class="fas fa-terminal text-success me-2"></i>终端窗口</h6>
-                                        <div class="d-flex gap-2">
-                                            <span id="terminalStatus" class="badge bg-secondary">未连接</span>
-                                            <button id="terminalClearBtn" class="btn btn-sm btn-outline-secondary">
-                                                <i class="fas fa-eraser me-1"></i>清屏
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div id="terminalContainer" style="height: 400px; background-color: #1a1a2e; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
-                                    </div>
+                                <div id="terminalContainer" style="height: 400px; background-color: #1a1a2e; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
                                 </div>
+                            </div>
 
-                                <div class="mb-3">
-                                    <label class="form-label">命令输入（备用）</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">
-                                            <i class="fas fa-chevron-right"></i>
-                                        </span>
-                                        <input type="text" id="terminalCommandInput" class="form-control" placeholder="输入命令，按回车执行" disabled>
-                                        <button id="terminalExecuteBtn" class="btn btn-primary" disabled>
-                                            <i class="fas fa-play me-1"></i>执行
-                                        </button>
-                                    </div>
+                            <div class="mb-3">
+                                <label class="form-label">命令输入（备用）</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </span>
+                                    <input type="text" id="terminalCommandInput" class="form-control" placeholder="输入命令，按回车执行" disabled>
+                                    <button id="terminalExecuteBtn" class="btn btn-primary" disabled>
+                                        <i class="fas fa-play me-1"></i>执行
+                                    </button>
                                 </div>
+                            </div>
 
-                                <div class="mt-4">
-                                    <h6><i class="fas fa-list text-info me-2"></i>活跃会话</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-hover table-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th>会话ID</th>
-                                                    <th>设备IP</th>
-                                                    <th>状态</th>
-                                                    <th>操作</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="terminalSessionsBody">
-                                                <tr>
-                                                    <td colspan="4" class="text-center text-muted">暂无活跃会话</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
+                            <div class="mt-4">
+                                <h6><i class="fas fa-list text-info me-2"></i>活跃会话</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>会话ID</th>
+                                                <th>设备IP</th>
+                                                <th>状态</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="terminalSessionsBody">
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted">暂无活跃会话</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <h6><i class="fas fa-book text-info me-2"></i>常用命令集 <small class="text-muted">（点击复制到剪贴板）</small></h6>
+                                <div id="commandTemplatesContent">
+                                    <div class="text-center text-muted py-2">
+                                        <small>点击右上角「命令集」按钮加载</small>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 一键查询子模块 -->
-                    <div class="sub-tab-content" id="sub-tools-query">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="fas fa-search-plus text-success me-2"></i>一键查询所有设备</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">查询命令（每行一个）</label>
-                                        <textarea id="batchQueryCommands" class="form-control" rows="4" placeholder="display version&#10;display cpu-usage&#10;display memory-usage">display version
+                    <!-- 一键查询（次要功能） -->
+                    <div class="collapse-panel">
+                        <div class="collapse-header" onclick="toggleCollapse(this)">
+                            <span><i class="fas fa-search-plus text-success me-2"></i>一键查询所有设备</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="collapse-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">查询命令（每行一个）</label>
+                                    <textarea id="batchQueryCommands" class="form-control" rows="4" placeholder="display version&#10;display cpu-usage&#10;display memory-usage">display version
 display cpu-usage
 display memory-usage</textarea>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">报告发送邮箱</label>
-                                        <div class="input-group">
-                                            <select id="batchQueryEmailSelect" class="form-select" multiple style="height: 80px;">
-                                                <option value="all">-- 全选 --</option>
-                                            </select>
-                                        </div>
-                                        <small class="text-muted">按住 Ctrl 可多选，选择"全选"发送到所有邮箱</small>
-                                    </div>
-                                    <div class="col-md-3 d-flex align-items-end gap-2">
-                                        <button class="btn btn-primary flex-fill" onclick="queryAllDevices()">
-                                            <i class="fas fa-play me-1"></i>一键查询
-                                        </button>
-                                        <button class="btn btn-outline-success" id="downloadQueryBtn" onclick="downloadQueryResult()" disabled>
-                                            <i class="fas fa-download me-1"></i>下载
-                                        </button>
-                                    </div>
                                 </div>
-
-                                <div id="batchQueryResult" style="display: none;">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <h6 class="mb-0">查询结果</h6>
-                                        <span id="batchQueryStats" class="text-muted small"></span>
-                                    </div>
-                                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                                        <table class="table table-hover table-sm">
-                                            <thead class="sticky-top" style="background: var(--card-background);">
-                                                <tr>
-                                                    <th>设备</th>
-                                                    <th>IP</th>
-                                                    <th>状态</th>
-                                                    <th>操作</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="batchQueryBody">
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">发送邮箱（可选）</label>
+                                    <input type="email" id="batchQueryEmail" class="form-control" placeholder="接收报告的邮箱">
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 常用命令集子模块 -->
-                    <div class="sub-tab-content" id="sub-tools-commands">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0"><i class="fas fa-book text-info me-2"></i>常用命令集</h5>
-                                <div class="d-flex gap-2">
-                                    <select id="templateVendorSelect" class="form-select form-select-sm" style="width: 130px;">
-                                        <option value="h3c">华三 H3C</option>
-                                        <option value="huawei">华为 Huawei</option>
-                                        <option value="cisco">思科 Cisco</option>
-                                        <option value="common">通用命令</option>
-                                    </select>
-                                    <button class="btn btn-sm btn-primary" onclick="loadCommandTemplates()">
-                                        <i class="fas fa-sync-alt me-1"></i>加载命令集
+                                <div class="col-md-3 d-flex align-items-end gap-2">
+                                    <button class="btn btn-primary flex-fill" onclick="queryAllDevices()">
+                                        <i class="fas fa-play me-1"></i>一键查询
+                                    </button>
+                                    <button class="btn btn-outline-success" id="downloadQueryBtn" onclick="downloadQueryResult()" disabled>
+                                        <i class="fas fa-download me-1"></i>下载
                                     </button>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <div id="commandTemplatesContent">
-                                    <div class="text-center text-muted py-4">
-                                        <i class="fas fa-book fa-3x mb-3"></i>
-                                        <p>请选择厂商并点击「加载命令集」按钮</p>
-                                    </div>
+
+                            <div id="batchQueryResult" style="display: none;">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0">查询结果</h6>
+                                    <span id="batchQueryStats" class="text-muted small"></span>
+                                </div>
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-hover table-sm">
+                                        <thead class="sticky-top" style="background: var(--card-background);">
+                                            <tr>
+                                                <th>设备</th>
+                                                <th>IP</th>
+                                                <th>状态</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="batchQueryBody">
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -2709,8 +2609,8 @@ display memory-usage</textarea>
             </div>
         </div>
 
-        <!-- 系统健康检查卡片（系统概览 Tab） - 已移至模块内容中 -->
-        <div class="row mb-4" data-tab="overview" style="display: none;">
+        <!-- 系统健康检查卡片（系统概览 Tab） -->
+        <div class="row mb-4" data-tab="overview">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
@@ -2877,8 +2777,8 @@ display memory-usage</textarea>
             </div>
         </div>
 
-        <!-- 设备列表卡片（系统概览 Tab） - 已移至模块内容中 -->
-        <div class="card" data-tab="overview" style="display: none;">
+        <!-- 设备列表卡片（系统概览 Tab） -->
+        <div class="card" data-tab="overview">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-network-wired text-secondary me-2"></i>设备状态总览</h5>
             </div>
@@ -2976,8 +2876,8 @@ display memory-usage</textarea>
             </div>
         </div>
 
-        <!-- Web 终端卡片 - 已移至模块内容中 -->
-        <div class="card mb-4" data-tab="tools" style="display: none;">
+        <!-- Web 终端卡片 -->
+        <div class="card mb-4" data-tab="tools">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-desktop text-danger me-2"></i>Web 终端（SSH 连接）</h5>
                 <div class="d-flex gap-2">
@@ -3759,6 +3659,7 @@ display memory-usage</textarea>
             toastContainer.innerHTML = `
                 <div class="toast-header ${bgClass} text-white">
                     <strong class="me-auto">通知</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body bg-white text-dark">
                     ${message}
@@ -6197,50 +6098,9 @@ display memory-usage</textarea>
 
         let lastQueryResult = null;
 
-        // 加载邮箱列表到一键查询模块
-        function loadEmailListForQuery() {
-            fetch('/api/v1/email/list')
-                .then(r => r.json())
-                .then(data => {
-                    if (data.code === 0 && data.data) {
-                        const select = document.getElementById('batchQueryEmailSelect');
-                        if (select) {
-                            select.innerHTML = '<option value="all">-- 全选 --</option>';
-                            data.data.forEach(item => {
-                                const option = document.createElement('option');
-                                option.value = item.email;
-                                option.textContent = item.email;
-                                select.appendChild(option);
-                            });
-                        }
-                    }
-                });
-        }
-
         function queryAllDevices() {
             const commandsText = document.getElementById('batchQueryCommands').value.trim();
-            const emailSelect = document.getElementById('batchQueryEmailSelect');
-
-            // 获取选中的邮箱
-            let email = '';
-            if (emailSelect) {
-                const selectedOptions = Array.from(emailSelect.selectedOptions);
-                const isAllSelected = selectedOptions.some(opt => opt.value === 'all');
-
-                if (isAllSelected) {
-                    // 全选：获取所有邮箱（排除"全选"选项）
-                    const allEmails = Array.from(emailSelect.options)
-                        .filter(opt => opt.value !== 'all')
-                        .map(opt => opt.value);
-                    email = allEmails.join(',');
-                } else {
-                    // 多选：获取选中的邮箱
-                    email = selectedOptions
-                        .map(opt => opt.value)
-                        .filter(v => v !== 'all')
-                        .join(',');
-                }
-            }
+            const email = document.getElementById('batchQueryEmail').value.trim();
 
             if (!commandsText) {
                 alert('请输入查询命令');
@@ -6500,32 +6360,23 @@ display memory-usage</textarea>
             }
         }
 
-        // 子模块切换功能
-        function switchSubTab(moduleName, subTabName) {
-            // 隐藏当前模块的所有子模块内容
-            const moduleContent = document.getElementById(`module-${moduleName}`);
-            if (moduleContent) {
-                moduleContent.querySelectorAll('.sub-tab-content').forEach(el => {
-                    el.classList.remove('active');
-                });
-            }
+        // 折叠面板切换
+        function toggleCollapse(header) {
+            const body = header.nextElementSibling;
+            const icon = header.querySelector('.fa-chevron-down, .fa-chevron-up');
 
-            // 显示目标子模块内容
-            const targetSubContent = document.getElementById(`sub-${moduleName}-${subTabName}`);
-            if (targetSubContent) {
-                targetSubContent.classList.add('active');
-            }
-
-            // 更新子模块标签样式
-            if (moduleContent) {
-                moduleContent.querySelectorAll('.sub-tab').forEach(tab => {
-                    tab.classList.remove('active');
-                });
-            }
-
-            const activeTab = moduleContent.querySelector(`.sub-tab[data-sub="${subTabName}"]`);
-            if (activeTab) {
-                activeTab.classList.add('active');
+            if (body.classList.contains('expanded')) {
+                body.classList.remove('expanded');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                }
+            } else {
+                body.classList.add('expanded');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                }
             }
         }
 
@@ -6554,8 +6405,6 @@ display memory-usage</textarea>
             }, 500);
             // 加载邮箱列表
             loadEmailList();
-            // 加载邮箱列表到一键查询模块
-            loadEmailListForQuery();
         });
 
         // ============================================================

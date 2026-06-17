@@ -10,28 +10,20 @@ class NetworkTopology {
         this.network = null;
         this.nodes = new vis.DataSet();
         this.edges = new vis.DataSet();
+        this.editMode = false; // 编辑模式
         this.options = {
             physics: {
-                enabled: true,
-                barnesHut: {
-                    gravitationalConstant: -2000,
-                    centralGravity: 0.3,
-                    springLength: 200,
-                    springConstant: 0.04,
-                    damping: 0.09
-                },
-                stabilization: {
-                    enabled: true,
-                    iterations: 1000,
-                    updateInterval: 100
-                }
+                enabled: false // 关闭物理引擎，避免弹来弹去
             },
             interaction: {
                 hover: true,
                 tooltipDelay: 200,
                 zoomView: true,
                 dragView: true,
-                multiselect: true
+                multiselect: true,
+                dragNodes: true, // 允许拖动节点
+                navigationButtons: true,
+                keyboard: true
             },
             nodes: {
                 font: {
@@ -40,13 +32,19 @@ class NetworkTopology {
                     face: 'Inter, sans-serif'
                 },
                 borderWidth: 2,
-                shadow: true
+                shadow: true,
+                shape: 'dot',
+                size: 30
             },
             edges: {
                 width: 2,
                 shadow: true,
                 smooth: {
                     type: 'continuous'
+                },
+                color: {
+                    color: '#64748b',
+                    highlight: '#94a3b8'
                 }
             },
             ...options
@@ -75,11 +73,18 @@ class NetworkTopology {
     }
 
     bindEvents() {
-        // 双击节点 -> 触发健康检查
+        // 双击节点 -> 编辑节点文字
         this.network.on('doubleClick', (params) => {
             if (params.nodes.length > 0) {
                 const nodeId = params.nodes[0];
-                this.onNodeDoubleClick(nodeId);
+                this.editNodeLabel(nodeId);
+            }
+        });
+
+        // 双击空白处 -> 添加新节点
+        this.network.on('doubleClick', (params) => {
+            if (params.nodes.length === 0 && params.edges.length === 0) {
+                this.addNodeAtPosition(params.pointer.canvas);
             }
         });
 
@@ -92,10 +97,49 @@ class NetworkTopology {
         });
     }
 
-    onNodeDoubleClick(nodeId) {
-        // 触发健康检查（如果全局定义了的话）
-        if (typeof window.healthCheck === 'function') {
-            window.healthCheck(nodeId);
+    // 编辑节点文字
+    editNodeLabel(nodeId) {
+        const node = this.nodes.get(nodeId);
+        if (!node) return;
+
+        const newLabel = prompt('请输入节点名称:', node.label || '');
+        if (newLabel !== null && newLabel.trim() !== '') {
+            this.nodes.update({
+                id: nodeId,
+                label: newLabel.trim()
+            });
+        }
+    }
+
+    // 在指定位置添加新节点
+    addNodeAtPosition(position) {
+        const nodeName = prompt('请输入新设备名称:', '新设备');
+        if (!nodeName || nodeName.trim() === '') return;
+
+        const nodeId = 'node_' + Date.now();
+        const newNode = {
+            id: nodeId,
+            name: nodeName.trim(),
+            type: 'switch',
+            ip_address: '',
+            vendor: '',
+            status: 'online',
+            layer: '',
+            x: position.x,
+            y: position.y
+        };
+
+        this.addDeviceNode(newNode);
+        showToast('已添加设备: ' + nodeName.trim(), 'success');
+    }
+
+    // 切换编辑模式
+    toggleEditMode() {
+        this.editMode = !this.editMode;
+        if (this.editMode) {
+            showToast('编辑模式已开启：双击节点可编辑文字，双击空白可添加设备', 'info');
+        } else {
+            showToast('编辑模式已关闭', 'info');
         }
     }
 

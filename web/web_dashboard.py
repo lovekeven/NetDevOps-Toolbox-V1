@@ -52,11 +52,24 @@ from utils.models import get_global_physical_cards
 # 引入邮件发送器（类）
 from utils.email_sender import EmailSender
 
-# 引入发送邮箱的配置文件
-from config import emali_config
-
 # 引入定时发送任务的核心类
 from apscheduler.schedulers.background import BackgroundScheduler
+
+# 邮箱配置读取函数
+def load_email_config():
+    """从 email_config.json 读取邮箱配置"""
+    import json
+    config_path = os.path.join(ROOT_DIR, 'config', 'email_config.json')
+    if os.path.exists(config_path):
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+# 定时任务配置
+AUTO_SEND_WEEKDAY = 0  # 每周一发送
+AUTO_SEND_HOUR = 9     # 早上9点发送
+AUTO_SEND_MINUTE = 0   # 0分发送
+AI_REPORT_DAYS = 7     # AI报告分析天数
 
 # 引入netmiko测试连接
 from netmiko import ConnectHandler
@@ -484,13 +497,30 @@ def send_backup_email():
             )
         # 满足以上两个条件可以发送邮箱了
         data = ALL_BACKUP_REPORT_CACHE[cache_key]["report_content"]
-        email_sendor = EmailSender(**emali_config.SMTP_CONFIG)
+        email_config = load_email_config()
+        smtp_config = {
+            "smtp_server": email_config.get("smtp_server", "smtp.qq.com"),
+            "smtp_port": email_config.get("smtp_port", 587),
+            "smtp_email": email_config.get("sender_email", ""),
+            "smtp_password": email_config.get("sender_password", ""),
+            "sender_name": email_config.get("sender_name", "NetDevOps工具箱"),
+        }
+        # 获取收件人邮箱列表
+        import json
+        emails_setting = db_manager.get_setting('receive_emails', '[]')
+        email_list = json.loads(emails_setting)
+        recipient_emails = [item['email'] for item in email_list] if email_list else []
+
+        if not recipient_emails:
+            return jsonify({"code": 400, "message": "请先配置接收邮箱", "send_status": "fail"}), 400
+
+        email_sendor = EmailSender(**smtp_config)
         email_sendor.ai_report_to_email(
             ai_report=data,
-            recipient_emails=emali_config.RECIPIENT_EMAILS,
+            recipient_emails=recipient_emails,
             report_type=f"所有设备近{days}的备份情况AI报告",
         )
-        logger.info(f"全网设备近{days}天备份AI报告发送邮箱成功，收件人：{emali_config.RECIPIENT_EMAILS}")
+        logger.info(f"全网设备近{days}天备份AI报告发送邮箱成功，收件人：{recipient_emails}")
         return (
             jsonify(
                 {
@@ -498,7 +528,7 @@ def send_backup_email():
                     "message": "全网备份AI报告已成功发送至指定邮箱",
                     "send_status": "success",
                     "report_days": days,
-                    "recipient_count": len(emali_config.RECIPIENT_EMAILS),
+                    "recipient_count": len(recipient_emails),
                 }
             ),
             200,
@@ -1234,14 +1264,31 @@ def send_single_device_to_email():
                 409,  # 缓存过期应该用409 冲突
             )
         # 完成上面三个条件，才可以发送邮箱
-        email_sendor = EmailSender(**emali_config.SMTP_CONFIG)
+        email_config = load_email_config()
+        smtp_config = {
+            "smtp_server": email_config.get("smtp_server", "smtp.qq.com"),
+            "smtp_port": email_config.get("smtp_port", 587),
+            "smtp_email": email_config.get("sender_email", ""),
+            "smtp_password": email_config.get("sender_password", ""),
+            "sender_name": email_config.get("sender_name", "NetDevOps工具箱"),
+        }
+        # 获取收件人邮箱列表
+        import json
+        emails_setting = db_manager.get_setting('receive_emails', '[]')
+        email_list = json.loads(emails_setting)
+        recipient_emails = [item['email'] for item in email_list] if email_list else []
+
+        if not recipient_emails:
+            return jsonify({"code": 400, "message": "请先配置接收邮箱", "send_status": "fail"}), 400
+
+        email_sendor = EmailSender(**smtp_config)
         logger.info(f"与邮箱服务器建立连接成功")
         email_sendor.ai_report_to_email(
             ai_report=data["report_content"],
-            recipient_emails=emali_config.RECIPIENT_EMAILS,
+            recipient_emails=recipient_emails,
             report_type=f"设备{device_name},近{days}的健康检查历史AI报告",
         )
-        logger.info(f"设备{device_name}近{days}天健康AI报告发送邮箱成功，收件人：{emali_config.RECIPIENT_EMAILS}")
+        logger.info(f"设备{device_name}近{days}天健康AI报告发送邮箱成功，收件人：{recipient_emails}")
         return (
             jsonify(
                 {
@@ -1250,7 +1297,7 @@ def send_single_device_to_email():
                     "send_status": "success",
                     "devices": device_name,
                     "report_days": days,
-                    "recipient_count": len(emali_config.RECIPIENT_EMAILS),
+                    "recipient_count": len(recipient_emails),
                 }
             ),
             200,
@@ -1365,14 +1412,32 @@ def ai_health_weekly_report_send_email():
         # 符合以上条件，取出报告内容，发送到邮箱
         all_device_health_report = data["report_content"]
         logger.info("已经成功获取到所有设备的健康检查状态，即将发送到邮箱！")
-        email_sendor = EmailSender(**emali_config.SMTP_CONFIG)  # 建立好与邮箱服务器的通道
+
+        email_config = load_email_config()
+        smtp_config = {
+            "smtp_server": email_config.get("smtp_server", "smtp.qq.com"),
+            "smtp_port": email_config.get("smtp_port", 587),
+            "smtp_email": email_config.get("sender_email", ""),
+            "smtp_password": email_config.get("sender_password", ""),
+            "sender_name": email_config.get("sender_name", "NetDevOps工具箱"),
+        }
+        # 获取收件人邮箱列表
+        import json
+        emails_setting = db_manager.get_setting('receive_emails', '[]')
+        email_list = json.loads(emails_setting)
+        recipient_emails = [item['email'] for item in email_list] if email_list else []
+
+        if not recipient_emails:
+            return jsonify({"code": 400, "message": "请先配置接收邮箱", "send_status": "fail"}), 400
+
+        email_sendor = EmailSender(**smtp_config)
         # 发送邮件！
         email_sendor.ai_report_to_email(
             ai_report=all_device_health_report,
-            recipient_emails=emali_config.RECIPIENT_EMAILS,
+            recipient_emails=recipient_emails,
             report_type=f"所有设备近{days}天的健康状态历史分析",
         )
-        logger.info(f"全网设备近{days}天健康AI报告发送邮箱成功，收件人：{emali_config.RECIPIENT_EMAILS}")
+        logger.info(f"全网设备近{days}天健康AI报告发送邮箱成功，收件人：{recipient_emails}")
         return (
             jsonify(
                 {
@@ -1380,7 +1445,7 @@ def ai_health_weekly_report_send_email():
                     "message": "全网健康AI报告已成功发送至指定邮箱",
                     "send_status": "success",
                     "report_days": days,
-                    "recipient_count": len(emali_config.RECIPIENT_EMAILS),
+                    "recipient_count": len(recipient_emails),
                 }
             ),
             200,
@@ -1404,29 +1469,29 @@ def init_scheduler():
         scheduler.add_job(
             func=auto_send_backup_report,  # func必须传函数名（不加括号），调度器会在指定时间自动调用这个函数
             trigger="cron",
-            day_of_week=emali_config.AUTO_SEND_WEEKDAY,
-            hour=emali_config.AUTO_SEND_HOUR,
-            minute=emali_config.AUTO_SEND_MINUTE,
-            args=[emali_config.AI_REPORT_DAYS],  # 不能直接赋值”，而是 APScheduler 的add_job函数把args设计成列表参数
+            day_of_week=AUTO_SEND_WEEKDAY,
+            hour=AUTO_SEND_HOUR,
+            minute=AUTO_SEND_MINUTE,
+            args=[AI_REPORT_DAYS],  # 不能直接赋值”，而是 APScheduler 的add_job函数把args设计成列表参数
             id="auto_send_backup_reportmonday9am",
             replace_existing=True,
         )
         logger.info(
-            f"【定时任务】添加备份报告任务成功（每周{emali_config.AUTO_SEND_WEEKDAY} {emali_config.AUTO_SEND_HOUR}:{emali_config.AUTO_SEND_MINUTE}）"
+            f"【定时任务】添加备份报告任务成功（每周{AUTO_SEND_WEEKDAY} {AUTO_SEND_HOUR}:{AUTO_SEND_MINUTE}）"
         )
 
         scheduler.add_job(
             func=auto_send_all_health_report,  # func必须传函数名（不加括号），调度器会在指定时间自动调用这个函数
             trigger="cron",
-            day_of_week=emali_config.AUTO_SEND_WEEKDAY,
-            hour=emali_config.AUTO_SEND_HOUR,
-            minute=emali_config.AUTO_SEND_MINUTE,
-            args=[emali_config.AI_REPORT_DAYS],  # 不能直接赋值”，而是 APScheduler 的add_job函数把args设计成列表参数
+            day_of_week=AUTO_SEND_WEEKDAY,
+            hour=AUTO_SEND_HOUR,
+            minute=AUTO_SEND_MINUTE,
+            args=[AI_REPORT_DAYS],  # 不能直接赋值”，而是 APScheduler 的add_job函数把args设计成列表参数
             id="auto_send_all_health_reportmonday9am",
             replace_existing=True,
         )
         logger.info(
-            f"【定时任务】添加健康报告任务成功（每周{emali_config.AUTO_SEND_WEEKDAY} {emali_config.AUTO_SEND_HOUR}:{emali_config.AUTO_SEND_MINUTE}）"
+            f"【定时任务】添加健康报告任务成功（每周{AUTO_SEND_WEEKDAY} {AUTO_SEND_HOUR}:{AUTO_SEND_MINUTE}）"
         )
         scheduler.start()
         # 返回实例 → 把这个“有任务、已启动”的实例交出去
@@ -2731,6 +2796,91 @@ def update_user_settings():
         return jsonify({"code": 0, "msg": "配置更新成功", "data": None})
     except Exception as e:
         logger.error(f"更新用户配置失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# ============================================================
+# 接收邮箱管理 API
+# ============================================================
+
+# 获取邮箱列表
+@app.route("/api/v1/email/list", methods=["GET"])
+def get_email_list():
+    """获取接收邮箱列表"""
+    try:
+        import json
+        # 从数据库获取邮箱列表
+        emails_setting = db_manager.get_setting('receive_emails', '[]')
+        email_list = json.loads(emails_setting)
+        return jsonify({"code": 0, "msg": "success", "data": email_list})
+    except Exception as e:
+        logger.error(f"获取邮箱列表失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": []}), 500
+
+
+# 添加接收邮箱
+@app.route("/api/v1/email/add", methods=["POST"])
+def add_email():
+    """添加接收邮箱"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip()
+        if not email:
+            return jsonify({"code": 1, "msg": "邮箱地址不能为空", "data": None}), 400
+
+        import json
+        import re
+        from datetime import datetime
+
+        # 验证邮箱格式
+        email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not re.match(email_regex, email):
+            return jsonify({"code": 1, "msg": "邮箱格式不正确", "data": None}), 400
+
+        # 获取现有邮箱列表
+        emails_setting = db_manager.get_setting('receive_emails', '[]')
+        email_list = json.loads(emails_setting)
+
+        # 检查是否已存在
+        for item in email_list:
+            if item['email'] == email:
+                return jsonify({"code": 1, "msg": "该邮箱已存在", "data": None}), 400
+
+        # 添加新邮箱
+        email_list.append({
+            'email': email,
+            'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+
+        # 保存到数据库
+        db_manager.set_setting('receive_emails', json.dumps(email_list))
+
+        return jsonify({"code": 0, "msg": "邮箱添加成功", "data": None})
+    except Exception as e:
+        logger.error(f"添加邮箱失败：{e}")
+        return jsonify({"code": 1, "msg": str(e), "data": None}), 500
+
+
+# 删除接收邮箱
+@app.route("/api/v1/email/delete/<int:email_id>", methods=["DELETE"])
+def delete_email(email_id):
+    """删除接收邮箱"""
+    try:
+        import json
+
+        # 获取现有邮箱列表
+        emails_setting = db_manager.get_setting('receive_emails', '[]')
+        email_list = json.loads(emails_setting)
+
+        # 删除指定邮箱
+        if 0 <= email_id < len(email_list):
+            deleted_email = email_list.pop(email_id)
+            db_manager.set_setting('receive_emails', json.dumps(email_list))
+            return jsonify({"code": 0, "msg": f"邮箱 {deleted_email['email']} 已删除", "data": None})
+        else:
+            return jsonify({"code": 1, "msg": "邮箱不存在", "data": None}), 404
+    except Exception as e:
+        logger.error(f"删除邮箱失败：{e}")
         return jsonify({"code": 1, "msg": str(e), "data": None}), 500
 
 
