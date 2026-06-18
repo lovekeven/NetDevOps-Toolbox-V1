@@ -1426,19 +1426,9 @@
                                             <i class="fas fa-sync-alt me-1"></i>刷新
                                         </button>
                                     </div>
-                                    <div class="mt-2">
-                                        <div class="btn-group btn-group-sm" role="group">
-                                            <input type="radio" class="btn-check" name="scanMode" id="modeSingle" value="single" checked>
-                                            <label class="btn btn-outline-secondary" for="modeSingle">单层扫描</label>
-                                            <input type="radio" class="btn-check" name="scanMode" id="modeMulti" value="multi">
-                                            <label class="btn btn-outline-secondary" for="modeMulti">多层扫描</label>
-                                            <input type="radio" class="btn-check" name="scanMode" id="modeMacFallback" value="mac_fallback">
-                                            <label class="btn btn-outline-warning" for="modeMacFallback">MAC回退（创新）</label>
-                                        </div>
-                                    </div>
                                     <small class="text-muted mt-1 d-block">
                                         <i class="fas fa-info-circle me-1"></i>
-                                        单层：只扫描种子邻居 | 多层：递归扫描全网 | MAC回退：LLDP失效时用MAC表推导链路
+                                        通过 SNMP/LLDP 协议自动发现网络设备及其连接关系
                                     </small>
                                 </div>
 
@@ -2154,20 +2144,9 @@ display memory-usage</textarea>
                             <i class="fas fa-sync-alt me-1"></i>刷新
                         </button>
                     </div>
-                    <!-- 扫描模式选择 -->
-                    <div class="mt-2">
-                        <div class="btn-group btn-group-sm" role="group">
-                            <input type="radio" class="btn-check" name="scanMode" id="modeSingle" value="single" checked>
-                            <label class="btn btn-outline-secondary" for="modeSingle">单层扫描</label>
-                            <input type="radio" class="btn-check" name="scanMode" id="modeMulti" value="multi">
-                            <label class="btn btn-outline-secondary" for="modeMulti">多层扫描</label>
-                            <input type="radio" class="btn-check" name="scanMode" id="modeMacFallback" value="mac_fallback">
-                            <label class="btn btn-outline-warning" for="modeMacFallback">MAC回退（创新）</label>
-                        </div>
-                    </div>
                     <small class="text-muted mt-1 d-block">
                         <i class="fas fa-info-circle me-1"></i>
-                        单层：只扫描种子邻居 | 多层：递归扫描全网 | MAC回退：LLDP失效时用MAC表推导链路
+                        通过 SNMP/LLDP 协议自动发现网络设备及其连接关系
                     </small>
                 </div>
 
@@ -6630,21 +6609,17 @@ display memory-usage</textarea>
         function doTraditionalScan() {
             const seedIp = document.getElementById('seedIpInput').value.trim();
             const community = document.getElementById('communityInput').value.trim() || 'public';
-            const scanMode = document.querySelector('input[name="scanMode"]:checked')?.value || 'single';
             if (!seedIp) { alert('请输入种子设备IP'); return; }
 
-            // 显示扫描模式提示
-            const modeNames = {'single': '单层', 'multi': '多层', 'mac_fallback': 'MAC回退'};
-            showToast(`正在${modeNames[scanMode]}扫描 ${seedIp}...`, 'info');
+            showToast(`正在扫描 ${seedIp}...`, 'info');
 
-            // 调用后端 API，传入扫描模式
+            // 调用后端 API
             fetch('/api/v1/topology/scan', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     seed_ip: seedIp,
                     community: community,
-                    scan_mode: scanMode,
                     max_depth: 3,
                     snmp_version: 'v2c'
                 })
